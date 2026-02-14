@@ -8,3 +8,5 @@ pytest-xdist
 black
 flake8
 faker
+
+pylint
