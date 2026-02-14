@@ -10,8 +10,6 @@ from functions.loader import load_yaml_config
 from functions.loader import setup_fiwa, get_abs_path
 from components.header import FiwaHeader
 
-import logging
-
 class MyApp(App):
     """A Textual app for FiWa financial tracking."""
 
