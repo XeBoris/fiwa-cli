@@ -1,0 +1,4 @@
+textual
+textual[syntax]
+textual-dev
+httpx

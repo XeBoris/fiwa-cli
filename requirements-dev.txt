@@ -1,0 +1,10 @@
+textual[syntax]
+textual-dev
+pytest
+pytest-cov
+pytest-mock
+pytest-asyncio
+pytest-xdist
+black
+flake8
+faker

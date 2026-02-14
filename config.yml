@@ -1,0 +1,13 @@
+api_base_url: "http://127.0.0.1:8082"
+bearer_token: "YOUR_BEARER_TOKEN"
+user: "john.doe@example.com"
+project: "Household Budget"
+
+configuration:
+  host: "terminal"
+  model: local
+  path: local
+
+
+development:
+  stage: dev #dev, test, prod

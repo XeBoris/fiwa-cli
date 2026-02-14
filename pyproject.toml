@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fiwa-cli"
+version = "0.1.0"
+description = "Financial Workflow Application CLI"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Boris Bauermeister", email = "your.email@example.com"}
+]
+keywords = ["finance", "workflow", "cli", "textual"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+# Core dependencies (always installed)
+dependencies = [
+    "textual",
+    "httpx",
+]
+
+[project.optional-dependencies]
+# Development dependencies (installed with: pip install fiwa-cli[dev])
+dev = [
+    "textual[syntax]",
+    "textual-dev",
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+    "faker",
+]
+
+# Syntax highlighting only (installed with: pip install fiwa-cli[syntax])
+syntax = [
+    "textual[syntax]",
+]
+
+[project.scripts]
+fiwa = "fiwa_cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/Boris-Bauermeister/fiwa-cli"
+Repository = "https://github.com/Boris-Bauermeister/fiwa-cli"
