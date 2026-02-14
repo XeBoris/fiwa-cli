@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import os
 import yaml
+import time
 
 def get_abs_path():
     """
@@ -162,6 +163,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         r = dbh.op_get_user_sessions()
         print(r)
 
+        time.sleep(0.5)
         # Store in config for later use
         config["data_directory"] = os_home_dir
         config["dbh"] = dbh

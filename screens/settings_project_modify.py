@@ -1,10 +1,8 @@
 # settings_project_modify.py
 from textual.widgets import Static, Button, Input, TextArea
-from textual.containers import Vertical, Grid, Horizontal
+from textual.containers import Vertical, Horizontal, Grid
 from textual.app import ComposeResult
 from textual.message import Message
-from datetime import datetime
-import hashlib
 import json
 
 class ModifyProjectForm(Vertical):
@@ -13,16 +11,17 @@ class ModifyProjectForm(Vertical):
     DEFAULT_CSS = """
     ModifyProjectForm {
         width: 100%;
-        height: 100%;
-        overflow-y: auto;
+        height: auto;
+        padding: 0;
     }
 
     ModifyProjectForm .form-title {
         text-style: bold;
         text-align: center;
-        padding: 0 0 1 0;
+        padding: 0 0;
         background: $accent;
         color: $text;
+        margin: 0 0 0 0;
     }
 
     ModifyProjectForm .current-project-header {
@@ -40,43 +39,55 @@ class ModifyProjectForm(Vertical):
     }
 
     ModifyProjectForm Input {
-        margin: 0 0 1 0;
+        margin: 0 0 2 0;
     }
 
     ModifyProjectForm TextArea {
-        height: 5;
-        margin: 0 0 1 0;
-    }
-
-    ModifyProjectForm Button {
-        min-width: 20;
         height: 3;
-        margin: 0 1;
+        margin: 0 0 2 0;
+    }
+    
+    ModifyProjectForm #project-currency-grid {
+        grid-size: 2 2;
+        grid-columns: 1fr 1fr;
+        grid-gutter: 0;
+        width: 100%;
+        height: 10;
+    }
+    ModifyProjectForm #project-currency-grid Static {
+        padding: 0 0 0 0;
+    }
+    ModifyProjectForm #project-currency-grid Input {
+        padding: 0;
+        width: 100%;
     }
     
     ModifyProjectForm #project-buttons {
-        height: 5;
-        margin-top: 2;
+        grid-size: 2 1;
+        grid-columns: 1fr 1fr;
+        grid-gutter: 1;
+        height: 10;
+        margin-top: 0;
         width: 100%;
-        align: center middle;
-        layout: horizontal;
     }
-    
+
     ModifyProjectForm #project-update-button {
-        background: blue;
+        align: center middle;
+        background: green;
         color: white;
-        width: 20;
+        width: 100%;
         height: 3;
     }
 
     ModifyProjectForm #project-update-button:hover {
-        background: darkblue;
+        background: darkgreen;
     }
-    
+
     ModifyProjectForm #project-cancel-button {
+        align: center middle;
         background: red;
         color: white;
-        width: 20;
+        width: 100%;
         height: 3;
     }
 
@@ -96,12 +107,19 @@ class ModifyProjectForm(Vertical):
         project_id = self.app.app_state.get("project_id", 0)
         user_id = self.app.app_state.get("user_id", -1)
 
+        self.app.log(f"ModifyProjectForm.compose() called: project_id={project_id}, user_id={user_id}")
+
         # Get project details from database
         project_info = None
         if project_id and user_id > 0:
             dbh = self.app._config["dbh"]
             all_projects = dbh.op_project_get_info(user_id)
+            self.app.log(f"Retrieved {len(all_projects)} projects for user {user_id}")
             project_info = next((p for p in all_projects if p["project_id"] == project_id), None)
+            if project_info:
+                self.app.log(f"Found project: {project_info.get('project_name', 'Unknown')}")
+            else:
+                self.app.log(f"No project found with id {project_id}")
 
         yield Static("Modify Project", classes="form-title")
 
@@ -129,38 +147,40 @@ class ModifyProjectForm(Vertical):
                 else:
                     currency_list_parsed = currency_list_raw
                 current_currency_list = ", ".join(currency_list_parsed) if currency_list_parsed else ""
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                self.app.log(f"Error parsing currency_list: {e}")
                 current_currency_list = ""
 
         yield Static("Project Name *", classes="form-label")
         yield Input(
             placeholder="Enter project name",
             id="project-name",
+            max_length=24,
             value=project_info.get("project_name", "") if project_info else ""
         )
 
-        yield Static("Description", classes="form-label")
+        yield Static("Description (128 characters)", classes="form-label")
         yield TextArea(
             id="project-description",
-            text=current_description
+            text=current_description,
         )
 
-        yield Static("Main Currency (3-letter code) *", classes="form-label")
-        yield Input(
-            placeholder="e.g., USD, EUR, GBP",
-            id="currency-main",
-            max_length=3,
-            value=current_currency_main
-        )
+        with Grid(id="project-currency-grid"):
+            yield Static("Main Currency (3-letter code) *", classes="form-label")
+            yield Static("Additional Currencies (comma-separated)", classes="form-label")
+            yield Input(
+                placeholder="e.g., USD, EUR, GBP",
+                id="currency-main",
+                max_length=3,
+                value=current_currency_main
+            )
+            yield Input(
+                placeholder="e.g., USD,EUR,JPY",
+                id="currency-list",
+                value=current_currency_list
+            )
 
-        yield Static("Additional Currencies (comma-separated)", classes="form-label")
-        yield Input(
-            placeholder="e.g., USD,EUR,JPY",
-            id="currency-list",
-            value=current_currency_list
-        )
-
-        with Horizontal(id="project-buttons"):
+        with Grid(id="project-buttons"):
             yield Button("Update", id="project-update-button")
             yield Button("Cancel", id="project-cancel-button")
 

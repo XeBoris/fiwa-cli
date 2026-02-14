@@ -39,6 +39,7 @@ class SettingsScreen(ReactiveScreen):
         background: $panel;
         border-right: solid $accent;
         padding: 1;
+        scrollbar-size: 4 1;
     }
     
     SettingsScreen .menu-section {
@@ -47,18 +48,21 @@ class SettingsScreen(ReactiveScreen):
         color: $accent;
     }
 
-    SettingsScreen #settings-sidebar Button {
+    SettingsScreen #settings-sidebar > ScrollableContainer > Button {
         width: 100%;
         height: 3;
         margin: 0 0 1 0;
         padding: 0 1;
         border: solid $accent;
     }
-
+    
+    # This element controls the right content area where forms and messages are displayed
+    # In paricular the size and the scrollbar!!!
     SettingsScreen #settings-content-area {
         width: 1fr;
-        height: auto;
-        padding: 2;
+        height: 100%;
+        padding: 0;
+        scrollbar-size: 3 1;
     }    
     
     SettingsScreen #settings-title {
