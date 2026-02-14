@@ -106,6 +106,10 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         dbh.set_path(sqlite_path)
         dbh.initialize_database(schema_path=os.path.join(abs_path, "database", "schema.sql"))
 
+        # write config dictionary to a yaml file in the data directory for later use
+        config_path = os.path.join(os_home_dir, "config.yml")
+        with open(config_path, "w", encoding="utf-8") as handle:
+            yaml.safe_dump(config, handle)
 
         # Store in config for later use
         config["data_directory"] = os_home_dir
