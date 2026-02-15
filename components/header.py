@@ -2,6 +2,7 @@
 from typing import List
 
 from textual.widgets import Static, Button
+from textual.containers import Horizontal
 from textual.app import ComposeResult
 
 from components.time_display import TimeDisplay
@@ -36,17 +37,26 @@ class FiwaHeader(Static):
     FiwaHeader #header-menu-button:hover {
         background: $accent-lighten-1;
     }
-
+    
+    FiwaHeader #calendar-button {
+        margin-left: 10;
+        background: $accent-darken-1;
+        border: none;
+    }
+    FiwaHeader #calendar-button:hover {
+        background: $accent-lighten-1;
+    }
+    
     FiwaHeader #user-info {
-        padding: 0 0 0 0;
+        padding: 0 0 0 2;
         margin-left: 0;
         text-align: left;
     }
 
     FiwaHeader #time-display {
         padding: 0 0 0 0;
-        margin-left: 10;
-        text-align: left;
+        margin-left: 0;
+        text-align: right;
     }
     """
     user = reactive("Guest")
@@ -83,7 +93,9 @@ class FiwaHeader(Static):
 
     def compose(self) -> ComposeResult:
         yield Static("FiWa", id="fiwa-title")
-        yield Button("☰ Menu", id="header-menu-button")
+        with Horizontal():
+            yield Button("☰ Menu", id="header-menu-button")
+            yield Button("Calendar", id="calendar-button")
 
         # Find the project name by matching project_id with project_ids
         project_name = "(none)"
@@ -94,7 +106,7 @@ class FiwaHeader(Static):
         elif len(self.projects) > 0:
             project_name = self.projects[0]
 
-        yield Static(f"User: {self.user} | Project: {project_name}", id="user-info")
+        # yield Static(f"User: {self.user} | Project: {project_name}", id="user-info")
 
         yield TimeDisplay()
 
@@ -102,3 +114,14 @@ class FiwaHeader(Static):
         if event.button.id == "header-menu-button":
             from screens.menu import MenuScreen
             self.app.push_screen(MenuScreen())
+        elif event.button.id == "calendar-button":
+            from components.calendar_display import CalendarWidget
+            self.app.push_screen(CalendarWidget(), callback=self._handle_date_selected)
+
+    def _handle_date_selected(self, selected_date) -> None:
+        """Handle the date selected from the calendar."""
+        if selected_date:
+            self.app.notify(f"Selected date: {selected_date.strftime('%Y-%m-%d')}", severity="information")
+            # You can do more with the selected date here
+            # For example, store it in app_state or trigger other actions
+            # self.app.app_state["selected_date"] = selected_date.strftime('%Y-%m-%d')

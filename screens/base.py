@@ -232,16 +232,8 @@ class LoginScreen(ModalScreen):
         2. Invalidate bearer and refresh tokens
         3. Clear stored credentials
         4. Update application state
+        5. Return to main screen (fallback)
         """
-        # TODO: Implement backend API call for logout
-        # Steps to implement later:
-        # 1. Retrieve bearer token from config/store
-        # 2. Call /api/v1/logout/bearer endpoint with Authorization header
-        # 3. Remove bearer and refresh tokens from storage
-        # 4. Clear user session data
-        # 5. Update application state to logged-out
-        # 6. Dismiss modal and redirect to login or home screen
-
         k = self.app._config["dbh"]
         verify = k.op_user_logout(session_uuid=self.app.app_state["session_uuid"])
         if verify:
@@ -257,7 +249,22 @@ class LoginScreen(ModalScreen):
                 "project_id": 0,
             }
             self.notify(f"Logout of User {self._username} successful!", severity="success")
+
+            # Dismiss this modal first
             self.dismiss(result={"success": True, "action": "logout"})
+
+            # Pop all screens to return to main screen (fallback)
+            # Use call_after_refresh to ensure state is updated first
+            self.app.call_after_refresh(self._return_to_main_screen)
         else:
             self.notify("Logout failed. Please try again.", severity="error")
+
+    def _return_to_main_screen(self) -> None:
+        """Pop all screens to return to the main screen."""
+        try:
+            # Pop all screens except the main screen
+            while len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
+        except Exception as e:
+            self.app.log(f"Error returning to main screen: {e}")
 
