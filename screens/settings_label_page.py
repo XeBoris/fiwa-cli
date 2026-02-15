@@ -1,109 +1,209 @@
 # settings_label_page.py
 from textual.widgets import Static, Button, Input, DataTable
-from textual.containers import Vertical, Horizontal, Container
+from textual.containers import Vertical, Horizontal, Container, Grid
 from textual.app import ComposeResult
 from textual.message import Message
 from textual.screen import ModalScreen
 from datetime import datetime
 
-class StatusSelectorModal(ModalScreen):
-    """Modal screen for selecting label status."""
+class LabelEditorModal(ModalScreen):
+    """Modal screen for editing label name, description, and status."""
+
+    BINDINGS = [
+        ("escape", "dismiss_modal", "Close"),
+    ]
 
     DEFAULT_CSS = """
-    StatusSelectorModal {
+    LabelEditorModal {
         align: center middle;
     }
     
-    StatusSelectorModal > Vertical {
-        width: 50;
+    LabelEditorModal > Vertical {
+        width: 60;
         height: auto;
         background: $surface;
         border: solid $accent;
         padding: 2;
     }
     
-    StatusSelectorModal .modal-title {
+    LabelEditorModal .modal-title {
         text-style: bold;
         text-align: center;
         padding: 0 0 2 0;
         color: $accent;
     }
     
-    StatusSelectorModal .current-status {
-        text-align: center;
-        padding: 1 0;
-        margin: 0 0 2 0;
-        background: $panel;
+    LabelEditorModal .form-label {
+        text-style: bold;
+        padding: 1 0 0 0;
     }
     
-    StatusSelectorModal Button {
+    LabelEditorModal Input {
         width: 100%;
-        height: 3;
+        margin: 0 0 1 0;
+    }
+    
+    LabelEditorModal .status-section {
+        padding: 1 0;
         margin: 1 0;
     }
     
-    StatusSelectorModal #status-active {
+    LabelEditorModal .status-buttons {
+        grid-size: 3 1;
+        grid-gutter: 1;
+        height: 9;
+        width: 100%;
+        margin: 1 0;
+    }
+    
+    LabelEditorModal .status-button {
+        width: 100%;
+        height: 3;
+    }
+    
+    LabelEditorModal #status-active {
         background: green;
         color: white;
     }
     
-    StatusSelectorModal #status-active:hover {
+    LabelEditorModal #status-active:hover {
         background: darkgreen;
     }
     
-    StatusSelectorModal #status-deactivated {
+    LabelEditorModal #status-deactivated {
         background: orange;
         color: white;
     }
     
-    StatusSelectorModal #status-deactivated:hover {
+    LabelEditorModal #status-deactivated:hover {
         background: darkorange;
     }
     
-    StatusSelectorModal #status-deleted {
+    LabelEditorModal #status-deleted {
         background: red;
         color: white;
     }
     
-    StatusSelectorModal #status-deleted:hover {
+    LabelEditorModal #status-deleted:hover {
         background: darkred;
     }
     
-    StatusSelectorModal #status-cancel {
+    LabelEditorModal .status-button-selected {
+        border: round white;
+    }
+    
+    LabelEditorModal .action-buttons {
+        grid-size: 2 1;
+        grid-gutter: 1;
+        height: 9;
+        width: 100%;
+        margin-top: 2;
+    }
+    
+    LabelEditorModal #save-button {
+        background: green;
+        color: white;
+        width: 100%;
+        height: 3;
+    }
+    
+    LabelEditorModal #save-button:hover {
+        background: darkgreen;
+    }
+    
+    LabelEditorModal #cancel-button {
         background: $panel;
         border: solid $accent;
+        width: 100%;
+        height: 3;
+    }
+    
+    LabelEditorModal #cancel-button:hover {
+        background: darkred;
     }
     """
 
-    def __init__(self, label_name: str, current_status: int, *args, **kwargs):
+    def __init__(self, label_id: int, label_name: str, label_description: str, current_status: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.label_id = label_id
         self.label_name = label_name
+        self.label_description = label_description
         self.current_status = current_status
+        self.selected_status = current_status
 
     def compose(self) -> ComposeResult:
-        status_text = {0: "Mark for Deletion", 1: "Deactivated", 2: "Active"}
-        current = status_text.get(self.current_status, "Unknown")
-
         with Vertical():
-            yield Static("Change Label Status", classes="modal-title")
-            yield Static(f"Label: {self.label_name}", classes="current-status")
-            yield Static(f"Current Status: {current}", classes="current-status")
+            yield Static("Edit Label", classes="modal-title")
 
-            yield Button("✓ Active", id="status-active")
-            yield Button("◐ Deactivated", id="status-deactivated")
-            yield Button("✗ Mark for Deletion", id="status-deleted")
-            yield Button("Cancel", id="status-cancel")
+            yield Static("Label Name *", classes="form-label")
+            yield Input(value=self.label_name, id="label-name-input", placeholder="Enter label name")
+
+            yield Static("Description", classes="form-label")
+            yield Input(value=self.label_description, id="label-description-input", placeholder="Enter description")
+
+            yield Static("Status *", classes="form-label")
+            with Grid(classes="status-buttons"):
+                active_classes = "status-button status-button-selected" if self.current_status == 2 else "status-button"
+                deactivated_classes = "status-button status-button-selected" if self.current_status == 1 else "status-button"
+                deleted_classes = "status-button status-button-selected" if self.current_status == 0 else "status-button"
+
+                yield Button("✓ Active", id="status-active", classes=active_classes, flat=True)
+                yield Button("◐ Deactivated", id="status-deactivated", classes=deactivated_classes, flat=True)
+                yield Button("✗ Deleted", id="status-deleted", classes=deleted_classes, flat=True)
+
+            with Grid(classes="action-buttons"):
+                yield Button("Save", id="save-button", flat=True)
+                yield Button("Cancel", id="cancel-button", flat=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press and return the selected status."""
+        """Handle button press."""
         if event.button.id == "status-active":
-            self.dismiss(2)  # Active
+            self._select_status(2)
         elif event.button.id == "status-deactivated":
-            self.dismiss(1)  # Deactivated
+            self._select_status(1)
         elif event.button.id == "status-deleted":
-            self.dismiss(0)  # Mark for Deletion
-        elif event.button.id == "status-cancel":
-            self.dismiss(None)  # No change
+            self._select_status(0)
+        elif event.button.id == "save-button":
+            self._save_changes()
+        elif event.button.id == "cancel-button":
+            self.dismiss(None)
+
+    def action_dismiss_modal(self) -> None:
+        """Action called when ESC is pressed - dismiss modal without saving."""
+        self.dismiss(None)
+
+    def _select_status(self, status: int) -> None:
+        """Update selected status and button styling."""
+        self.selected_status = status
+
+        # Update button styling
+        for status_id, status_value in [("status-active", 2), ("status-deactivated", 1), ("status-deleted", 0)]:
+            try:
+                button = self.query_one(f"#{status_id}", Button)
+                if status_value == status:
+                    button.add_class("status-button-selected")
+                else:
+                    button.remove_class("status-button-selected")
+            except Exception:
+                pass
+
+    def _save_changes(self) -> None:
+        """Validate and save changes."""
+        name = self.query_one("#label-name-input", Input).value.strip()
+        description = self.query_one("#label-description-input", Input).value.strip()
+
+        if not name:
+            self.app.notify("Label name is required", severity="error")
+            return
+
+        # Return the updated data
+        result = {
+            'label_id': self.label_id,
+            'name': name,
+            'description': description,
+            'label_status': self.selected_status
+        }
+        self.dismiss(result)
 
 class LabelManagementForm(Vertical):
     """Widget for managing labels in a project."""
@@ -352,7 +452,7 @@ class LabelManagementForm(Vertical):
             self._set_label_type(label_type)
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
-        """Handle cell selection in the table."""
+        """Handle cell selection in the table - clicking any cell opens the label editor."""
         table = event.data_table
         row_index = event.coordinate.row
         col_index = event.coordinate.column
@@ -368,39 +468,30 @@ class LabelManagementForm(Vertical):
             self.app.notify(f"Cannot extract label ID: {e}", severity="error")
             return
 
-        # Get the row data
-        try:
-            row = table.get_row_at(row_index)
-            label_name = str(row[0])  # Name is now the first column
-            current_status_text = str(row[2])  # Status is now the third column (index 2)
-        except Exception as e:
-            self.app.notify(f"Invalid row index: {e}", severity="error")
+        # Find the label to get all data
+        label = next((l for l in self._labels if l['label_id'] == label_id), None)
+        if not label:
+            self.app.notify(f"Label ID {label_id} not found", severity="error")
             return
 
-        self.app.log(f"Cell clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}")
+        label_name = label['name']
+        label_description = label['description']
+        current_status = label.get('label_status', 2)
 
-        # If "Status" column clicked, show status selector modal
-        if col_index == 2:  # Status column (Name, Description, Status, Type, Actions) - now index 2
-            # Find the label to get current status
-            label = next((l for l in self._labels if l['label_id'] == label_id), None)
-            if not label:
-                self.app.notify(f"Label ID {label_id} not found", severity="error")
-                return
+        self.app.log(f"Row clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}")
 
-            current_status = label.get('label_status', 2)
-
-            # Show modal and handle the result
-            self.app.push_screen(
-                StatusSelectorModal(label_name, current_status),
-                callback=lambda new_status: self._handle_status_change(
-                    label_id, new_status, table, row_index
-                )
+        # Open label editor modal (clicking any cell in the row opens the editor)
+        self.app.push_screen(
+            LabelEditorModal(label_id, label_name, label_description, current_status),
+            callback=lambda result: self._handle_label_update(
+                label_id, result, table, row_index
             )
+        )
 
 
-    def _handle_status_change(self, label_id: int, new_status: int | None, table: DataTable, row_index: int) -> None:
-        """Handle the status change from the modal."""
-        if new_status is None:
+    def _handle_label_update(self, label_id: int, result: dict | None, table: DataTable, row_index: int) -> None:
+        """Handle the label update from the modal."""
+        if result is None:
             # User cancelled
             return
 
@@ -410,34 +501,61 @@ class LabelManagementForm(Vertical):
             self.app.notify(f"Label ID {label_id} not found", severity="error")
             return
 
-        current_status = label.get('label_status', 2)
+        # Get old values
+        old_name = label['name']
+        old_description = label['description']
+        old_status = label.get('label_status', 2)
 
-        # No change
-        if new_status == current_status:
-            self.app.notify("Status unchanged", severity="info")
+        # Get new values from result
+        new_name = result.get('name', old_name)
+        new_description = result.get('description', old_description)
+        new_status = result.get('label_status', old_status)
+
+        # Check if anything changed
+        changes = []
+        if new_name != old_name:
+            changes.append(f"name: '{old_name}' → '{new_name}'")
+        if new_description != old_description:
+            changes.append(f"description updated")
+        if new_status != old_status:
+            changes.append(f"status: {self._get_status_text(old_status)} → {self._get_status_text(new_status)}")
+
+        if not changes:
+            self.app.notify("No changes made", severity="info")
             return
 
-        current_status_text = self._get_status_text(current_status)
-        new_status_text = self._get_status_text(new_status)
-
-        self.app.log(f"Changing status for '{label['name']}' (ID: {label_id}): {current_status_text} -> {new_status_text}")
+        self.app.log(f"Updating label '{old_name}' (ID: {label_id}): {', '.join(changes)}")
 
         # Update in memory
+        label['name'] = new_name
+        label['description'] = new_description
         label['label_status'] = new_status
 
         # Track the modification
         if label_id not in self._modified_labels:
             self._modified_labels[label_id] = {}
+        self._modified_labels[label_id]['name'] = new_name
+        self._modified_labels[label_id]['description'] = new_description
         self._modified_labels[label_id]['label_status'] = new_status
 
-        # Update table display - update the specific cell in the Status column
-        # Move cursor to the cell and update it
+        # Update table display
         from textual.coordinate import Coordinate
-        table.move_cursor(row=row_index, column=2)  # Status is now column 2 (Name, Description, Status, Type, Actions)
-        table.update_cell_at(Coordinate(row_index, 2), new_status_text)
+
+        # Update Name (column 0)
+        table.move_cursor(row=row_index, column=0)
+        table.update_cell_at(Coordinate(row_index, 0), new_name)
+
+        # Update Description (column 1)
+        table.move_cursor(row=row_index, column=1)
+        desc_display = new_description[:30] + "..." if len(new_description) > 30 else new_description
+        table.update_cell_at(Coordinate(row_index, 1), desc_display)
+
+        # Update Status (column 2)
+        table.move_cursor(row=row_index, column=2)
+        table.update_cell_at(Coordinate(row_index, 2), self._get_status_text(new_status))
 
         self.app.notify(
-            f"'{label['name']}' status: {current_status_text} → {new_status_text}",
+            f"Label updated: {', '.join(changes)}",
             severity="information"
         )
 
