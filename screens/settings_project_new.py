@@ -1,18 +1,26 @@
 # settings_project_new.py
 from textual.widgets import Static, Button, Input, TextArea
-from textual.containers import Vertical, Grid, Horizontal
+from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid
 from textual.app import ComposeResult
 from textual.message import Message
 from datetime import datetime
 import hashlib
 
-class CreateProjectForm(Vertical):
+class CreateProjectForm(ScrollableContainer):
     """Widget for creating a new project."""
 
     DEFAULT_CSS = """
     CreateProjectForm {
         width: 100%;
-        height: auto;
+        height: 100%;
+    }
+
+    CreateProjectForm .form-title {
+        text-style: bold;
+        text-align: center;
+        padding: 0 0 1 0;
+        background: $accent;
+        color: $text;
     }
 
     CreateProjectForm .form-label {
@@ -22,6 +30,7 @@ class CreateProjectForm(Vertical):
 
     CreateProjectForm Input {
         margin: 0 0 1 0;
+        width: 100%;
     }
 
     CreateProjectForm TextArea {
@@ -34,20 +43,38 @@ class CreateProjectForm(Vertical):
         height: 3;
         margin: 0 1;
     }
-    
-    CreateProjectForm Horizontal {
-        height: auto;
-        margin-top: 1;
+       
+    CreateProjectForm #action-buttons {
+        grid-size: 2 1;
+        grid-columns: 1fr 1fr;
+        grid-gutter: 1;
+        height: 10;
+        margin-top: 0;
         width: 100%;
     }
     
     CreateProjectForm #project-create-button {
         background: green;
         color: white;
+        width: 20;
+        height: 3;
+        margin: 0 1;
     }
 
     CreateProjectForm #project-create-button:hover {
         background: darkgreen;
+    }
+
+    CreateProjectForm #project-cancel-button {
+        background: red;
+        color: white;
+        width: 20;
+        height: 3;
+        margin: 0 1;
+    }
+
+    CreateProjectForm #project-cancel-button:hover {
+        background: darkred;
     }
     
     CreateProjectForm .warning-box {
@@ -87,42 +114,25 @@ class CreateProjectForm(Vertical):
     def compose(self) -> ComposeResult:
         yield Static("Create New Project", classes="form-title")
 
-        # Get user info and project count from database
+        # Get user info and project count from app_state
         user_id = self.app.app_state.get("user_id", -1)
-        current_projects = 0
+        project_ids = self.app.app_state.get("project_ids", [])
+        current_projects = len(project_ids)
         max_projects = 3  # Default
 
         if user_id > 0:
             try:
                 dbh = self.app._config["dbh"]
-
-                # Get user's max_projects
-                dbh.load()
-                user_result = dbh.execute_query(
-                    f"""SELECT max_projects FROM p{dbh._db_salt}_users WHERE user_id = ?""",
-                    [user_id]
-                )
-                if user_result:
-                    max_projects = user_result[0][0]
-
-                # Get current project count
-                count_result = dbh.execute_query(
-                    f"""SELECT COUNT(*) FROM p{dbh._db_salt}_user_project_map WHERE user_id = ?""",
-                    [user_id]
-                )
-                if count_result:
-                    current_projects = count_result[0][0]
-
-                dbh.close()
+                max_projects = dbh.op_get_max_projects(user_id)
             except Exception as e:
-                # If query fails, just show the form without warning
+                # If query fails, just use default max_projects
                 pass
 
         # Display warning/info message
         if current_projects >= max_projects:
             yield Static(
                 f"⚠ WARNING: You have reached your maximum project limit!\n"
-                f"Current projects: {current_projects} / {max_projects}\n"
+                f"Current projects: {user_id} {current_projects} / {max_projects}\n"
                 f"You cannot create more projects.",
                 classes="error-box"
             )
@@ -140,7 +150,7 @@ class CreateProjectForm(Vertical):
             )
 
         yield Static("Project Name *", classes="form-label")
-        yield Input(placeholder="Enter project name", id="project-name")
+        yield Input(placeholder="Enter project name", id="project-name", max_length=24)
 
         yield Static("Description", classes="form-label")
         yield TextArea(id="project-description")
@@ -151,9 +161,9 @@ class CreateProjectForm(Vertical):
         yield Static("Additional Currencies (comma-separated)", classes="form-label")
         yield Input(placeholder="e.g., USD,EUR,JPY", id="currency-list")
 
-        with Horizontal(id="project-buttons"):
-            yield Button("Create", id="project-create-button", variant="success")
-            yield Button("Cancel", id="project-cancel-button", variant="error")
+        with Grid(id="action-buttons"):
+            yield Button("Create", id="project-create-button")
+            yield Button("Cancel", id="project-cancel-button")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "project-cancel-button":
@@ -164,28 +174,14 @@ class CreateProjectForm(Vertical):
     def create_project(self) -> None:
         """Validate and create the project."""
         user_id = self.app.app_state.get("user_id", -1)
+        project_ids = self.app.app_state.get("project_ids", [])
+        current_projects = len(project_ids)
 
         # Check project limit before validation
         if user_id > 0:
             try:
                 dbh = self.app._config["dbh"]
-                dbh.load()
-
-                # Get user's max_projects
-                user_result = dbh.execute_query(
-                    f"""SELECT max_projects FROM p{dbh._db_salt}_users WHERE user_id = ?""",
-                    [user_id]
-                )
-                max_projects = user_result[0][0] if user_result else 3
-
-                # Get current project count
-                count_result = dbh.execute_query(
-                    f"""SELECT COUNT(*) FROM p{dbh._db_salt}_user_project_map WHERE user_id = ?""",
-                    [user_id]
-                )
-                current_projects = count_result[0][0] if count_result else 0
-
-                dbh.close()
+                max_projects = dbh.op_get_max_projects(user_id)
 
                 # Check if limit reached
                 if current_projects >= max_projects:

@@ -64,6 +64,17 @@ class LabelManagementForm(Vertical):
         layout: horizontal;
     }
     
+    LabelManagementForm #new-label-button {
+        background: blue;
+        color: white;
+        width: 25;
+        height: 3;
+    }
+
+    LabelManagementForm #new-label-button:hover {
+        background: darkblue;
+    }
+    
     LabelManagementForm #save-button {
         background: green;
         color: white;
@@ -125,6 +136,10 @@ class LabelManagementForm(Vertical):
             self.changes_summary = changes_summary
             super().__init__()
 
+    class NewLabelRequested(Message):
+        """Message sent when user wants to create a new label."""
+        pass
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._labels = []
@@ -161,16 +176,18 @@ class LabelManagementForm(Vertical):
         # Labels table
         yield Static("Existing Labels:", classes="section-header")
         table = DataTable(id="labels-table")
-        table.add_columns("ID", "Name", "Description", "Status", "Actions")
+        table.add_columns("ID", "Name", "Description", "Status", "Type", "Actions")
 
         # Populate table with existing labels
         for label in self._labels:
             status_text = self._get_status_text(label['label_status'])
+            label_type_text = self._get_action_type(label['label_type'])
             table.add_row(
                 str(label['label_id']),
                 label['name'],
                 label['description'][:30] + "..." if len(label['description']) > 30 else label['description'],
                 status_text,
+                label_type_text,
                 "Edit"
             )
 
@@ -178,15 +195,25 @@ class LabelManagementForm(Vertical):
 
         # Action buttons
         with Horizontal(id="action-buttons"):
+            yield Button("New Label", id="new-label-button")
             yield Button("Save All Changes", id="save-button")
             yield Button("Cancel", id="cancel-button")
 
     def _get_status_text(self, status: int) -> str:
         """Convert status code to text."""
         status_map = {
-            0: "Deleted",
+            0: "Mark for Deletion",
             1: "Deactivated",
             2: "Active"
+        }
+        return status_map.get(status, "Unknown")
+
+    def _get_action_type(self, status: int) -> str:
+        """Convert status code to text."""
+        status_map = {
+            0: "Action",
+            1: "Account",
+            2: "Label"
         }
         return status_map.get(status, "Unknown")
 
@@ -211,6 +238,9 @@ class LabelManagementForm(Vertical):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel-button":
             self.app.notify("Label management cancelled", severity="info")
+        elif event.button.id == "new-label-button":
+            # Post message to switch to CreateLabelForm
+            self.post_message(self.NewLabelRequested())
         elif event.button.id == "add-label-button":
             self._add_new_label()
         elif event.button.id == "save-button":

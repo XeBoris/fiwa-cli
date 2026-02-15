@@ -10,6 +10,7 @@ def faker_users(dbh, num_users=10):
             _superu = True
         else:
             _superu = False
+        _projects_max = 3 #if i == 0 else 2  # First user can have more projects
 
         _f = {
             "first_name": fake.first_name(),
@@ -18,7 +19,7 @@ def faker_users(dbh, num_users=10):
             "email": f"user{str(i).zfill(1)}@fiwa.com",
             "password": f"u{i}",  # Use a common password for testing
             "birthday": fake.date_of_birth(minimum_age=18, maximum_age=80).strftime("%Y-%m-%d"),
-            "max_projects": fake.random_int(min=1, max=3),
+            "max_projects": _projects_max,
             "is_superuser": _superu,  # 10% chance to be superuser
             "scope": "user:write",
             "activated": True
