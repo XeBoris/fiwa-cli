@@ -159,6 +159,49 @@ def faker_projects(dbh):
 
     print(f"\n=== Summary ===")
     print(f"Total projects created: {project_count}")
+
+    # Collect all project IDs from all users
+    all_project_ids = []
     for user_id, projects in user_projects.items():
         print(f"User {user_id}: {len(projects)} project(s) - IDs: {projects}")
+        all_project_ids.extend(projects)
 
+    print(f"All project IDs: {all_project_ids}")
+    return all_project_ids
+
+def faker_labels(dbh, project_ids=[]):
+    """Populate the database with fake labels for testing purposes.
+    Creates 3 labels for each project in the database.
+    """
+    from faker import Faker
+    import random
+    fake = Faker()
+
+
+
+    if not project_ids:
+        print("No projects found in database. Please create projects first.")
+        return
+
+    label_count = 0
+
+    for project_id in project_ids:
+        for i in range(3):  # Create 3 labels per project
+            label_data = {
+                "name": f"Label {fake.word().capitalize()}",
+                "description": fake.sentence(),
+                "label_status": random.choice([1, 2]),  # Inactive or Active
+                "label_type": random.choice([0, 1, 2]),  # Random label type
+                "composite": []
+            }
+
+            try:
+                label_id = dbh.op_label_create(label_data, project_id)
+                print(f"Created label {label_id} for project {project_id}: {label_data['name']}")
+                label_count += 1
+            except ValueError as e:
+                print(f"Could not create label for project {project_id}: {e}")
+            except Exception as e:
+                print(f"Error creating label for project {project_id}: {e}")
+
+    print(f"\nCreated {label_count} fake labels across {len(project_ids)} projects.")
