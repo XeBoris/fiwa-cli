@@ -171,14 +171,42 @@ class LoginScreen(ModalScreen):
                 self.notify("Invalid username or password", severity="error")
                 return
 
-            # Update app_state reactive dictionary with session information
+            # Fetch user and project information
+            user_id = user_session.get("user_id", -1)
+            user_info = k.op_user_get_info(user_id)
+            project_info = k.op_project_get_info(user_id)
+
+            # Extract project data
+            project_names = []
+            project_ids = []
+            primary_project_id = 0
+
+            if project_info and len(project_info) > 0:
+                for project in project_info:
+                    project_ids.append(project["project_id"])
+                    project_names.append(project["project_name"])
+                    if project.get("project_primary", False):
+                        primary_project_id = project["project_id"]
+
+                # If no primary project is set, use the first one
+                if primary_project_id == 0 and len(project_ids) > 0:
+                    primary_project_id = project_ids[0]
+            else:
+                # No projects found
+                project_names = ["No Projects"]
+                project_ids = [0]
+                primary_project_id = 0
+
+            # Update app_state reactive dictionary with ALL information
             self.app.app_state = {
-                **self.app.app_state,
-                "is_logged_in": True,
-                "user_name": username,
-                "user_id": user_session.get("user_id", -1),
+                "user_name": user_info.get("username", username),
+                "user_id": user_id,
                 "session_uuid": user_session.get("session_uuid", "No session"),
-                "session_start": user_session.get("session_start")
+                "session_start": user_session.get("session_start"),
+                "is_logged_in": True,
+                "project_names": project_names,
+                "project_ids": project_ids,
+                "project_id": primary_project_id,
             }
 
             self.notify("Login successful!", severity="success")
@@ -186,7 +214,7 @@ class LoginScreen(ModalScreen):
             # Dismiss modal and pass success result with all info
             self.dismiss(result={
                 "success": True,
-                "user_id": user_session.get("user_id"),
+                "user_id": user_id,
                 "username": username,
                 "session_uuid": user_session.get("session_uuid"),
                 "session_start": user_session.get("session_start")
@@ -217,16 +245,19 @@ class LoginScreen(ModalScreen):
         k = self.app._config["dbh"]
         verify = k.op_user_logout(session_uuid=self.app.app_state["session_uuid"])
         if verify:
-             self.app.app_state = {
-                **self.app.app_state,
-                "is_logged_in": False,
+            # Reset ALL app_state fields to initial values (same as main.py initialization)
+            self.app.app_state = {
                 "user_name": "Guest",
                 "user_id": -1,
                 "session_uuid": "No session",
-                "session_start": None
+                "session_start": None,
+                "is_logged_in": False,
+                "project_names": ["No Projects"],
+                "project_ids": [0],
+                "project_id": 0,
             }
-             self.notify(f"Logout of User {self._username} successful!", severity="success")
-             self.dismiss(result={"success": True, "action": "logout"})
+            self.notify(f"Logout of User {self._username} successful!", severity="success")
+            self.dismiss(result={"success": True, "action": "logout"})
         else:
             self.notify("Logout failed. Please try again.", severity="error")
 

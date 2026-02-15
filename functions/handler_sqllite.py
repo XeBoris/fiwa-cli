@@ -338,6 +338,27 @@ class SQLLiteHandler:
         }
         return user_info
 
+    def op_get_max_projects(self, user_id: int) -> int:
+        """
+        Get the maximum number of projects allowed for a user.
+
+        Args:
+            user_id: The user ID to query
+
+        Returns:
+            The max_projects value for the user, or 3 (default) if not found
+        """
+        self.load()
+        result = self.execute_query(
+            f"""SELECT max_projects FROM p{self._db_salt}_users WHERE user_id = ?""",
+            [user_id]
+        )
+        self.close()
+
+        if result and len(result) > 0:
+            return result[0][0]
+        return 3  # Default
+
     def op_project_get_info(self, user_id):
         """
         This is database operation (op_) to get project information for a user from the database.

@@ -57,7 +57,7 @@ class SettingsScreen(ReactiveScreen):
     }
     
     # This element controls the right content area where forms and messages are displayed
-    # In paricular the size and the scrollbar!!!
+    # In particular the size and the scrollbar!!!
     SettingsScreen #settings-content-area {
         width: 1fr;
         height: 100%;
@@ -196,13 +196,69 @@ class SettingsScreen(ReactiveScreen):
 
     def on_create_project_form_project_created(self, message: CreateProjectForm.ProjectCreated) -> None:
         """
-        Button handler that bubbles up from CreateProjectForm when a project is created. This
-        handles the ProjectCreated message from CreateProjectForm and updates the UI accordingly.
+        Handle the ProjectCreated message from CreateProjectForm.
+        Creates the project in the database and updates app_state.
         """
-        self.notify(f"Project '{message.project_data['name']}' created!", severity="information")
-        self.show_content("Project Created", f"Successfully created: {message.project_data['name']}")
+        try:
+            dbh = self.app._config["dbh"]
+            user_id = self.app.app_state.get("user_id", -1)
 
-        k = self.app._config["dbh"]
+            if user_id <= 0:
+                self.notify("Error: No user logged in", severity="error")
+                return
+
+            # Create project in database
+            project_id = dbh.op_project_create(message.project_data, user_id)
+
+            if not project_id:
+                self.notify("Failed to create project", severity="error")
+                return
+
+            # Fetch updated project list for the user
+            project_info = dbh.op_project_get_info(user_id)
+
+            # Extract project data for app_state
+            project_names = []
+            project_ids = []
+            primary_project_id = 0
+
+            if project_info and len(project_info) > 0:
+                for project in project_info:
+                    project_ids.append(project["project_id"])
+                    project_names.append(project["project_name"])
+                    if project.get("project_primary", False):
+                        primary_project_id = project["project_id"]
+
+                # If no primary project, use the newly created one
+                if primary_project_id == 0:
+                    primary_project_id = project_id
+
+            # Update app_state with new project information
+            self.app.app_state = {
+                **self.app.app_state,
+                "project_names": project_names,
+                "project_ids": project_ids,
+                "project_id": primary_project_id,
+            }
+
+            self.notify(
+                f"Project '{message.project_data['name']}' created successfully! "
+                f"You can now select it from the project menu.",
+                severity="information"
+            )
+
+            # Show success message
+            self.show_content(
+                "Project Created",
+                f"Successfully created: {message.project_data['name']}\n\n"
+                f"Project ID: {project_id}\n"
+                f"You can now switch to this project using the project selector."
+            )
+
+        except ValueError as e:
+            self.notify(f"Failed to create project: {str(e)}", severity="error")
+        except Exception as e:
+            self.notify(f"Error creating project: {str(e)}", severity="error")
 
     def on_modify_project_form_project_modified(self, message: ModifyProjectForm.ProjectModified) -> None:
         """Handle the ProjectModified message from ModifyProjectForm."""
@@ -253,6 +309,11 @@ class SettingsScreen(ReactiveScreen):
         )
         # Reload the form to show updated data
         self.show_label_management_form()
+
+    def on_label_management_form_new_label_requested(self, message: LabelManagementForm.NewLabelRequested) -> None:
+        """Handle the NewLabelRequested message from LabelManagementForm."""
+        # Switch to the CreateLabelForm
+        self.show_create_label_form()
 
     def on_create_label_form_label_created(self, message: CreateLabelForm.LabelCreated) -> None:
         """Handle the LabelCreated message from CreateLabelForm."""
