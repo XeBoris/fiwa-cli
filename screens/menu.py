@@ -101,13 +101,10 @@ class MenuScreen(ModalScreen):
                                  )
         elif option_id == "menu-login" and self.app.app_state.get("is_logged_in", False) is True:
             self.dismiss()
-            # Push LoginScreen with logout mode
-            self.app.push_screen(
-                LoginScreen(
-                    is_logged_in=True,
-                    username=self.app.app_state.get("user_name")
-                )
-            )
+            # Perform logout directly here and update app state
+            ls = LoginScreen(is_logged_in=self.app.app_state.get("is_logged_in", False),
+                             username=self.app.app_state.get("user_name"))
+            ls.perform_logout()
         else:
             self.app.notify(f"Selected: {event.option.prompt}")
             self.dismiss()

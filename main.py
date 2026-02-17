@@ -10,6 +10,8 @@ from functions.loader import load_yaml_config
 from functions.loader import setup_fiwa, get_abs_path
 from components.header import FiwaHeader
 
+import datetime
+
 class MyApp(App):
     """A Textual app for FiWa financial tracking."""
 
@@ -34,6 +36,10 @@ class MyApp(App):
         "project_names": ["No Projects"],
         "project_ids": [0],
         "project_id": 0,  # Primary project ID
+        "meta_info": {"today": datetime.datetime.today().isoformat(),
+                      "focus_week": datetime.datetime.today().isocalendar()[1],
+                      "focus_month": datetime.datetime.today().month,
+                      },
     })
 
     def __init__(self, config: Dict[str, Any] | None = None, mode: str = "terminal") -> None:
@@ -52,6 +58,9 @@ class MyApp(App):
         self.app_state["session_uuid"] = u.get("session_info", {}).get("session_uuid", "No session")
         self.app_state["session_start"] = u.get("session_info", {}).get("session_start", None)
         self.app_state["is_logged_in"] = u.get("session_info", {}).get("is_logged_in", False)
+
+
+
 
         # Process project information
         project_info = u.get("project_info", [])
@@ -174,5 +183,5 @@ if __name__ == "__main__":
     config = setup_fiwa(abs_path=abs_path,
                         config=config)  # Initialize FiWa with the loaded config
 
-    app = MyApp(config=config)
-    app.run()
+    # app = MyApp(config=config)
+    # app.run()

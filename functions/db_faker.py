@@ -205,3 +205,158 @@ def faker_labels(dbh, project_ids=[]):
                 print(f"Error creating label for project {project_id}: {e}")
 
     print(f"\nCreated {label_count} fake labels across {len(project_ids)} projects.")
+
+def faker_items(dbh, project_ids=[], items_per_project=10):
+    """Populate the database with fake grocery items for testing purposes.
+    Creates grocery items for each project in the database.
+
+    Args:
+        dbh: Database handler
+        project_ids: List of project IDs to create items for
+        items_per_project: Number of items to create per project (default: 10)
+    """
+    from faker import Faker
+    import random
+    import uuid
+    from datetime import datetime, timedelta
+    import json
+
+    fake = Faker()
+
+    if not project_ids:
+        print("No projects found in database. Please create projects first.")
+        return
+
+    # Grocery store names
+    grocery_stores = [
+        "Walmart", "Kroger", "Costco", "Albertsons", "Whole Foods",
+        "Trader Joe's", "Safeway", "Publix", "Aldi", "Lidl",
+        "Target", "Wegmans", "H-E-B", "Meijer", "Food Lion"
+    ]
+
+    # Grocery item names (realistic grocery products)
+    grocery_items = [
+        "Milk", "Bread", "Eggs", "Butter", "Cheese", "Yogurt",
+        "Chicken Breast", "Ground Beef", "Salmon Fillet", "Bacon",
+        "Apples", "Bananas", "Oranges", "Tomatoes", "Lettuce", "Carrots",
+        "Rice", "Pasta", "Cereal", "Oatmeal", "Flour", "Sugar",
+        "Coffee", "Tea", "Orange Juice", "Soda", "Water Bottles",
+        "Toilet Paper", "Paper Towels", "Dish Soap", "Laundry Detergent",
+        "Frozen Pizza", "Ice Cream", "Chips", "Cookies", "Crackers"
+    ]
+
+    item_count = 0
+    groceries_label_cache = {}  # Cache groceries label IDs per project
+
+    print(f"\n=== Creating {items_per_project} grocery items per project ===")
+
+    for project_id in project_ids:
+        print(f"\n--- Processing Project {project_id} ---")
+
+        # Get all users associated with this project
+        try:
+            project_users = dbh.op_project_get_users(project_id)
+            if not project_users or len(project_users) == 0:
+                print(f"No users found for project {project_id}, skipping...")
+                continue
+
+            user_ids = [user['user_id'] for user in project_users]
+            print(f"Found {len(user_ids)} user(s) for project {project_id}: {user_ids}")
+        except Exception as e:
+            print(f"Error getting users for project {project_id}: {e}")
+            continue
+
+        # Get or create "Groceries" label for this project
+        groceries_label_id = None
+        if project_id not in groceries_label_cache:
+            try:
+                # Check if Groceries label exists
+                all_labels = dbh.op_label_get_all(project_id)
+                groceries_label = next((label for label in all_labels if label['name'].lower() == 'groceries'), None)
+
+                if groceries_label:
+                    groceries_label_id = groceries_label['label_id']
+                    print(f"Found existing 'Groceries' label (ID: {groceries_label_id})")
+                else:
+                    # Create Groceries label
+                    label_data = {
+                        "name": "Groceries",
+                        "description": "Food and household items from grocery stores",
+                        "label_status": 2,  # Active
+                        "label_type": 1,  # Account type
+                        "composite": []
+                    }
+                    groceries_label_id = dbh.op_label_create(label_data, project_id)
+                    print(f"Created 'Groceries' label (ID: {groceries_label_id})")
+
+                groceries_label_cache[project_id] = groceries_label_id
+            except Exception as e:
+                print(f"Error creating/getting Groceries label for project {project_id}: {e}")
+        else:
+            groceries_label_id = groceries_label_cache[project_id]
+
+        # Get project currency information
+        try:
+            project_info = dbh.op_project_get_info(user_ids[0])
+            project_data = next((p for p in project_info if p['project_id'] == project_id), None)
+            main_currency = project_data.get('currency_main', 'USD') if project_data else 'USD'
+        except Exception:
+            main_currency = 'USD'
+
+        # Create grocery items for this project
+        for i in range(items_per_project):
+            # Random selections
+            store = random.choice(grocery_stores)
+            item_name = random.choice(grocery_items)
+            bought_by_user = random.choice(user_ids)
+            bought_for_user = random.choice(user_ids)
+            added_by_user = random.choice(user_ids)
+
+            # Generate realistic price based on item type
+            if item_name in ["Milk", "Bread", "Eggs"]:
+                price = round(random.uniform(2.0, 5.0), 2)
+            elif item_name in ["Chicken Breast", "Ground Beef", "Salmon Fillet"]:
+                price = round(random.uniform(8.0, 25.0), 2)
+            elif item_name in ["Toilet Paper", "Paper Towels", "Laundry Detergent"]:
+                price = round(random.uniform(5.0, 15.0), 2)
+            else:
+                price = round(random.uniform(1.5, 12.0), 2)
+
+            # Random date within last 30 days
+            days_ago = random.randint(0, 30)
+            bought_date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d %H:%M:%S")
+
+            # Create tags list with groceries label
+            tags = [groceries_label_id] if groceries_label_id else []
+
+            item_data = {
+                "item_uuid": str(uuid.uuid4()),
+                "name": f"{item_name} - {store}",
+                "note": fake.sentence() if random.random() > 0.7 else "",  # 30% chance of note
+                "price": price,
+                "price_final": price,  # Same as price (no conversion)
+                "currency": main_currency,
+                "currency_final": main_currency,
+                "bought_date": bought_date,
+                "bought_by_id": bought_by_user,
+                "bought_for_id": bought_for_user,
+                "added_by_id": added_by_user,
+                "project_id": project_id,
+                "exchange_rate": 1.0,
+                "exchange_rate_date": datetime.now().strftime("%Y-%m-%d"),
+                "tags": json.dumps(tags)  # Store as JSON string
+            }
+
+            try:
+                item_id = dbh.op_item_create(item_data)
+                print(f"  Created item {item_id}: {item_data['name']} - ${price} - Bought by user {bought_by_user} for user {bought_for_user}")
+                item_count += 1
+            except ValueError as e:
+                print(f"  Could not create item for project {project_id}: {e}")
+            except Exception as e:
+                print(f"  Error creating item for project {project_id}: {e}")
+
+    print(f"\n=== Summary ===")
+    print(f"Total items created: {item_count} across {len(project_ids)} projects")
+    print(f"Average items per project: {item_count / len(project_ids) if project_ids else 0:.1f}")
+
