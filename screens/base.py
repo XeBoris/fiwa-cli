@@ -234,6 +234,15 @@ class LoginScreen(ModalScreen):
         4. Update application state
         5. Return to main screen (fallback)
         """
+        # TODO: Implement backend API call for logout
+        # Steps to implement later:
+        # 1. Retrieve bearer token from config/store
+        # 2. Call /api/v1/logout/bearer endpoint with Authorization header
+        # 3. Remove bearer and refresh tokens from storage
+        # 4. Clear user session data
+        # 5. Update application state to logged-out
+        # 6. Dismiss modal and redirect to login or home screen
+
         k = self.app._config["dbh"]
         verify = k.op_user_logout(session_uuid=self.app.app_state["session_uuid"])
         if verify:

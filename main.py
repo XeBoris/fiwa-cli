@@ -172,7 +172,6 @@ class MyApp(App):
 
 
 
-
 if __name__ == "__main__":
 
     abs_path = get_abs_path()
@@ -183,5 +182,6 @@ if __name__ == "__main__":
     config = setup_fiwa(abs_path=abs_path,
                         config=config)  # Initialize FiWa with the loaded config
 
-    # app = MyApp(config=config)
-    # app.run()
+
+    app = MyApp(config=config)
+    app.run()
