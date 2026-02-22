@@ -12,8 +12,257 @@ from textual import on
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days
 
+class LabelModalScreen(ModalScreen):
+    """Modal screen for selecting labels for a transaction.
+
+    Labels are organized by type in tabs:
+    - Type 0: Transactional labels
+    - Type 1: Konto (Account) labels
+    - Type 2: Category labels
+
+    This tab-based design scales well with many labels.
+    """
+
+    BINDINGS = [
+        ("escape", "cancel", "Cancel"),
+    ]
+
+    DEFAULT_CSS = """
+    LabelModalScreen {
+        align: center middle;
+        background: $background 85%;
+    }
+    
+    LabelModalScreen > Vertical {
+        width: 80;
+        height: 45;
+        background: $panel;
+        border: thick $accent;
+        padding: 2;
+    }
+    
+    LabelModalScreen .modal-header {
+        width: 100%;
+        height: auto;
+        margin: 0 0 1 0;
+    }
+    
+    LabelModalScreen .modal-title {
+        text-style: bold;
+        text-align: center;
+        color: $accent;
+        padding: 1;
+        background: $surface;
+        height: 3;
+    }
+    
+    LabelModalScreen .selection-count {
+        text-align: center;
+        color: $success;
+        padding: 0 0 1 0;
+        height: 2;
+    }
+    
+    LabelModalScreen TabbedContent {
+        width: 100%;
+        height: 1fr;
+        border: solid $primary;
+        margin: 0 0 1 0;
+    }
+    
+    LabelModalScreen TabPane {
+        padding: 1;
+    }
+    
+    LabelModalScreen .no-labels-message {
+        height: 10;
+        padding: 2;
+        color: $warning;
+        text-align: center;
+        text-style: italic;
+    }
+    
+    LabelModalScreen .button-row {
+        layout: horizontal;
+        height: auto;
+        align: center middle;
+        padding: 1 0 0 0;
+    }
+    
+    LabelModalScreen #label-ok-button {
+        background: green;
+        color: white;
+        margin: 0 1;
+        min-width: 18;
+    }
+    
+    LabelModalScreen #label-cancel-button {
+        background: red;
+        color: white;
+        margin: 0 1;
+        min-width: 18;
+    }
+    
+    LabelModalScreen #label-clear-button {
+        background: orange;
+        color: white;
+        margin: 0 1;
+        min-width: 18;
+    }
+    """
+
+    def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project_labels = project_labels
+        self.selected_labels = selected_labels or []
+
+        # Organize labels by type
+        self.labels_by_type = {
+            0: [],  # Transactional
+            1: [],  # Konto
+            2: []   # Category
+        }
+
+        for label in project_labels:
+            label_type = label.get('label_type', 0)
+            if label_type in self.labels_by_type:
+                self.labels_by_type[label_type].append(label)
+
+    def compose(self) -> ComposeResult:
+        from textual.widgets import TabbedContent, TabPane
+
+        with Vertical():
+            with Vertical(classes="modal-header"):
+                yield Static("Select Labels for Transaction", classes="modal-title")
+                yield Static(f"Currently selected: {len(self.selected_labels)} label(s)",
+                           id="selection-count", classes="selection-count")
+
+            with TabbedContent(initial="tab-transactional"):
+                # Tab 1: Transactional Labels (Type 0)
+                with TabPane("🔄 Transactional", id="tab-transactional"):
+                    if self.labels_by_type[0]:
+                        with ScrollableContainer():
+                            yield SelectionList[int](
+                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
+                                  for label in self.labels_by_type[0]],
+                                id="label-selection-transactional"
+                            )
+                    else:
+                        yield Static("No transactional labels available", classes="no-labels-message")
+
+                # Tab 2: Konto Labels (Type 1)
+                with TabPane("💼 Konto", id="tab-konto"):
+                    if self.labels_by_type[1]:
+                        with ScrollableContainer():
+                            yield SelectionList[int](
+                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
+                                  for label in self.labels_by_type[1]],
+                                id="label-selection-konto"
+                            )
+                    else:
+                        yield Static("No konto labels available", classes="no-labels-message")
+
+                # Tab 3: Category Labels (Type 2)
+                with TabPane("📁 Category", id="tab-category"):
+                    if self.labels_by_type[2]:
+                        with ScrollableContainer():
+                            yield SelectionList[int](
+                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
+                                  for label in self.labels_by_type[2]],
+                                id="label-selection-category"
+                            )
+                    else:
+                        yield Static("No category labels available", classes="no-labels-message")
+
+            with Horizontal(classes="button-row"):
+                yield Button("🗑️ Clear All", id="label-clear-button", variant="warning")
+                yield Button("✓ OK", id="label-ok-button", variant="success")
+                yield Button("✗ Cancel", id="label-cancel-button", variant="error")
+
+    def on_mount(self) -> None:
+        """Update selection count when mounted."""
+        self._update_selection_count()
+
+    def on_selection_list_selected_changed(self, event: SelectionList.SelectedChanged) -> None:
+        """Update selection count when selection changes."""
+        self._update_selection_count()
+
+    def _update_selection_count(self) -> None:
+        """Update the selection count display."""
+        try:
+            selected = []
+            # Collect from all three lists
+            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+                try:
+                    sel_list = self.query_one(f"#{list_id}", SelectionList)
+                    selected.extend(list(sel_list.selected))
+                except:
+                    pass
+
+            count_widget = self.query_one("#selection-count", Static)
+            count_widget.update(f"Currently selected: {len(selected)} label(s)")
+        except:
+            pass
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses in the label modal."""
+        if event.button.id == "label-ok-button":
+            # Get selected labels from all three SelectionLists
+            selected = []
+            try:
+                # Collect from transactional labels
+                try:
+                    sel_list = self.query_one("#label-selection-transactional", SelectionList)
+                    selected.extend(list(sel_list.selected))
+                except:
+                    pass
+
+                # Collect from konto labels
+                try:
+                    sel_list = self.query_one("#label-selection-konto", SelectionList)
+                    selected.extend(list(sel_list.selected))
+                except:
+                    pass
+
+                # Collect from category labels
+                try:
+                    sel_list = self.query_one("#label-selection-category", SelectionList)
+                    selected.extend(list(sel_list.selected))
+                except:
+                    pass
+
+                self.dismiss(selected)  # Return list of selected label IDs
+            except Exception as e:
+                self.app.log(f"Error collecting selected labels: {e}")
+                self.dismiss([])  # Return empty list on error
+
+        elif event.button.id == "label-clear-button":
+            # Clear all selections
+            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+                try:
+                    sel_list = self.query_one(f"#{list_id}", SelectionList)
+                    sel_list.deselect_all()
+                except:
+                    pass
+            self._update_selection_count()
+
+        elif event.button.id == "label-cancel-button":
+            self.dismiss(None)  # Return None to indicate cancellation
+
+    def action_cancel(self) -> None:
+        """Handle ESC key press."""
+        self.dismiss(None)
+
+
 class ItemConfirmationModal(ModalScreen):
-    """Modal screen to confirm item creation before saving to database."""
+    """Modal screen to confirm item creation before saving to database.
+
+    Shows transaction summary including:
+    - Item details (name, price, currency)
+    - Final price in project's main currency
+    - Cost-sharing breakdown if costs are split between users
+    - Labels attached to the transaction
+    """
 
     BINDINGS = [
         ("escape", "cancel", "Cancel"),
@@ -26,8 +275,9 @@ class ItemConfirmationModal(ModalScreen):
     }
     
     ItemConfirmationModal > Vertical {
-        width: 60;
+        width: 70;
         height: auto;
+        max-height: 50;
         background: $panel;
         border: thick $accent;
         padding: 2;
@@ -37,22 +287,53 @@ class ItemConfirmationModal(ModalScreen):
         text-style: bold;
         text-align: center;
         color: $accent;
-        padding: 0 0 1 0;
+        padding: 1;
+        background: $surface;
+        height: 3;
+        margin: 0 0 1 0;
     }
     
     ItemConfirmationModal .summary-section {
-        padding: 1 0;
+        padding: 1;
         border: solid $primary;
         margin: 1 0;
+        background: $surface;
+        min-height: 10;
+        height: auto;
+    }
+    
+    ItemConfirmationModal .section-title {
+        text-style: bold;
+        color: $accent;
+        padding: 0 0 1 0;
+        height: 3;
+        min-height: 3;
     }
     
     ItemConfirmationModal .summary-row {
         padding: 0 1;
+        height: 3;
+        min-height: 3;
+    }
+    
+    ItemConfirmationModal .cost-share-row {
+        padding: 0 2;
+        height: 3;
+        min-height: 3;
+        color: $warning;
+    }
+    
+    ItemConfirmationModal .total-row {
+        padding: 0 1;
+        height: 3;
+        min-height: 3;
+        text-style: bold;
+        color: $success;
     }
     
     ItemConfirmationModal .button-row {
         layout: horizontal;
-        height: 10;
+        height: auto;
         align: center middle;
         padding: 1 0 0 0;
     }
@@ -61,12 +342,14 @@ class ItemConfirmationModal(ModalScreen):
         background: green;
         color: white;
         margin: 0 1;
+        min-width: 25;
     }
     
     ItemConfirmationModal #confirm-back-button {
         background: orange;
         color: white;
         margin: 0 1;
+        min-width: 25;
     }
     """
 
@@ -75,21 +358,67 @@ class ItemConfirmationModal(ModalScreen):
         self.item_data = item_data
 
     def compose(self) -> ComposeResult:
+        # Debug logging
+        self.app.log("=== ItemConfirmationModal compose called ===")
+        self.app.log(f"item_data keys: {list(self.item_data.keys())}")
+        self.app.log(f"name: {self.item_data.get('name')}")
+        self.app.log(f"price: {self.item_data.get('price')}")
+        self.app.log(f"currency: {self.item_data.get('currency')}")
+        self.app.log(f"cost_shares: {self.item_data.get('cost_shares')}")
+
         with Vertical():
             yield Static("Confirm Transaction", classes="modal-title")
 
+            # Basic transaction info
             with Vertical(classes="summary-section"):
-                yield Static("[bold]Transaction Summary:[/bold]", classes="summary-row")
-                yield Static(f"Name: {self.item_data.get('name', 'N/A')}", classes="summary-row")
-                yield Static(f"Price: {self.item_data.get('price', 0):.2f} {self.item_data.get('currency', 'N/A')}", classes="summary-row")
-                yield Static(f"Final Price: {self.item_data.get('price_final', 0):.2f} {self.item_data.get('currency_final', 'N/A')}", classes="summary-row")
+                yield Static("[bold]Transaction Summary[/bold]", classes="section-title")
+                yield Static(f"Item: {self.item_data.get('name', 'N/A')}", classes="summary-row")
+                yield Static(f"Original Price: {self.item_data.get('price', 0):.2f} {self.item_data.get('currency', 'N/A')}",
+                           classes="summary-row")
+
+                # Show exchange rate if different from main currency
+                if self.item_data.get('currency') != self.item_data.get('currency_final'):
+                    yield Static(f"Exchange Rate: {self.item_data.get('exchange_rate', 1.0):.4f}",
+                               classes="summary-row")
+
+                yield Static(f"[bold]Final Price: {self.item_data.get('price_final', 0):.2f} {self.item_data.get('currency_final', 'N/A')}[/bold]",
+                           classes="total-row")
                 yield Static(f"Date: {self.item_data.get('bought_date', 'N/A')}", classes="summary-row")
                 yield Static(f"Bought By: {self.item_data.get('bought_by_name', 'N/A')}", classes="summary-row")
-                yield Static(f"Bought For: {self.item_data.get('bought_for_name', 'N/A')}", classes="summary-row")
-                if self.item_data.get('note'):
-                    yield Static(f"Note: {self.item_data.get('note', '')}", classes="summary-row")
-                if self.item_data.get('labels_text'):
+
+                if self.item_data.get('labels_text') and self.item_data.get('labels_text') != "None":
                     yield Static(f"Labels: {self.item_data.get('labels_text', '')}", classes="summary-row")
+
+            # Cost-sharing breakdown
+            cost_shares = self.item_data.get('cost_shares', [])
+            if cost_shares:
+                with Vertical(classes="summary-section"):
+                    yield Static("[bold]Cost Sharing Breakdown[/bold]", classes="section-title")
+
+                    for share in cost_shares:
+                        username = share.get('username', 'Unknown')
+                        percentage = share.get('percentage', 0)
+                        amount = share.get('amount', 0)
+                        currency_final = self.item_data.get('currency_final', 'USD')
+
+                        if percentage > 0:
+                            yield Static(
+                                f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
+                                classes="cost-share-row"
+                            )
+                        elif share.get('user_id') == self.item_data.get('bought_by_id'):
+                            # Show bought_by user even if they pay 0% (others pay 100%)
+                            yield Static(
+                                f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
+                                classes="cost-share-row"
+                            )
+
+                    # Show total
+                    total_amount = sum(share.get('amount', 0) for share in cost_shares)
+                    yield Static(
+                        f"[bold]Total: {total_amount:.2f} {self.item_data.get('currency_final', 'USD')}[/bold]",
+                        classes="total-row"
+                    )
 
             with Horizontal(classes="button-row"):
                 yield Button("✓ OK - Save to Database", id="confirm-ok-button", variant="success")
@@ -301,21 +630,22 @@ class ItemInputForm(ModalScreen):
         border: solid $primary;
         height: 3;
     }
-    ItemInputForm #grid-item-exchange-date {
-        width: 100%;
-        border: solid $primary;
-        height: 3;
-    }
-    ItemInputForm #grid-item-exchange-rate {
-        width: 100%;
-        border: solid $primary;
-        height: 3;
-    }
 
     ItemInputForm #grid-item-bought-by {
         width: 100%;
         border: none;
         height: 4;
+    }
+    
+    ItemInputForm #open-label-modal-button {
+        width: 100%;
+        height: 3;
+        background: $accent;
+        color: $text;
+    }
+    
+    ItemInputForm #open-label-modal-button:hover {
+        background: $accent-darken-1;
     }
 
     # row 2    
@@ -414,6 +744,7 @@ class ItemInputForm(ModalScreen):
         self._item_uuid = str(uuid.uuid4())
         self._pending_item_data = None
         self._project_users = []  # Store project users for dynamic updates
+        self._selected_label_ids = []  # Store selected label IDs
 
     def on_mount(self) -> None:
         """Called when the form is mounted - check if bought-for-grid exists."""
@@ -501,7 +832,7 @@ class ItemInputForm(ModalScreen):
             yield Static("Currency *", classes="form-grid-label")
             yield Static("Date Purchased *", classes="form-grid-label")
             yield Static("Bought by *", classes="form-grid-label")
-            yield Static("Placeholder", classes="form-grid-label")
+            yield Static("Labels *", classes="form-grid-label")
             # row 2
             yield Input(
                 placeholder="e.g., Groceries, Rent, Salary",
@@ -530,7 +861,7 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-bought-by",
                 allow_blank=False
             )
-            yield Placeholder()
+            yield Button("🏷️ Select Labels", id="open-label-modal-button", variant="primary")
 
         # Wrap "Bought For" section - use simple Vertical + Horizontal layout (more stable than Grid)
         user_count = len(user_options_share_to)
@@ -651,6 +982,40 @@ class ItemInputForm(ModalScreen):
             self._clear_form()
         elif event.button.id == "cancel-button":
             self.dismiss()  # Dismiss the modal form
+        elif event.button.id == "open-label-modal-button":
+            # Use run_worker to properly handle push_screen_wait
+            self.run_worker(self._open_label_modal())
+
+    async def _open_label_modal(self) -> None:
+        """Open the label selection modal and handle the result."""
+        try:
+            # Get project labels
+            project_id = self.app.app_state.get("project_id", 0)
+            project_labels = self._get_project_labels(project_id)
+
+            # Open modal with current selections (now in worker context)
+            result = await self.app.push_screen_wait(
+                LabelModalScreen(project_labels, self._selected_label_ids)
+            )
+
+            if result is not None:  # User clicked OK (result is list of label IDs)
+                self._selected_label_ids = result
+                self.app.log(f"Selected labels: {self._selected_label_ids}")
+
+                # Update button text to show count
+                button = self.query_one("#open-label-modal-button", Button)
+                if len(self._selected_label_ids) > 0:
+                    button.label = f"🏷️ Labels ({len(self._selected_label_ids)})"
+                else:
+                    button.label = "🏷️ Select Labels"
+
+                self.app.notify(f"{len(self._selected_label_ids)} label(s) selected", severity="info")
+            else:  # User clicked Cancel
+                self.app.log("Label selection cancelled")
+
+        except Exception as e:
+            self.app.log(f"Error opening label modal: {e}")
+            self.app.notify(f"Error: {str(e)}", severity="error")
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle select widget changes."""
@@ -741,28 +1106,29 @@ class ItemInputForm(ModalScreen):
             currency_main = self.app.app_state.get("current_project_currency_main", "USD")
 
             # Get all input values
-            name = self.query_one("#item-name", Input).value.strip()
-            note = self.query_one("#item-note", Input).value.strip()
-            price = self.query_one("#item-price", Input).value.strip()
-            currency = self.query_one("#item-currency", Select).value
-            exchange_rate = self.query_one("#item-exchange-rate", Input).value.strip()
-            exchange_date = self.query_one("#item-exchange-date", Input).value.strip()
-            bought_date = self.query_one("#item-bought-date", Input).value.strip()
-            bought_by_id = self.query_one("#item-bought-by", Select).value
-            bought_for_id = self.query_one("#item-bought-for", Select).value
+            name = self.query_one("#grid-item-name", Input).value.strip()
+            price = self.query_one("#grid-item-price", Input).value.strip()
+            currency = self.query_one("#grid-item-currency", Select).value
+            bought_date = self.query_one("#grid-item-bought-date", Input).value.strip()
+            bought_by_id = self.query_one("#grid-item-bought-by", Select).value
 
-            # Get selected labels
-            try:
-                labels_widget = self.query_one("#item-labels", SelectionList)
-                selected_labels = list(labels_widget.selected)
+            # Get exchange rate and date from input fields (correct IDs: item-exchange-*, not grid-item-exchange-*)
+            exchange_rate_input = self.query_one("#item-exchange-rate", Input).value.strip()
+            exchange_date_input = self.query_one("#item-exchange-date", Input).value.strip()
 
-                # Get label names for display
-                project_labels = self._get_project_labels(project_id)
-                label_names = [label['name'] for label in project_labels if label['label_id'] in selected_labels]
-                labels_text = ", ".join(label_names) if label_names else "None"
-            except:
-                selected_labels = []
-                labels_text = "None"
+            # Use exchange rate from input field, default to 1.0 if not provided
+            exchange_rate_float = float(exchange_rate_input) if exchange_rate_input else 1.0
+
+            # Use exchange date from input field, default to bought_date if not provided
+            exchange_rate_date = exchange_date_input if exchange_date_input else bought_date
+
+            # Get selected labels from the modal
+            selected_labels = self._selected_label_ids
+
+            # Get label names for display
+            project_labels = self._get_project_labels(project_id)
+            label_names = [label['name'] for label in project_labels if label['label_id'] in selected_labels]
+            labels_text = ", ".join(label_names) if label_names else "None"
 
             # Validate required fields
             if not name:
@@ -777,45 +1143,82 @@ class ItemInputForm(ModalScreen):
             if bought_by_id <= 0:
                 self.app.notify("'Bought By' user is required", severity="error")
                 return
-            if bought_for_id <= 0:
-                self.app.notify("'Bought For' user is required", severity="error")
+
+            # Convert price
+            price_float = float(price)
+
+
+            price_final = price_float * exchange_rate_float
+            currency_final = currency_main
+
+            # Get project users for name lookup
+            project_users = self._get_project_users(project_id)
+            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
+            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
+
+            # Collect cost-sharing data from bought-for section
+            cost_shares = []
+            total_percentage = 0.0
+
+            # First, add the "bought_by" user with their share
+            for user in project_users:
+                if user['user_id'] == bought_by_id:
+                    continue  # Skip bought_by user for now, calculate later
+
+                try:
+                    share_input = self.query_one(f"#share-{user['user_id']}", Input)
+                    share_value = share_input.value.strip()
+
+                    if share_value:
+                        share_percent = float(share_value)
+                        if share_percent > 0:
+                            share_amount = (price_final * share_percent) / 100.0
+                            cost_shares.append({
+                                'user_id': user['user_id'],
+                                'username': user['username'],
+                                'percentage': share_percent,
+                                'amount': share_amount
+                            })
+                            total_percentage += share_percent
+                except:
+                    pass  # Input field not found or invalid value
+
+            # Calculate bought_by user's share (remaining percentage)
+            bought_by_percentage = 100.0 - total_percentage
+            if bought_by_percentage < 0:
+                self.app.notify("Total cost share exceeds 100%!", severity="error")
                 return
 
-            # Convert and calculate
-            price_float = float(price)
-            exchange_rate_float = float(exchange_rate) if exchange_rate else 1.0
-            price_final = price_float * exchange_rate_float
-            currency_final = currency_main  # Use project's main currency for final price
+            bought_by_amount = (price_final * bought_by_percentage) / 100.0
 
-            # Get user names for display
-            project_users = self._get_project_users(project_id)
-            bought_by_name = next((f"{u['first_name']} {u['last_name']}" for u in project_users if u['user_id'] == bought_by_id), "Unknown")
-            bought_for_name = next((f"{u['first_name']} {u['last_name']}" for u in project_users if u['user_id'] == bought_for_id), "Unknown")
-
-            bought_by_user_name = next((f"{u['username']}" for u in project_users if u['user_id'] == bought_by_id), "Unknown")
-            bought_for_user_name = next((f"{u['username']}" for u in project_users if u['user_id'] == bought_for_id), "Unknown")
+            # Add bought_by user's share at the beginning
+            cost_shares.insert(0, {
+                'user_id': bought_by_id,
+                'username': bought_by_name,
+                'percentage': bought_by_percentage,
+                'amount': bought_by_amount
+            })
 
             # Build complete item data dictionary
             item_data = {
                 'item_uuid': self._item_uuid,
                 'name': name,
-                'note': note,
+                'note': "",  # No note field in current form
                 'price': price_float,
                 'price_final': price_final,
                 'currency': currency,
                 'currency_final': currency_final,
                 'exchange_rate': exchange_rate_float,
-                'exchange_rate_date': exchange_date if exchange_date else datetime.now().strftime("%Y-%m-%d"),
+                'exchange_rate_date': exchange_rate_date,
                 'bought_date': bought_date,
                 'bought_by_id': bought_by_id,
-                'bought_for_id': bought_for_id,
-                'added_by_id': user_id,  # Current user adds the item
-                'project_id': project_id,
-                'tags': selected_labels,  # List of label IDs
-                # Extra fields for display in confirmation
                 'bought_by_name': bought_by_name,
-                'bought_for_name': bought_for_name,
-                'labels_text': labels_text
+                'added_by_id': user_id,
+                'project_id': project_id,
+                'tags': selected_labels,
+                'labels_text': labels_text,
+                'cost_shares': cost_shares,  # List of cost sharing breakdown
+                'total_shared_percentage': total_percentage,
             }
 
             # Store item data for confirmation
@@ -829,6 +1232,8 @@ class ItemInputForm(ModalScreen):
         except Exception as e:
             self.app.notify(f"Error saving item: {str(e)}", severity="error")
             self.app.log(f"Error in _save_item: {e}")
+            import traceback
+            self.app.log(f"Traceback: {traceback.format_exc()}")
 
     async def _show_confirmation_and_save(self) -> None:
         """Show confirmation modal and handle the save process."""
@@ -866,8 +1271,11 @@ class ItemInputForm(ModalScreen):
     async def _save_to_database(self, item_data: dict) -> int:
         """Save the item to the database using op_item_create.
 
+        For cost-sharing transactions, this creates one item entry for each user
+        who shares the cost, with their respective share amounts.
+
         Returns:
-            item_id if successful, None otherwise
+            item_id of the first created item if successful, None otherwise
         """
         try:
             dbh = self.app._config.get("dbh")
@@ -876,29 +1284,67 @@ class ItemInputForm(ModalScreen):
                 self.app.log("ERROR: Database handler not available in _config")
                 return None
 
-            # Remove display-only fields before saving
-            db_item_data = {k: v for k, v in item_data.items()
-                           if k not in ['bought_by_name', 'bought_for_name', 'labels_text']}
+            # Get cost shares - each user gets their own item entry
+            cost_shares = item_data.get('cost_shares', [])
 
-            # Convert tags list to JSON string
-            import json
-            db_item_data['tags'] = json.dumps(db_item_data['tags'])
+            if not cost_shares:
+                self.app.notify("No cost shares defined", severity="error")
+                self.app.log("ERROR: cost_shares is empty")
+                return None
 
-            # Log the data being saved
-            self.app.log(f"Attempting to save item to database: {db_item_data['name']}")
-            self.app.log(f"Item data keys: {list(db_item_data.keys())}")
+            self.app.log(f"Creating {len(cost_shares)} item entries for cost sharing")
 
-            # Save to database
-            item_id = dbh.op_item_create(db_item_data)
+            # Keep track of created item IDs
+            created_item_ids = []
 
-            self.app.log(f"op_item_create returned: {item_id}")
+            # Create one item entry for each user who shares the cost
+            for share in cost_shares:
+                user_id = share.get('user_id')
+                share_amount = share.get('amount')
+                username = share.get('username')
 
-            if item_id:
-                self.app.log(f"✓ Item saved to database with ID: {item_id}")
-                return item_id
+                # Prepare item data for this specific user's share
+                db_item_data = {
+                    'item_uuid': item_data['item_uuid'],
+                    'name': item_data['name'],
+                    'note': item_data.get('note', ''),
+                    'price': item_data['price'],
+                    'price_final': share_amount,  # Use the user's share amount as their final price
+                    'currency': item_data['currency'],
+                    'currency_final': item_data['currency_final'],
+                    'bought_date': item_data['bought_date'],
+                    'bought_by_id': item_data['bought_by_id'],
+                    'bought_for_id': user_id,  # This user receives/shares this portion
+                    'added_by_id': item_data['added_by_id'],
+                    'project_id': item_data['project_id'],
+                    'exchange_rate': item_data['exchange_rate'],
+                    'exchange_rate_date': item_data['exchange_rate_date'],
+                    'tags': item_data['tags'],  # Convert to JSON below
+                }
+
+                # Convert tags list to JSON string
+                import json
+                db_item_data['tags'] = json.dumps(db_item_data['tags'])
+
+                # Log the data being saved
+                self.app.log(f"Saving item share for {username}: {share_amount:.2f} {item_data['currency_final']}")
+
+                # Save to database
+                item_id = dbh.op_item_create(db_item_data)
+
+                if item_id:
+                    created_item_ids.append(item_id)
+                    self.app.log(f"✓ Item share saved with ID: {item_id} for user {username}")
+                else:
+                    self.app.log(f"ERROR: Failed to save item share for user {username}")
+
+            # Return the first item ID if any were created
+            if created_item_ids:
+                self.app.log(f"✓ Successfully saved {len(created_item_ids)} item entries")
+                return created_item_ids[0]
             else:
-                self.app.notify("Failed to save item to database", severity="error")
-                self.app.log("ERROR: op_item_create returned None/False")
+                self.app.notify("Failed to save any item entries to database", severity="error")
+                self.app.log("ERROR: No items were successfully created")
                 return None
 
         except Exception as e:

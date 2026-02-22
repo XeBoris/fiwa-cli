@@ -199,7 +199,7 @@ def faker_labels(dbh, project_ids=[]):
     label_count = 0
 
     for project_id in project_ids:
-        for i in range(3):  # Create 3 labels per project
+        for i in range(90):  # Create 3 labels per project
             label_data = {
                 "name": f"Label {fake.word().capitalize()}",
                 "description": fake.sentence(),
