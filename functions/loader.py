@@ -157,7 +157,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         faker_users(dbh=dbh, num_users=5)
 
 
-        faker_user_login("user1", "u1", dbh=dbh)
+        faker_user_login("user0", "u0", dbh=dbh)
 
         project_ids = faker_projects(dbh=dbh)
 

@@ -76,10 +76,28 @@ class MyApp(App):
             self.app_state["project_ids"] = project_ids
             self.app_state["project_names"] = project_names
             self.app_state["project_id"] = primary_project_id
+
+            # Load currency information for the primary project
+            if primary_project:
+                import json
+                currency_main = primary_project.get("currency_main", "USD")
+                currency_list_str = primary_project.get("currency_list", "[]")
+                try:
+                    currency_list = json.loads(currency_list_str) if currency_list_str else []
+                except:
+                    currency_list = []
+
+                self.app_state["current_project_currency_main"] = currency_main
+                self.app_state["current_project_currency_list"] = currency_list
+            else:
+                self.app_state["current_project_currency_main"] = "USD"
+                self.app_state["current_project_currency_list"] = []
         else:
             self.app_state["project_ids"] = [0]
             self.app_state["project_names"] = ["No Projects"]
             self.app_state["project_id"] = 0
+            self.app_state["current_project_currency_main"] = "USD"
+            self.app_state["current_project_currency_list"] = []
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""

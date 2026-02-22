@@ -1,14 +1,14 @@
 """Inputs screen - add transactions and items."""
-from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid
+from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid, VerticalScroll
 from textual.widgets import Static, Button, Select
 from textual.app import ComposeResult
 from components import FiwaHeader
 import datetime
-# from components.item_input_form import ItemInputForm
 
 from .base import ReactiveScreen
 
 from .inputs_insert_expense import CreateExpenseForm
+from .inputs_edit_expense import EditExpenseView
 
 
 class InputsScreen(ReactiveScreen):
@@ -178,52 +178,9 @@ class InputsScreen(ReactiveScreen):
 
             # Right content area with input form
             with ScrollableContainer(id="inputs-content-area"):
-                # Info panel showing current context
-                project_id = self.app.app_state.get("project_id", 0)
-                project_names = self.app.app_state.get("project_names", [])
-                project_ids = self.app.app_state.get("project_ids", [])
-                user_name = self.app.app_state.get("user_name", "Guest")
-                user_id = self.app.app_state.get("user_id", -1)
+                # Load the EditExpenseView by default
+                yield EditExpenseView()
 
-                # Find project name
-                project_name = "No Project"
-                if project_id in project_ids:
-                    idx = project_ids.index(project_id)
-                    project_name = project_names[idx]
-
-                with Vertical(classes="info-panel", id="info-panel"):
-                    yield Static(f"[bold]Current Project:[/bold] {project_name}", classes="info-row")
-                    yield Static(f"[bold]User:[/bold] {user_name} (ID: {user_id})", classes="info-row")
-                    yield Static(f"[bold]Project ID:[/bold] {project_id}", classes="info-row")
-
-
-
-
-                # yield ItemInputForm()
-
-    def _get_info_panel(self):
-        """Generate info panel showing current context."""
-        project_id = self.app.app_state.get("project_id", 0)
-        project_names = self.app.app_state.get("project_names", [])
-        project_ids = self.app.app_state.get("project_ids", [])
-        user_name = self.app.app_state.get("user_name", "Guest")
-        user_id = self.app.app_state.get("user_id", -1)
-
-        # Find project name
-        project_name = "No Project"
-        if project_id in project_ids:
-            idx = project_ids.index(project_id)
-            project_name = project_names[idx]
-
-        # Return a Vertical with children via compose pattern
-        panel = Vertical(classes="info-panel")
-        # Compose the children directly
-        panel._children = [
-            Static(f"[bold]Current Project:[/bold] {project_name}", classes="info-row"),
-            Static(f"[bold]User:[/bold] {user_name} (ID: {user_id})", classes="info-row"),
-            Static(f"[bold]Project ID:[/bold] {project_id}", classes="info-row")
-        ]
-        return panel
 
     def on_mount(self) -> None:
         """Called when screen is mounted."""
@@ -234,24 +191,15 @@ class InputsScreen(ReactiveScreen):
         # Initialize app_state with current period
         self._update_app_state_period()
 
-        # Pre-fill user IDs if logged in
-        user_id = self.app.app_state.get("user_id", -1)
-        if user_id > 0:
-            try:
-                form = self.query_one(ItemInputForm)
-                form.query_one("#item-bought-by").value = str(user_id)
-                form.query_one("#item-bought-for").value = str(user_id)
-                form.query_one("#item-added-by").value = str(user_id)
-            except Exception as e:
-                self.app.log(f"Could not pre-fill user IDs: {e}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "back-button":
             self._return_to_main_screen()
         elif event.button.id == "new-item-button":
-            # self._clear_and_refocus()
             self.show_create_input_form()
+        elif event.button.id == "edit-item-button":
+            self.show_edit_expense_view()
         elif event.button.id == "period-prev":
             self._navigate_period(-1)
         elif event.button.id == "period-next":
@@ -274,11 +222,32 @@ class InputsScreen(ReactiveScreen):
             self._update_app_state_period()
 
     def show_create_input_form(self) -> None:
-        """Show the create project form in the content area."""
+        """Show the create expense form in the content area."""
         content_area = self.query_one("#inputs-content-area", ScrollableContainer)
         content_area.remove_children()
         content_area.mount(CreateExpenseForm())
 
+    def show_edit_expense_view(self) -> None:
+        """Show the edit expense view in the content area."""
+        content_area = self.query_one("#inputs-content-area", ScrollableContainer)
+        content_area.remove_children()
+        content_area.mount(EditExpenseView())
+
+    def on_item_input_form_item_created(self, message) -> None:
+        """Handle ItemCreated message - refresh the EditExpenseView tables."""
+        try:
+            self.app.log(f"Item created with ID {message.item_id}, refreshing tables...")
+
+            # Try to find EditExpenseView and refresh its tables
+            try:
+                edit_view = self.query_one(EditExpenseView)
+                edit_view.refresh_tables()
+                self.app.log("EditExpenseView tables refreshed successfully")
+            except:
+                self.app.log("EditExpenseView not currently displayed, skipping refresh")
+
+        except Exception as e:
+            self.app.log(f"Error handling ItemCreated message: {e}")
 
     # def on_item_input_form_item_created(self, message: ItemInputForm.ItemCreated) -> None:
     #     """Handle the ItemCreated message from ItemInputForm."""
@@ -437,8 +406,21 @@ class InputsScreen(ReactiveScreen):
 
             self.app.log(f"Updated app_state period: {period_label} ({period_start} to {period_end})")
 
+            # Refresh the data tables with new period data
+            self._refresh_data_tables()
+
         except Exception as e:
             self.app.log(f"Error updating app_state period: {e}")
+
+    def _refresh_data_tables(self) -> None:
+        """Refresh DataTables in EditExpenseView if it's currently displayed."""
+        try:
+            # Try to find EditExpenseView in the content area
+            edit_view = self.query_one(EditExpenseView)
+            edit_view.refresh_tables()
+            self.app.log("Refreshed EditExpenseView tables")
+        except Exception as e:
+            self.app.log(f"Could not refresh tables (EditExpenseView may not be loaded): {e}")
 
     def update_displays(self) -> None:
         """Update displays when app_state changes."""
@@ -451,29 +433,3 @@ class InputsScreen(ReactiveScreen):
             header.project_ids = self.app.app_state["project_ids"]
         except Exception as e:
             self.app.log(f"Error updating header: {e}")
-
-        # Update info panel if project or user changed
-        try:
-            # Get current values
-            project_id = self.app.app_state.get("project_id", 0)
-            project_names = self.app.app_state.get("project_names", [])
-            project_ids = self.app.app_state.get("project_ids", [])
-            user_name = self.app.app_state.get("user_name", "Guest")
-            user_id = self.app.app_state.get("user_id", -1)
-
-            # Find project name
-            project_name = "No Project"
-            if project_id in project_ids:
-                idx = project_ids.index(project_id)
-                project_name = project_names[idx]
-
-            # Update the info panel directly
-            info_panel = self.query_one("#info-panel", Vertical)
-            info_statics = list(info_panel.query(Static))
-
-            if len(info_statics) >= 3:
-                info_statics[0].update(f"[bold]Current Project:[/bold] {project_name}")
-                info_statics[1].update(f"[bold]User:[/bold] {user_name} (ID: {user_id})")
-                info_statics[2].update(f"[bold]Project ID:[/bold] {project_id}")
-        except Exception as e:
-            self.app.log(f"Error updating info panel: {e}")

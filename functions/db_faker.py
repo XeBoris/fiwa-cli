@@ -47,6 +47,7 @@ def faker_projects(dbh):
     - User 1 gets 2 more projects (to reach their max)
     - User 2 gets 1 more project
     - User 2 is added to user 1's second project
+    - User 3 is added to user 1's first project
     """
     from faker import Faker
     import random
@@ -156,6 +157,18 @@ def faker_projects(dbh):
             print(f"Could not add user 2 to project {second_project_of_user1}: {e}")
         except Exception as e:
             print(f"Error adding user 2 to project: {e}")
+
+    # Phase 5: Add user 3 to user 1's first project
+    print("\n=== Phase 5: Adding user 3 to user 1's first project ===")
+    if 1 in user_projects and len(user_projects[1]) >= 1 and 3 in user_ids:
+        first_project_of_user1 = user_projects[1][0]  # Index 0 is the first project
+        try:
+            dbh.op_project_add_user(project_id=first_project_of_user1, user_id=3, project_perm_model='000000', project_primary=False)
+            print(f"Successfully added user 3 to project {first_project_of_user1} (user 1's first project)")
+        except ValueError as e:
+            print(f"Could not add user 3 to project {first_project_of_user1}: {e}")
+        except Exception as e:
+            print(f"Error adding user 3 to project: {e}")
 
     print(f"\n=== Summary ===")
     print(f"Total projects created: {project_count}")

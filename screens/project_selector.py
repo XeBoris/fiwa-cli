@@ -70,6 +70,9 @@ class ProjectSelectorScreen(ModalScreen):
                 idx = project_ids.index(selected_project_id)
                 project_name = project_names[idx]
 
+            # Load currency information for the selected project
+            self._load_project_currency(selected_project_id)
+
             # Explicitly update the header to reflect the new project BEFORE dismissing
             self._refresh_header()
 
@@ -79,6 +82,35 @@ class ProjectSelectorScreen(ModalScreen):
         else:
             # If no valid selection, just dismiss
             self.dismiss()
+
+    def _load_project_currency(self, project_id: int) -> None:
+        """Load currency information for the selected project into app_state."""
+        try:
+            dbh = self.app._config.get("dbh")
+            if not dbh:
+                return
+
+            # Get project info
+            user_id = self.app.app_state.get("user_id", -1)
+            project_info_list = dbh.op_project_get_info(user_id)
+
+            # Find the selected project
+            project = next((p for p in project_info_list if p["project_id"] == project_id), None)
+
+            if project:
+                import json
+                currency_main = project.get("currency_main", "USD")
+                currency_list_str = project.get("currency_list", "[]")
+                try:
+                    currency_list = json.loads(currency_list_str) if currency_list_str else []
+                except:
+                    currency_list = []
+
+                self.app.app_state["current_project_currency_main"] = currency_main
+                self.app.app_state["current_project_currency_list"] = currency_list
+                self.app.log(f"Loaded currencies for project {project_id}: {currency_main}, {currency_list}")
+        except Exception as e:
+            self.app.log(f"Error loading project currency: {e}")
 
     def _refresh_header(self) -> None:
         """Refresh the header to display the updated project."""
