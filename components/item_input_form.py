@@ -1,6 +1,6 @@
 """Item input form component - reusable form for adding/editing items (transactions)."""
 from textual.widgets import Static, Button, Input, Select, Label, SelectionList, Switch, Placeholder
-from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer
+from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
 from textual.app import ComposeResult
 from textual.message import Message
 from datetime import datetime
@@ -86,7 +86,7 @@ class LabelModalScreen(ModalScreen):
         layout: horizontal;
         height: auto;
         align: center middle;
-        padding: 1 0 0 0;
+        padding: 0 0 0 0;
     }
     
     LabelModalScreen #label-ok-button {
@@ -277,26 +277,25 @@ class ItemConfirmationModal(ModalScreen):
     ItemConfirmationModal > Vertical {
         width: 70;
         height: auto;
-        max-height: 50;
         background: $panel;
         border: thick $accent;
-        padding: 2;
+        padding: 0;
     }
     
     ItemConfirmationModal .modal-title {
         text-style: bold;
         text-align: center;
         color: $accent;
-        padding: 1;
+        padding: 0;
         background: $surface;
         height: 3;
-        margin: 0 0 1 0;
+        margin: 0 0 0 0;
     }
     
     ItemConfirmationModal .summary-section {
-        padding: 1;
+        padding: 0;
         border: solid $primary;
-        margin: 1 0;
+        margin: 0 0;
         background: $surface;
         min-height: 10;
         height: auto;
@@ -305,27 +304,27 @@ class ItemConfirmationModal(ModalScreen):
     ItemConfirmationModal .section-title {
         text-style: bold;
         color: $accent;
-        padding: 0 0 1 0;
-        height: 3;
+        padding: 0 0 0 0;
+        height: auto;
         min-height: 3;
     }
     
     ItemConfirmationModal .summary-row {
-        padding: 0 1;
-        height: 3;
-        min-height: 3;
+        padding: 0 0;
+        height: auto;
+        min-height: 1;
     }
     
     ItemConfirmationModal .cost-share-row {
-        padding: 0 2;
-        height: 3;
+        padding: 0 1;
+        height: auto;
         min-height: 3;
         color: $warning;
     }
     
     ItemConfirmationModal .total-row {
-        padding: 0 1;
-        height: 3;
+        padding: 0 0;
+        height: auto;
         min-height: 3;
         text-style: bold;
         color: $success;
@@ -333,23 +332,25 @@ class ItemConfirmationModal(ModalScreen):
     
     ItemConfirmationModal .button-row {
         layout: horizontal;
-        height: auto;
+        min-height: 3;
         align: center middle;
-        padding: 1 0 0 0;
+        padding: 0 0 0 0;
     }
     
     ItemConfirmationModal #confirm-ok-button {
         background: green;
         color: white;
-        margin: 0 1;
+        margin: 0 0;
         min-width: 25;
+        border: none;
     }
     
     ItemConfirmationModal #confirm-back-button {
         background: orange;
         color: white;
-        margin: 0 1;
+        margin: 0 0;
         min-width: 25;
+        border: none;
     }
     """
 
@@ -421,8 +422,8 @@ class ItemConfirmationModal(ModalScreen):
                     )
 
             with Horizontal(classes="button-row"):
-                yield Button("✓ OK - Save to Database", id="confirm-ok-button", variant="success")
-                yield Button("← Back - Edit", id="confirm-back-button", variant="warning")
+                yield Button("✓ OK - Save to Database", id="confirm-ok-button", variant="success", flat=True, compact=True)
+                yield Button("← Back - Edit", id="confirm-back-button", variant="warning", flat=True, compact=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses in the confirmation modal."""
@@ -658,7 +659,8 @@ class ItemInputForm(ModalScreen):
     
     ItemInputForm #bought-for-scroll {
         width: 35;
-        height: 20;
+        min-height: 3;
+        height: auto;
         margin: 0 0;
         border: round $accent;
         background: $surface;
@@ -675,16 +677,15 @@ class ItemInputForm(ModalScreen):
     
     ItemInputForm #bought-for-wrapper {
         width: 100%;
-        height: 100%;
-        min-height: 100%;
         padding: 0;
         margin: 0 0;
     }
     
-    ItemInputForm #bought-for-title {
+    ItemInputForm .bought-for-title {
         height: 2;
         width: 100%;
         text-style: bold;
+        text-align: center;
         color: $text;
         background: $accent;
         padding: 0;
@@ -693,15 +694,17 @@ class ItemInputForm(ModalScreen):
     
     ItemInputForm .bought-for-user-row {
         layout: horizontal;
-        height: 4;
+        min-height: 4;
+        height: 3;
         width: 100%;
         margin: 0 0 0 0;
+        content-align: left top;
     }
     
     ItemInputForm .user-name-label {
         height: 3;
         width: 15;
-        padding: 0 1 0 0;
+        padding: 0 0 0 0;
         background: $surface;
         content-align: left middle;
     }
@@ -806,11 +809,13 @@ class ItemInputForm(ModalScreen):
         currency_main = self.app.app_state.get("current_project_currency_main", "USD")
         currency_list = self.app.app_state.get("current_project_currency_list", [])
 
-        # Build currency options (main currency first, then additional currencies)
-        currency_options = [(currency_main, currency_main)]
+        # Build currency options:
+        # - Main currency first (bold)
+        # - Other currencies after (italic)
+        currency_options = [(f"[bold]{currency_main}[/bold]", currency_main)]
         for curr in currency_list:
             if curr != currency_main:
-                currency_options.append((curr, curr))
+                currency_options.append((f"[italic]{curr}[/italic]", curr))
 
         # Get project users
         project_users = self._get_project_users(project_id)
@@ -876,9 +881,7 @@ class ItemInputForm(ModalScreen):
                 self.app.log(f"Creating Vertical layout with {user_count} users")
 
                 with ScrollableContainer(id="bought-for-scroll"):
-                    v = Vertical(id="bought-for-wrapper")
-                    #v.styles.height = 5 + user_count*3
-                    with v:
+                    with Vertical(id="bought-for-wrapper"):
                         # Title
                         yield Static("Bought For *", id="bought-for-title")
                         self.app.log("Yielded bought-for-title")
@@ -896,12 +899,12 @@ class ItemInputForm(ModalScreen):
                                     classes="user-share-input"
                                 )
                         self.app.log("Finished adding all users")
-                    yield Static("", classes="bought-for-spacer")
             else:
                 self.app.log("No users - creating fallback container")
-                with Vertical(id="bought-for-scroll"):
-                    yield Static("Bought For *", id="bought-for-title", classes="form-grid-label")
-                    yield Static("No users available", id="bought-for-no-users", classes="form-grid-label")
+                with ScrollableContainer(id="bought-for-scroll"):
+                    with Vertical(id="bought-for-wrapper"):
+                        yield Static("Bought For *", id="bought-for-title", classes="form-grid-label")
+                        yield Static("No users available", id="bought-for-no-users", classes="form-grid-label")
 
             # Right side: Additional content (fills remaining width)
             with Vertical(id="additional-content-wrapper"):
@@ -938,40 +941,6 @@ class ItemInputForm(ModalScreen):
                         yield Button("🔄 Clear", id="clear-button")
                     with Vertical():
                         yield Button("❌ Cancel", id="cancel-button")
-
-
-        #     with Vertical():
-        #         yield Static("Labels", classes="form-label")
-        #         if label_options:
-        #             yield SelectionList[int](*[(name, lid, False) for name, lid in label_options], id="item-labels")
-        #         else:
-        #             yield Static("No labels available", classes="form-label")
-        #
-        # with Horizontal():
-        #     with Vertical():
-        #         yield Static("Note", classes="form-label")
-        #         yield Input(
-        #             placeholder="Additional details (optional)",
-        #             id="item-note",
-        #             max_length=255
-        #         )
-        # with Horizontal():
-        #     with Vertical():
-        #         yield Static("Exchange Rate", classes="form-label")
-        #         yield Input(
-        #             placeholder="1.0",
-        #             id="item-exchange-rate",
-        #             value="1.0",
-        #             type="number"
-        #         )
-        #     with Vertical():
-        #         yield Static("Exchange Rate Date", classes="form-label")
-        #         yield Input(
-        #             placeholder="YYYY-MM-DD",
-        #             id="item-exchange-date",
-        #             value=datetime.now().strftime("%Y-%m-%d")
-        #         )
-
 
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -1026,72 +995,123 @@ class ItemInputForm(ModalScreen):
 
     def _update_bought_for_section(self, exclude_user_id: int) -> None:
         """Update the 'Bought For' section to exclude the selected 'bought by' user."""
-        try:
-            # Rebuild with updated user list (excluding the selected user)
-            user_options_share_to = [
-                (u['username'], u['user_id'])
-                for u in self._project_users
-                if u['user_id'] != exclude_user_id
-            ]
+        self.app.notify(f"Updating 'Bought For' section, excluding user ID: {exclude_user_id}")
 
-            user_count = len(user_options_share_to)
-            self.app.log(f"Updated 'Bought For' section, excluding user {exclude_user_id}, {user_count} users remaining")
+        # Rebuild with updated user list (excluding the selected user)
+        user_options_share_to = [
+            (u['username'], u['user_id'])
+            for u in self._project_users
+            if u['user_id'] != exclude_user_id
+        ]
 
-            # Try to find and remove the old grid
-            try:
-                old_grid = self.query_one("#bought-for-grid")
-                old_grid.remove()
-            except:
-                try:
-                    old_container = self.query_one("#bought-for-container")
-                    old_container.remove()
-                except:
-                    self.app.log("No existing bought-for grid/container found")
+        self.app.notify(f"{user_options_share_to}")
 
-            # Find the parent to mount the new grid
-            parent = self.query_one("ItemInputForm")
+        user_count = len(user_options_share_to)
 
-            if user_count > 0:
-                # Create new Grid
-                new_grid = Grid(id="bought-for-grid")
+        # Update Section:
+        wrapper = self.query_one("#bought-for-wrapper", Vertical)
 
-                # Add title
-                new_grid.mount(Static("Bought For *", id="bought-for-title", classes="form-grid-label"))
+        self.app.notify(f"{str(wrapper)}")
+        # Remove all children
+        wrapper.remove_children()
+        # Force a refresh to ensure children are removed
+        wrapper.refresh()
+        self.app.notify(f"f {str(wrapper)}")
 
-                # Add users
-                for i_item in user_options_share_to:
-                    new_grid.mount(Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label"))
-                    new_grid.mount(Input(
-                        placeholder="0-100%",
-                        value="0",
-                        type="number",
-                        id=f"share-{i_item[1]}",
-                        classes="user-share-input"
-                    ))
+        # Rebuild the content
+        # Add title
+        s = Static("Bought For *", classes="bought-for-title")
+        wrapper.mount(s)
+        # Add users
+        if user_count >= 0:
+            for i_item in user_options_share_to:
+                # Create user row container
+                user_row = Horizontal(classes="bought-for-user-row")
 
-                # Mount the new grid after the first Grid
-                grids = list(parent.query(Grid))
-                if len(grids) > 0:
-                    parent.mount(new_grid, after=grids[0])
-                else:
-                    parent.mount(new_grid)
-            else:
-                # Create vertical container with no users message
-                new_container = Vertical(id="bought-for-container")
-                new_container.mount(Static("Bought For *", id="bought-for-title", classes="form-grid-label"))
-                new_container.mount(Static("No users available", id="bought-for-no-users", classes="form-grid-label"))
+                # Mount the row to wrapper first
+                wrapper.mount(user_row)
 
-                # Mount after first grid
-                grids = list(parent.query(Grid))
-                if len(grids) > 0:
-                    parent.mount(new_container, after=grids[0])
-                else:
-                    parent.mount(new_container)
+                # Then mount children to the row
+                user_row.mount(Static(
+                    f"user {i_item[0]} [%]",
+                    id=f"user-label-{i_item[1]}",
+                    classes="user-name-label"
+                ))
+                user_row.mount(Input(
+                    placeholder="0-100%",
+                    value="0",
+                    type="number",
+                    id=f"share-{i_item[1]}",
+                    classes="user-share-input"
+                ))
 
-        except Exception as e:
-            self.app.log(f"Error updating bought-for section: {e}")
-            import traceback
-            self.app.log(f"Traceback: {traceback.format_exc()}")
+                self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
+
+
+
+
+        # try:
+        #     # Rebuild with updated user list (excluding the selected user)
+        #     user_options_share_to = [
+        #         (u['username'], u['user_id'])
+        #         for u in self._project_users
+        #         if u['user_id'] != exclude_user_id
+        #     ]
+        #
+        #     user_count = len(user_options_share_to)
+        #     self.app.log(f"Updated 'Bought For' section, excluding user {exclude_user_id}, {user_count} users remaining")
+        #
+        #     wrapper = self.query_one("#bought-for-wrapper", Vertical)
+        #
+        #     # Remove all children
+        #     wrapper.remove_children()
+        #
+        #     # Rebuild the content
+        #     # Add title
+        #     wrapper.mount(Static("Bought For *", id="bought-for-title"))
+        #     wrapper.mount(Static(f"{user_options_share_to} - {exclude_user_id}"))
+
+            # Find and update the bought-for-wrapper container
+        #     try:
+        #         wrapper = self.query_one("#bought-for-wrapper", Vertical)
+        #
+        #         # Remove all children
+        #         wrapper.remove_children()
+        #
+        #         # Rebuild the content
+        #         # Add title
+        #         wrapper.mount(Static("Bought For *", id="bought-for-title"))
+        #         wrapper.mount(Static(f"{user_options_share_to} - {exclude_user_id}"))
+        #         # Add users
+        #         if user_count >= 0:
+        #             for i_item in user_options_share_to:
+        #                 # Create user row
+        #                 user_row = Horizontal(classes="bought-for-user-row")
+        #                 user_row.mount(Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label"))
+        #                 user_row.mount(Input(
+        #                     placeholder="0-100%",
+        #                     value="0",
+        #                     type="number",
+        #                     id=f"share-{i_item[1]}",
+        #                     classes="user-share-input"
+        #                 ))
+        #                 wrapper.mount(user_row)
+        #
+        #
+        #             self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
+        #         else:
+        #             wrapper.mount(Static("No users available", id="bought-for-no-users", classes="form-grid-label"))
+        #             self.app.log("✓ Updated bought-for section - no users available")
+        #
+        #     except Exception as e:
+        #         self.app.log(f"Could not find #bought-for-wrapper: {e}")
+        #         self.app.log("Bought-for section may not be initialized yet")
+        #
+        # except Exception as e:
+        #     self.app.log(f"Error updating bought-for section: {e}")
+        #     import traceback
+        #     self.app.log(f"Traceback: {traceback.format_exc()}")
+
 
     def action_dismiss_form(self) -> None:
         """Action called when ESC is pressed - dismiss form without saving."""
