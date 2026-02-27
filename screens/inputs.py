@@ -35,7 +35,7 @@ class InputsScreen(ReactiveScreen):
     }
 
     InputsScreen #inputs-sidebar {
-        width: 27;
+        width: 30;
         background: $panel;
         border-right: solid $accent;
         padding: 1;

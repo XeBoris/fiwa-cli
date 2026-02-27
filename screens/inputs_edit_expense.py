@@ -2,6 +2,8 @@
 from textual.containers import VerticalScroll, Vertical
 from textual.widgets import Static, TabbedContent, TabPane, DataTable
 from textual.app import ComposeResult
+from textual import on
+from components.item_input_form import ItemInputForm
 
 
 class EditExpenseView(VerticalScroll):
@@ -52,7 +54,7 @@ class EditExpenseView(VerticalScroll):
                 with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
                     # Create DataTable for this user's items
                     table = DataTable(id=f"items-table-{user['user_id']}")
-                    table.add_columns("Item Name", "Final Price", "Currency", "Purchase Date")
+                    table.add_columns("ID", "Item Name", "Final Price", "Currency", "Purchase Date")
                     table.cursor_type = "row"
 
                     # Fetch items for this user
@@ -61,11 +63,14 @@ class EditExpenseView(VerticalScroll):
                         # Extract date only (remove time if present)
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
+                        # Add row with item_id as first column
                         table.add_row(
+                            str(item['item_id']),
                             item['name'],
                             f"{item['price_final']:.2f}",
                             item['currency'],
-                            date_str
+                            date_str,
+                            key=str(item['item_id'])  # Use item_id as row key
                         )
 
                     yield table
@@ -113,7 +118,8 @@ class EditExpenseView(VerticalScroll):
             # Query ALL items for this user in the current period (no LIMIT)
             dbh.load()
             query = f"""
-                SELECT name, bought_date, price, currency, price_final
+                SELECT item_id, name, bought_date, price, currency, price_final, currency_final, 
+                       bought_by_id, note, exchange_rate, exchange_rate_date, tags
                 FROM p{dbh._db_salt}_items
                 WHERE bought_by_id = ? 
                 AND project_id = ?
@@ -132,11 +138,18 @@ class EditExpenseView(VerticalScroll):
             items = []
             for row in results:
                 items.append({
-                    'name': row[0],
-                    'bought_date': row[1],
-                    'price': row[2],
-                    'currency': row[3],
-                    'price_final': row[4]
+                    'item_id': row[0],
+                    'name': row[1],
+                    'bought_date': row[2],
+                    'price': row[3],
+                    'currency': row[4],
+                    'price_final': row[5],
+                    'currency_final': row[6],
+                    'bought_by_id': row[7],
+                    'note': row[8],
+                    'exchange_rate': row[9],
+                    'exchange_rate_date': row[10],
+                    'tags': row[11]
                 })
 
             return items
@@ -173,10 +186,12 @@ class EditExpenseView(VerticalScroll):
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
                         table.add_row(
+                            str(item['item_id']),
                             item['name'],
                             f"{item['price_final']:.2f}",
                             item['currency'],
-                            date_str
+                            date_str,
+                            key=str(item['item_id'])
                         )
 
                     self.app.log(f"Refreshed table for user {user['user_id']}: {len(items)} items")
@@ -186,3 +201,92 @@ class EditExpenseView(VerticalScroll):
 
         except Exception as e:
             self.app.log(f"Error refreshing data tables: {e}")
+
+    @on(DataTable.RowSelected)
+    def on_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle double-click on a row to edit the item."""
+        # Get the item_id from the row key
+        item_id = int(event.row_key.value)
+        self.app.log(f"Row selected with item_id: {item_id}")
+
+        # Use run_worker to properly handle push_screen_wait
+        self.run_worker(self._handle_edit_item(item_id))
+
+    async def _handle_edit_item(self, item_id: int) -> None:
+        """Handle editing an item in a worker context."""
+        try:
+            # Fetch the full item data
+            item_data = self._get_item_by_id(item_id)
+            if not item_data:
+                self.app.notify(f"Could not fetch item {item_id}", severity="error")
+                return
+
+            # Open ItemInputForm in edit mode
+            result = await self.app.push_screen_wait(
+                ItemInputForm(edit_mode=True, item_data=item_data)
+            )
+
+            # Handle the result
+            if result == "deleted":
+                # Item was deleted
+                self.app.log(f"Item {item_id} was deleted")
+                self.refresh_tables()
+                # Success notification already shown in ItemInputForm
+            elif result:
+                # Item was updated (result is the item_id)
+                self.app.log(f"Item {item_id} was updated")
+                self.refresh_tables()
+                # Success notification already shown in ItemInputForm
+
+        except Exception as e:
+            self.app.log(f"Error handling row selection: {e}")
+            self.app.notify(f"Error: {str(e)}", severity="error")
+
+    def _get_item_by_id(self, item_id: int) -> dict:
+        """Get a single item by its ID with all details."""
+        try:
+            dbh = self.app._config.get("dbh")
+            if not dbh:
+                return None
+
+            project_id = self.app.app_state.get("project_id", 0)
+
+            dbh.load()
+            query = f"""
+                SELECT item_id, item_uuid, name, note, price, price_final, currency, currency_final,
+                       bought_date, bought_by_id, bought_for_id, added_by_id, project_id,
+                       exchange_rate, exchange_rate_date, tags
+                FROM p{dbh._db_salt}_items
+                WHERE item_id = ? AND project_id = ?
+            """
+
+            results = dbh.execute_query(query, [item_id, project_id])
+            dbh.close()
+
+            if not results:
+                return None
+
+            row = results[0]
+            return {
+                'item_id': row[0],
+                'item_uuid': row[1],
+                'name': row[2],
+                'note': row[3],
+                'price': row[4],
+                'price_final': row[5],
+                'currency': row[6],
+                'currency_final': row[7],
+                'bought_date': row[8],
+                'bought_by_id': row[9],
+                'bought_for_id': row[10],
+                'added_by_id': row[11],
+                'project_id': row[12],
+                'exchange_rate': row[13],
+                'exchange_rate_date': row[14],
+                'tags': row[15]
+            }
+
+        except Exception as e:
+            self.app.log(f"Error fetching item {item_id}: {e}")
+            return None
+

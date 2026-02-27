@@ -1051,6 +1051,58 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to create item: {str(e)}")
 
+    def op_item_delete(self, item_id: int, project_id: int) -> bool:
+        """
+        Delete an item from the database.
+
+        This is a database operation (op_) to delete a single item by its ID.
+        Validates that the item exists and belongs to the specified project
+        before deletion.
+
+        Args:
+            item_id: The ID of the item to delete
+            project_id: The project ID (for security validation)
+
+        Returns:
+            True if the item was successfully deleted, False otherwise
+
+        Raises:
+            ValueError: If the item doesn't exist or doesn't belong to the project
+            Exception: If the deletion fails for any other reason
+        """
+        self.load()
+
+        try:
+            # Verify the item exists and belongs to the project
+            check_query = f"""
+                SELECT item_id FROM p{self._db_salt}_items 
+                WHERE item_id = ? AND project_id = ?
+            """
+            result = self.execute_query(check_query, [item_id, project_id])
+
+            if not result:
+                self.close()
+                raise ValueError(
+                    f"Item with ID {item_id} not found in project {project_id}"
+                )
+
+            # Delete the item
+            delete_query = f"""
+                DELETE FROM p{self._db_salt}_items
+                WHERE item_id = ? AND project_id = ?
+            """
+            self.execute_query(delete_query, [item_id, project_id])
+
+            self.close()
+            return True
+
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            self.close()
+            raise Exception(f"Failed to delete item {item_id}: {str(e)}")
+
     def op_get_current_user(self):
         """
         This is database operation (op_) to get the current user from the database.
