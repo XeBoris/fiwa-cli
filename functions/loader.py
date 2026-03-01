@@ -113,7 +113,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
             yaml.safe_dump(config, handle)
 
         # Store in config for later use
-        config["data_directory"] = os_home_dir
+        config["_data_directory"] = os_home_dir
         config["dbh"] = dbh
         return config
 
@@ -170,6 +170,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         time.sleep(0.5)
         # Store in config for later use
-        config["data_directory"] = os_home_dir
+        config["_data_directory"] = os_home_dir
         config["dbh"] = dbh
+        config["_abs_path"] = abs_path
         return config

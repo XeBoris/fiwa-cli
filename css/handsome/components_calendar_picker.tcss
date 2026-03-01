@@ -1,0 +1,158 @@
+/* ============================================
+   CALENDAR WIDGET STYLING - SLIM NAVIGATION
+   File: css/handsome/components_calendar.tcss
+   ============================================ */
+/* === Modal Screen Overlay === */
+CalendarWidget {
+    align: left top;
+    background: rgba(0, 0, 0, 0.7);
+}
+/* === Main Container === */
+CalendarWidget > Container {
+    width: 35;              /* Wide enough for 7 columns (7 days * ~8 chars each) */
+    height: 15;           /* Auto height to fit content */
+    margin: 3 0 0 15;
+    background: $surface;
+    border: solid $accent;
+    padding: 1;             /* Add padding for better spacing */
+}
+/* === NAVIGATION HEADER - GRID LAYOUT === */
+/* This creates the slim "< Today >" single-row layout using Grid */
+CalendarWidget .calendar-nav-grid {
+    layout: grid;
+    grid-size: 3 1;         /* 3 columns, 1 row */
+    grid-columns: 1fr 10 1fr;  /* left button auto, center flexible, right button auto */
+    grid-gutter: 1;             /* No gap between nav elements */
+    width: 100%;            /* Full width of container */
+    height: 2;           /* Auto height */
+    content-align: center middle;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+}
+/* Navigation Buttons (< and >) - Compact arrows */
+CalendarWidget .nav-button {
+    width: 100%;            /* Auto width to fit arrow character */
+    min-width: 3;           /* Minimum 3 chars */
+    height: 1;              /* Single row height */
+    border: none;
+    background: $accent;
+    color: $text;
+    padding: 0 0 0 0;           /* Small horizontal padding */
+    margin: 0 0 0 0;            /* Spacing around buttons */
+    align: center top;
+    content-align: center top;
+}
+CalendarWidget .nav-button:hover {
+    background: $accent-lighten-1;
+}
+
+/* Today Button - Center element */
+CalendarWidget .today-button {
+    width: 100%;            /* Auto width to fit "Today" text */
+    min-width: 8;           /* Minimum for "Today" */
+    height: 1;              /* Single row height */
+    border: none;
+    background: $primary;
+    color: $text;
+    padding: 0 0 0 0;           /* Horizontal padding */
+    margin: 0 0 0 0;            /* Spacing around button */
+    align: center top;
+    content-align: center top;
+}
+CalendarWidget .today-button:hover {
+    background: $primary-lighten-1;
+}
+CalendarWidget .today-button:focus {
+    background: $accent;
+}
+/* === Month/Year Title === */
+CalendarWidget #month-year-display {
+    height: 1;
+    width: 100%;
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+    background: $primary;
+    color: $text;
+    margin: 0 0 1 0;
+}
+/* === Weekday Header Row === */
+CalendarWidget .weekday-header {
+    layout: horizontal;
+    width: 100%;
+    height: 1;
+    margin: 0 0 0 0;
+}
+CalendarWidget .weekday-label {
+    text-align: center;
+    text-style: bold;
+    width: 1fr;
+    height: 1;
+    background: $panel;
+    padding: 0;
+    content-align: center middle;
+}
+/* === Calendar Grid Container === */
+CalendarWidget .calendar-grid {
+    layout: vertical;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0;
+}
+/* === Individual Week Row === */
+CalendarWidget .calendar-week-row {
+    layout: horizontal;
+    width: 100%;
+    height: 1;              /* 3 rows per week for comfortable viewing */
+    margin: 0;
+    padding: 0;
+}
+/* === Day Buttons === */
+CalendarWidget .day-button {
+    width: 1fr;             /* Equal width distribution across 7 columns */
+    max-width: 100%;        /* Don't overflow parent */
+    height: 100%;
+    min-height: 1;
+    min-width: 3;           /* Minimum 6 chars wide */
+    background: $panel;
+    border: none;
+    padding: 0;
+    margin: 0;
+    content-align: center middle;
+    text-align: center;
+}
+CalendarWidget .day-button:hover {
+    background: $accent;
+}
+CalendarWidget .day-button:focus {
+    background: $primary;
+    text-style: bold;
+}
+/* === Today Highlighting === */
+CalendarWidget .day-today {
+    background: $success !important;
+    color: $text;
+    text-style: bold;
+}
+CalendarWidget .day-today:hover {
+    background: $success-darken-1 !important;
+}
+/* === Other Month Days (Grayed Out) === */
+CalendarWidget .day-other-month {
+    background: $surface-darken-1;
+    color: $text-muted;
+    opacity: 50%;
+}
+CalendarWidget .day-other-month:hover {
+    background: $surface;
+    color: $text-muted;
+    opacity: 70%;
+}
+/* === Selected Day === */
+CalendarWidget .day-selected {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+    border: thick white;
+}
