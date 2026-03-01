@@ -671,6 +671,56 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to add user to project: {str(e)}")
 
+    def op_project_get_users(self, project_id: int) -> list:
+        """
+        Get all users associated with a specific project.
+
+        Args:
+            project_id: The ID of the project
+
+        Returns:
+            List of dictionaries containing user information for the project
+        """
+        self.load()
+
+        query = f"""
+            SELECT 
+                u.user_id,
+                u.username,
+                u.first_name,
+                u.last_name,
+                u.email,
+                upm.project_perm_model,
+                upm.project_primary,
+                upm.created_at as joined_at
+            FROM p{self._db_salt}_users u
+            INNER JOIN p{self._db_salt}_user_project_map upm
+                ON u.user_id = upm.user_id
+            WHERE upm.project_id = ?
+            ORDER BY upm.project_primary DESC, u.username ASC
+        """
+
+        results = self.execute_query(query, [project_id])
+        self.close()
+
+        if not results:
+            return []
+
+        users = []
+        for row in results:
+            users.append({
+                'user_id': row[0],
+                'username': row[1],
+                'first_name': row[2],
+                'last_name': row[3],
+                'email': row[4],
+                'project_perm_model': row[5],
+                'project_primary': bool(row[6]),
+                'joined_at': row[7]
+            })
+
+        return users
+
     def op_label_get_all(self, project_id: int) -> list:
         """
         Get all labels for a specific project.
@@ -891,6 +941,167 @@ class SQLLiteHandler:
         except Exception as e:
             self.close()
             raise Exception(f"Failed to delete label: {str(e)}")
+
+    def op_item_create(self, item_dict: Dict) -> Optional[int]:
+        """
+        Create an item (transaction) in the database.
+
+        Args:
+            item_dict: Dictionary containing item information with keys:
+                - item_uuid (required): UUID for the item
+                - name (required): Item name
+                - note (optional): Additional notes
+                - price (required): Original price
+                - price_final (required): Final price after conversion
+                - currency (required): Original currency
+                - currency_final (required): Final currency
+                - bought_date (required): Date/time of purchase
+                - bought_by_id (required): User ID who bought the item
+                - bought_for_id (required): User ID for whom the item was bought
+                - added_by_id (required): User ID who added the entry
+                - project_id (required): Project ID
+                - exchange_rate (optional): Exchange rate (default: 1.0)
+                - exchange_rate_date (optional): Date of exchange rate (default: today)
+                - tags (optional): JSON string of tag/label IDs
+
+        Returns:
+            The item_id of the created item, or None if creation failed
+        """
+        import json
+
+        # Validate required fields
+        required_fields = ['item_uuid', 'name', 'price', 'price_final', 'currency',
+                          'currency_final', 'bought_date', 'bought_by_id',
+                          'bought_for_id', 'added_by_id', 'project_id']
+
+        for field in required_fields:
+            if field not in item_dict:
+                raise ValueError(f"Required field '{field}' is missing")
+
+        # Prepare values with defaults
+        item_uuid = item_dict['item_uuid']
+        name = item_dict['name']
+        note = item_dict.get('note', '')
+        price = item_dict['price']
+        price_final = item_dict['price_final']
+        currency = item_dict['currency']
+        currency_final = item_dict['currency_final']
+        bought_date = item_dict['bought_date']
+        bought_by_id = item_dict['bought_by_id']
+        bought_for_id = item_dict['bought_for_id']
+        added_by_id = item_dict['added_by_id']
+        project_id = item_dict['project_id']
+        exchange_rate = item_dict.get('exchange_rate', 1.0)
+        exchange_rate_date = item_dict.get('exchange_rate_date', datetime.now().strftime("%Y-%m-%d"))
+        tags = item_dict.get('tags', '[]')
+
+        # Ensure tags is a JSON string
+        if isinstance(tags, (list, dict)):
+            tags = json.dumps(tags)
+
+        self.load()
+
+        # Verify project exists
+        project_check = self.execute_query(
+            f"""SELECT project_id FROM p{self._db_salt}_projects WHERE project_id = ?""",
+            [project_id]
+        )
+        if not project_check:
+            self.close()
+            raise ValueError(f"Project with ID {project_id} not found")
+
+        # Verify users exist
+        for user_field, user_id in [('bought_by_id', bought_by_id),
+                                      ('bought_for_id', bought_for_id),
+                                      ('added_by_id', added_by_id)]:
+            user_check = self.execute_query(
+                f"""SELECT user_id FROM p{self._db_salt}_users WHERE user_id = ?""",
+                [user_id]
+            )
+            if not user_check:
+                self.close()
+                raise ValueError(f"User with ID {user_id} ({user_field}) not found")
+
+        # Insert item
+        query = f"""
+            INSERT INTO p{self._db_salt}_items 
+            (item_uuid, name, note, price, price_final, currency, currency_final,
+             bought_date, bought_by_id, bought_for_id, added_by_id, project_id,
+             exchange_rate, exchange_rate_date, tags)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
+        params = [
+            item_uuid, name, note, price, price_final, currency, currency_final,
+            bought_date, bought_by_id, bought_for_id, added_by_id, project_id,
+            exchange_rate, exchange_rate_date, tags
+        ]
+
+        try:
+            self.execute_query(query, params)
+            item_id = self._cursor.lastrowid
+            self.close()
+            return item_id
+        except sqlite3.IntegrityError as e:
+            self.close()
+            if "UNIQUE constraint failed" in str(e):
+                raise ValueError(f"Item with UUID {item_uuid} already exists")
+            raise
+        except Exception as e:
+            self.close()
+            raise Exception(f"Failed to create item: {str(e)}")
+
+    def op_item_delete(self, item_id: int, project_id: int) -> bool:
+        """
+        Delete an item from the database.
+
+        This is a database operation (op_) to delete a single item by its ID.
+        Validates that the item exists and belongs to the specified project
+        before deletion.
+
+        Args:
+            item_id: The ID of the item to delete
+            project_id: The project ID (for security validation)
+
+        Returns:
+            True if the item was successfully deleted, False otherwise
+
+        Raises:
+            ValueError: If the item doesn't exist or doesn't belong to the project
+            Exception: If the deletion fails for any other reason
+        """
+        self.load()
+
+        try:
+            # Verify the item exists and belongs to the project
+            check_query = f"""
+                SELECT item_id FROM p{self._db_salt}_items 
+                WHERE item_id = ? AND project_id = ?
+            """
+            result = self.execute_query(check_query, [item_id, project_id])
+
+            if not result:
+                self.close()
+                raise ValueError(
+                    f"Item with ID {item_id} not found in project {project_id}"
+                )
+
+            # Delete the item
+            delete_query = f"""
+                DELETE FROM p{self._db_salt}_items
+                WHERE item_id = ? AND project_id = ?
+            """
+            self.execute_query(delete_query, [item_id, project_id])
+
+            self.close()
+            return True
+
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            self.close()
+            raise Exception(f"Failed to delete item {item_id}: {str(e)}")
 
     def op_get_current_user(self):
         """

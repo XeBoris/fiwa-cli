@@ -1,4 +1,20 @@
-textual
+# Core dependencies
+textual>=0.47.0
 textual[syntax]
 textual-dev
-httpx
+httpx>=0.25.0
+
+# Internationalization and localization
+babel>=2.14.0
+holidays>=0.38
+
+# Database and data handling
+pyyaml>=6.0
+faker>=22.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Additional utilities
+bcrypt>=4.1.0

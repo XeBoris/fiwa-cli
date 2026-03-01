@@ -152,16 +152,18 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         dbh.set_path(sqlite_path)
         dbh.initialize_database(schema_path=os.path.join(abs_path, "database", "schema.sql"))
 
-        from .db_faker import faker_users, faker_user_login, faker_projects, faker_labels
+        from .db_faker import faker_users, faker_user_login, faker_projects, faker_labels, faker_items
 
         faker_users(dbh=dbh, num_users=5)
 
 
-        faker_user_login("user1", "u1", dbh=dbh)
+        faker_user_login("user0", "u0", dbh=dbh)
 
         project_ids = faker_projects(dbh=dbh)
 
         faker_labels(dbh=dbh, project_ids=project_ids)
+
+        faker_items(dbh=dbh, project_ids=project_ids)
 
         r = dbh.op_get_user_sessions()
         print(r)

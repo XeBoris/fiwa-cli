@@ -129,7 +129,7 @@ class SettingsScreen(ReactiveScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "menu-back-button":
-            self.dismiss()
+            self._return_to_main_screen()
 
         elif event.button.id == "create-project-button":
             # show a notification:
@@ -400,3 +400,12 @@ class SettingsScreen(ReactiveScreen):
         # Force refresh the sidebar
         sidebar.refresh()
         self.app.log(f"Sidebar rebuilt with {len(sidebar.children)} children")
+
+    def _return_to_main_screen(self) -> None:
+        """Pop all screens to return to the main screen."""
+        try:
+            # Pop all screens except the main screen
+            while len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
+        except Exception as e:
+            self.app.log(f"Error returning to main screen: {e}")

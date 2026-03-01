@@ -229,8 +229,12 @@ class LabelManagementForm(Vertical):
     }
 
     LabelManagementForm DataTable {
-        height: 5;
+        height: 15;
         margin: 0 0 1 0;
+    }
+    
+    LabelManagementForm DataTable > .datatable--cursor {
+        background: $accent 30%;
     }
     
     LabelManagementForm .add-label-section {
@@ -373,22 +377,30 @@ class LabelManagementForm(Vertical):
                 self.app.log(f"Error loading labels: {e}")
                 self._labels = []
 
+        # Sort labels by Type (ascending), then Status (descending - Active first), then Name (ascending)
+        self._labels.sort(key=lambda x: (
+            x.get('label_type', 0),           # Type: 0, 1, 2
+            -x.get('label_status', 0),        # Status: 2 (Active), 1 (Deactivated), 0 (Deleted) - negative for descending
+            x.get('name', '').lower()         # Name: alphabetically
+        ))
+
         # Labels table
         yield Static("Existing Labels:", classes="section-header")
         table = DataTable(id="labels-table")
-        table.add_columns("Name", "Description", "Status", "Type", "Actions")
+        table.add_columns("Name", "Description", "Status", "Type")
 
         # Populate table with existing labels
         # Note: We store label_id as the row key for internal reference
         for label in self._labels:
             status_text = self._get_status_text(label['label_status'])
             label_type_text = self._get_action_type(label['label_type'])
+
+            # Add row with plain text (no background colors)
             table.add_row(
                 label['name'],
-                label['description'][:30] + "..." if len(label['description']) > 30 else label['description'],
+                label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
                 status_text,
                 label_type_text,
-                "Edit",
                 key=f"label-id-{label['label_id']}"  # Store label_id in the row key
             )
 
