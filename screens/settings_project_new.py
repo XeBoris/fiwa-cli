@@ -6,104 +6,10 @@ from textual.message import Message
 from datetime import datetime
 import hashlib
 
+from functions.loader import load_dynamic_css
+
 class CreateProjectForm(ScrollableContainer):
     """Widget for creating a new project."""
-
-    DEFAULT_CSS = """
-    CreateProjectForm {
-        width: 100%;
-        height: 100%;
-    }
-
-    CreateProjectForm .form-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 1 0;
-        background: $accent;
-        color: $text;
-    }
-
-    CreateProjectForm .form-label {
-        padding: 1 0 0 0;
-        text-style: bold;
-    }
-
-    CreateProjectForm Input {
-        margin: 0 0 1 0;
-        width: 100%;
-    }
-
-    CreateProjectForm TextArea {
-        height: 5;
-        margin: 0 0 1 0;
-    }
-
-    CreateProjectForm Button {
-        min-width: 20;
-        height: 3;
-        margin: 0 1;
-    }
-       
-    CreateProjectForm #action-buttons {
-        grid-size: 2 1;
-        grid-columns: 1fr 1fr;
-        grid-gutter: 1;
-        height: 10;
-        margin-top: 0;
-        width: 100%;
-    }
-    
-    CreateProjectForm #project-create-button {
-        background: green;
-        color: white;
-        width: 20;
-        height: 3;
-        margin: 0 1;
-    }
-
-    CreateProjectForm #project-create-button:hover {
-        background: darkgreen;
-    }
-
-    CreateProjectForm #project-cancel-button {
-        background: red;
-        color: white;
-        width: 20;
-        height: 3;
-        margin: 0 1;
-    }
-
-    CreateProjectForm #project-cancel-button:hover {
-        background: darkred;
-    }
-    
-    CreateProjectForm .warning-box {
-        background: $warning;
-        color: $text;
-        padding: 1;
-        margin: 0 0 2 0;
-        border: solid $error;
-    }
-    
-    CreateProjectForm .error-box {
-        background: $error;
-        color: $text;
-        padding: 1;
-        margin: 0 0 2 0;
-        border: solid $error;
-    }
-    
-    CreateProjectForm .info-box {
-        background: $panel;
-        color: $text;
-        padding: 1;
-        margin: 0 0 2 0;
-        border: solid $accent;
-    }
-    """
-
-
-
 
     class ProjectCreated(Message):
         """Message sent when project is created."""
@@ -149,27 +55,51 @@ class CreateProjectForm(ScrollableContainer):
                 classes="info-box"
             )
 
-        yield Static("Project Name *", classes="form-label")
-        yield Input(placeholder="Enter project name", id="project-name", max_length=24)
+        with ScrollableContainer(id="form-content"):
+            with Vertical(id="form-project-area"):
+                yield Static("Project Name *", classes="form-label")
+                yield Input(placeholder="Enter project name", id="project-name", max_length=24)
 
-        yield Static("Description", classes="form-label")
-        yield TextArea(id="project-description")
+                yield Static("Description", classes="form-label")
+                yield TextArea(id="project-description")
 
-        yield Static("Main Currency (3-letter code) *", classes="form-label")
-        yield Input(placeholder="e.g., USD, EUR, GBP", id="currency-main", max_length=3)
+            with Horizontal(id="form-currency-section"):
+                with Vertical(id="form-currency-section-main"):
+                    yield Static("Main Currency *", classes="form-label")
+                    yield Input(placeholder="e.g., USD", id="currency-main", max_length=3)
+                with Vertical(id="form-currency-section-additional"):
+                    yield Static("Additional Currencies (comma-separated)", classes="form-label")
+                    yield Input(placeholder="e.g., USD, EUR, JPY", id="currency-list")
 
-        yield Static("Additional Currencies (comma-separated)", classes="form-label")
-        yield Input(placeholder="e.g., USD,EUR,JPY", id="currency-list")
-
-        with Grid(id="action-buttons"):
-            yield Button("Create", id="project-create-button")
-            yield Button("Cancel", id="project-cancel-button")
+            with Grid(id="action-buttons"):
+                yield Button("Create", id="project-create-button")
+                yield Button("Reset", id="project-reset-button")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "project-cancel-button":
-            self.app.notify("Project creation cancelled", severity="info")
+        if event.button.id == "project-reset-button":
+            self.reset_form()
         elif event.button.id == "project-create-button":
             self.create_project()
+
+    def on_mount(self) -> None:
+        load_dynamic_css(self, "screens_settings_project_new.tcss")
+        #update project usage info on mount
+
+    def reset_form(self) -> None:
+        """Reset all form fields to their initial empty state."""
+        try:
+            # Clear all input fields
+            self.query_one("#project-name", Input).value = ""
+            self.query_one("#project-description", TextArea).text = ""
+            self.query_one("#currency-main", Input).value = ""
+            self.query_one("#currency-list", Input).value = ""
+
+            # Focus on the first field
+            self.query_one("#project-name", Input).focus()
+
+            self.app.notify("Form reset successfully", severity="info")
+        except Exception as e:
+            self.app.notify(f"Error resetting form: {str(e)}", severity="error")
 
     def create_project(self) -> None:
         """Validate and create the project."""

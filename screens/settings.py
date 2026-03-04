@@ -1,14 +1,17 @@
 """Settings screen - configure application settings."""
 from textual.screen import ModalScreen, Screen
-from textual.containers import Vertical, Horizontal, ScrollableContainer
+from textual.containers import Vertical, Horizontal, ScrollableContainer, Container
 from textual.widgets import Static, Button
 from textual.app import ComposeResult
 from components import FiwaHeader
+
+from functions.loader import load_dynamic_css
 
 # from .settings_project_new import CreateProjectModal
 from .settings_project_new import CreateProjectForm
 from .settings_project_modify import ModifyProjectForm
 from .settings_user_new import CreateUserForm
+from .settings_user_modify import ModifyUserForm
 from .settings_label_page import LabelManagementForm
 from .settings_label_new import CreateLabelForm
 
@@ -24,59 +27,6 @@ class SettingsScreen(ReactiveScreen):
         self._last_login_state = self.app.app_state.get("is_logged_in", False)
         self._mounted = False
 
-    DEFAULT_CSS = """
-    SettingsScreen {
-        layout: vertical;
-    }
-
-    SettingsScreen #settings-body {
-        layout: horizontal;
-        height: 1fr;
-    }
-
-    SettingsScreen #settings-sidebar {
-        width: auto;
-        background: $panel;
-        border-right: solid $accent;
-        padding: 1;
-        scrollbar-size: 4 1;
-    }
-    
-    SettingsScreen .menu-section {
-        text-style: bold;
-        padding: 1 0 0 0;
-        color: $accent;
-    }
-
-    SettingsScreen #settings-sidebar > ScrollableContainer > Button {
-        width: 100%;
-        height: 3;
-        margin: 0 0 1 0;
-        padding: 0 1;
-        border: solid $accent;
-    }
-    
-    # This element controls the right content area where forms and messages are displayed
-    # In particular the size and the scrollbar!!!
-    SettingsScreen #settings-content-area {
-        width: 1fr;
-        height: 100%;
-        padding: 0;
-        scrollbar-size: 3 1;
-    }    
-    
-    SettingsScreen #settings-title {
-        text-style: bold;
-        padding: 0 0 2 0;
-        text-align: center;
-    }
-
-    SettingsScreen #back-button {
-        margin-top: 1;
-        width: 100%;
-    }
-    """
-
     def compose(self) -> ComposeResult:
 
         yield FiwaHeader(
@@ -85,45 +35,72 @@ class SettingsScreen(ReactiveScreen):
             project_id=self.app.app_state["project_id"],
             project_ids=self.app.app_state["project_ids"]
         )
-        yield Static("Settings", id="settings-title")
+        #yield Static("Settings", id="settings-title")
         #yield Static(str(self.app.app_state["is_logged_in"]), id="login-status")
         # Add create project button
-        with Horizontal(id="settings-body"):
-            with ScrollableContainer(id="settings-sidebar"):
+        with Container(id="container-body"):
+            with ScrollableContainer(id="container-sidebar"):
                 if self.app.app_state["is_logged_in"] is True:
                     yield Static("Project Management", classes="menu-section")
-                    yield Button("+ Create Project", id="create-project-button",
+                    yield Button("+ Create Project",
+                                 id="create-project-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
-                    yield Button("= Modify Project", id="modify-project-button",
+                    yield Button("= Modify Project",
+                                 id="modify-project-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
 
                     yield Static("Label Management", classes="menu-section")
-                    yield Button("+ Create Label", id="create-label-button",
+                    yield Button("+ Create Label",
+                                 id="create-label-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
-                    yield Button("= Manage Labels", id="manage-labels-button",
+                    yield Button("= Manage Labels",
+                                 id="manage-labels-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
 
                     yield Static("User Management", classes="menu-section")
-                    yield Button("+ Create User", id="create-user-button",
+                    yield Button("+ Create User",
+                                 id="create-user-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
-                    yield Button("= Modify User", id="modify-user-button",
+                    yield Button("= Modify User",
+                                 id="modify-user-button",
+                                 classes="sidebar-menu-button",
                                  variant="default")
+                    yield Button("Back", id="menu-back-button",
+                                 classes="sidebar-menu-button",
+                                 variant="primary",
+                                 flat=True)
                 else:
                     yield Static("Please login to access settings", classes="menu-section")
 
-                # Always show Back button
-                yield Button("Back", id="menu-back-button",
-                             variant="primary")
+                    # Always show Back button
+                    yield Button("Back", id="menu-back-button",
+                                 variant="primary")
 
             # Right content area
             with ScrollableContainer(id="settings-content-area"):
                 yield Static("Select an option from the menu", id="content-display")
+                m = """
+ ____       _   _   _                 
+/ ___|  ___| |_| |_(_)_ __   __ _ ___ 
+\___ \ / _ \ __| __| | '_ \ / _` / __|
+ ___) |  __/ |_| |_| | | | | (_| \__ \\
+|____/ \___|\__|\__|_|_| |_|\__, |___/
+                            |___/"""
+                yield Static(m)
 
         # yield Button("Back", id="back-button", variant="primary")
 
     def on_mount(self) -> None:
         """Called when screen is mounted. Set up watchers."""
         super().on_mount()
+
+        load_dynamic_css(self, css_filename="screens_settings.tcss")
+
         self._mounted = True
         self.app.log("SettingsScreen mounted")
 
@@ -141,7 +118,7 @@ class SettingsScreen(ReactiveScreen):
             # self.show_content("Create User", "User creation interface coming soon...")
             self.show_create_user_form()
         elif event.button.id == "modify-user-button":
-            self.show_content("Modify User", "User modification interface coming soon...")
+            self.show_modify_user_form()
         elif event.button.id == "currency-settings-button":
             self.show_content("Currency Settings", "Currency configuration interface coming soon...")
         elif event.button.id == "create-label-button":
@@ -168,31 +145,51 @@ class SettingsScreen(ReactiveScreen):
         """Show the create project form in the content area."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(CreateProjectForm())
+        form = CreateProjectForm()
+        form.on_mount()
+        content_area.mount(form)
 
     def show_modify_project_form(self) -> None:
         """Show the modify project form in the content area."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(ModifyProjectForm())
+
+        form = ModifyProjectForm()
+        form.on_mount()
+        content_area.mount(form)
 
     def show_create_user_form(self) -> None:
         """Show the create user form in the content area."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(CreateUserForm())
+        form = CreateUserForm()
+        form.on_mount()
+        content_area.mount(form)
+
+    def show_modify_user_form(self) -> None:
+        """Show the modify user form in the content area."""
+        content_area = self.query_one("#settings-content-area", ScrollableContainer)
+        content_area.remove_children()
+
+        form = ModifyUserForm()
+        form.on_mount()
+        content_area.mount(form)
 
     def show_label_management_form(self) -> None:
         """Show the label management form in the content area."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(LabelManagementForm())
+        form = LabelManagementForm()
+        form.on_mount()
+        content_area.mount(form)
 
     def show_create_label_form(self) -> None:
         """Show the create label form in the content area."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(CreateLabelForm())
+        form = CreateLabelForm()
+        form.on_mount()
+        content_area.mount(form)
 
     def on_create_project_form_project_created(self, message: CreateProjectForm.ProjectCreated) -> None:
         """

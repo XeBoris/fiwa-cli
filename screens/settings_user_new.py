@@ -1,11 +1,12 @@
 """User creation form widget."""
-from textual.containers import Vertical, Horizontal, Grid
+from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer
 from textual.widgets import Static, Input, Button
 from textual.widget import Widget
 from textual.app import ComposeResult
 from textual.message import Message
 from datetime import date
 
+from functions.loader import load_dynamic_css
 
 class CreateUserForm(Widget):
     """Form for creating a new user."""
@@ -17,61 +18,39 @@ class CreateUserForm(Widget):
             self.user_data = user_data
             super().__init__()
 
-    DEFAULT_CSS = """
-    CreateUserForm {
-        width: 100%;
-        height: auto;
-    }
-
-    CreateUserForm Static {
-        margin: 1 0;
-    }
-
-    CreateUserForm Input {
-        width: 100%;
-        margin: 0 0 1 0;
-    }
-
-    CreateUserForm Horizontal {
-        height: auto;
-        margin-top: 1;
-    }
-
-    CreateUserForm Horizontal Button {
-        width: 1fr;
-        height: 3;
-        margin: 0 1;
-    }
-    """
+    def on_mount(self) -> None:
+        load_dynamic_css(self, "screens_settings_user_new.tcss")
+        #update project usage info on mount
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
-        yield Static("[bold]Create New User[/bold]", id="form-title")
+        yield Static("Create New User", classes="form-title")
 
-        yield Static("First Name:")
-        yield Input(placeholder="Enter first name", id="first-name-input")
+        with ScrollableContainer(id="form-content"):
+            yield Static("First Name:")
+            yield Input(placeholder="Enter first name", id="first-name-input")
 
-        yield Static("Last Name:")
-        yield Input(placeholder="Enter last name", id="last-name-input")
+            yield Static("Last Name:")
+            yield Input(placeholder="Enter last name", id="last-name-input")
 
-        yield Static("Username:")
-        yield Input(placeholder="Enter username", id="username-input")
+            yield Static("Username:")
+            yield Input(placeholder="Enter username", id="username-input")
 
-        yield Static("Email:")
-        yield Input(placeholder="Enter email address", id="email-input")
+            yield Static("Email:")
+            yield Input(placeholder="Enter email address", id="email-input")
 
-        yield Static("Birthday (YYYY-MM-DD, optional):")
-        yield Input(placeholder="YYYY-MM-DD", id="birthday-input")
+            yield Static("Birthday (YYYY-MM-DD, optional):")
+            yield Input(placeholder="YYYY-MM-DD", id="birthday-input")
 
-        yield Static("Password:")
-        yield Input(placeholder="Enter password", password=True, id="password-input")
+            yield Static("Password:")
+            yield Input(placeholder="Enter password", password=True, id="password-input")
 
-        yield Static("Max Projects (default: 3):")
-        yield Input(placeholder="3", id="max-projects-input")
+            yield Static("Max Projects (default: 3):")
+            yield Input(placeholder="3", id="max-projects-input")
 
-        with Horizontal():
-            yield Button("Create", id="user-create-button", variant="success")
-            yield Button("Cancel", id="user-cancel-button", variant="error")
+            with Horizontal():
+                yield Button("Create", id="user-create-button", variant="success")
+                yield Button("Cancel", id="user-cancel-button", variant="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""

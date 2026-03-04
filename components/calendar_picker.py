@@ -129,7 +129,7 @@ class CalendarWidget(ModalScreen):
         abs_path = self.app.app_state["abs_path"]
 
         # Absolute path: /path/to/fiwa-cli/css/handsome/components_calendar.tcss
-        css_file = os.path.join(abs_path, "css", css_form, "components_calendar.tcss")
+        css_file = os.path.join(abs_path, "css", css_form, "components_calendar_picker.tcss")
 
         return css_file
 

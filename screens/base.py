@@ -201,6 +201,7 @@ class LoginScreen(ModalScreen):
             self.app.app_state = {
                 "user_name": user_info.get("username", username),
                 "user_id": user_id,
+                "user_scope": user_info.get("scope", "user:write"),
                 "session_uuid": user_session.get("session_uuid", "No session"),
                 "session_start": user_session.get("session_start"),
                 "is_logged_in": True,
@@ -250,6 +251,7 @@ class LoginScreen(ModalScreen):
             self.app.app_state = {
                 "user_name": "Guest",
                 "user_id": -1,
+                "user_scope": "user:write",
                 "session_uuid": "No session",
                 "session_start": None,
                 "is_logged_in": False,

@@ -7,6 +7,7 @@ import datetime
 
 from .base import ReactiveScreen
 
+from components.week_month_picker import WeekMonthWidget
 from .inputs_insert_expense import CreateExpenseForm
 from .inputs_edit_expense import EditExpenseView
 
@@ -52,45 +53,6 @@ class InputsScreen(ReactiveScreen):
         width: 40%;
         margin: 0 0 1 0;
         border: none
-    }
-    
-    InputsScreen #period-select {
-        max-height: 3;
-        align: center middle;
-        width: 18;
-        margin: 0 0;
-    }
-    
-    InputsScreen #period-navigation {
-        grid-size: 2 2;
-        grid-gutter: 0;
-        width: 20;
-        height: 10;
-        margin: 0 0;
-    }
-    
-    InputsScreen #period-navigation Button {
-        width: 100%;
-        height: 1;
-        content-align: center middle;
-        text-align: center;
-        border: none;
-    }
-    
-    InputsScreen #period-navigation Static {
-        width: 100%;
-        height: 1;
-        content-align: center middle;
-        text-align: center;
-    }
-    
-    InputsScreen #period-year {
-        text-style: bold;
-    }
-    
-    InputsScreen #period-value {
-        text-style: bold;
-        color: $accent;
     }
     
     # InputsScreen #inputs-sidebar Button {
@@ -148,21 +110,10 @@ class InputsScreen(ReactiveScreen):
                 yield Button("Edit", id="edit-item-button", variant="success", compact=True, flat=True)
 
                 yield Static("Period", classes="menu-section")
-                yield Select(options=[
-                            ("Week", "week"),
-                            ("Month", "month")
-                                    ],
-                             value="week",
-                             id="period-select",
-                             allow_blank=False
-                            )
 
-                # Period navigation grid: [← | Year | Week/Month | →]
-                with Grid(id="period-navigation"):
-                    yield Button("◀", id="period-prev", variant="default", compact=True, flat=True)
-                    yield Button("▶", id="period-next", variant="default", compact=True, flat=True)
-                    yield Static(str(self._current_year), id="period-year")
-                    yield Static(f"W{self._current_week}", id="period-value")
+                # Week/Month picker widget (includes dropdown and navigation)
+                yield WeekMonthWidget()
+
 
 
 
@@ -191,6 +142,18 @@ class InputsScreen(ReactiveScreen):
         # Initialize app_state with current period
         self._update_app_state_period()
 
+        # Initialize WeekMonthWidget with current values
+        try:
+            week_month_widget = self.query_one(WeekMonthWidget)
+            week_month_widget.period_type = self._current_period_type
+            week_month_widget.current_year = self._current_year
+            week_month_widget.current_week = self._current_week
+            week_month_widget.current_month = self._current_month
+            week_month_widget.update_display()
+            self.app.log("WeekMonthWidget initialized")
+        except Exception as e:
+            self.app.log(f"Could not initialize WeekMonthWidget: {e}")
+
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -200,26 +163,29 @@ class InputsScreen(ReactiveScreen):
             self.show_create_input_form()
         elif event.button.id == "edit-item-button":
             self.show_edit_expense_view()
-        elif event.button.id == "period-prev":
-            self._navigate_period(-1)
-        elif event.button.id == "period-next":
-            self._navigate_period(1)
         elif event.button.id == "view-recent-button":
             self.app.notify("View Recent - Coming soon!", severity="info")
         elif event.button.id == "import-csv-button":
             self.app.notify("Import CSV - Coming soon!", severity="info")
 
-    def on_select_changed(self, event: Select.Changed) -> None:
-        """Handle period selection changes."""
-        if event.select.id == "period-select":
-            self._current_period_type = event.value
-            self.app.log(f"Period type changed to: {self._current_period_type}")
+    def on_week_month_widget_period_changed(self, message: WeekMonthWidget.PeriodChanged) -> None:
+        """Handle PeriodChanged messages from WeekMonthWidget.
 
-            # Update the display
-            self._update_period_display()
+        Synchronizes the screen's internal state with the widget.
+        """
+        # Update internal state from widget
+        self._current_period_type = message.period_type
+        self._current_year = message.year
+        if message.week is not None:
+            self._current_week = message.week
+        if message.month is not None:
+            self._current_month = message.month
 
-            # Update app_state
-            self._update_app_state_period()
+        self.app.log(f"WeekMonthWidget period changed: {message.period_type} " +
+                    f"Year {message.year}, Week {message.week}, Month {message.month}")
+
+        # Update app_state and refresh data tables
+        self._update_app_state_period()
 
     def show_create_input_form(self) -> None:
         """Show the create expense form in the content area."""
@@ -249,57 +215,6 @@ class InputsScreen(ReactiveScreen):
         except Exception as e:
             self.app.log(f"Error handling ItemCreated message: {e}")
 
-    # def on_item_input_form_item_created(self, message: ItemInputForm.ItemCreated) -> None:
-    #     """Handle the ItemCreated message from ItemInputForm."""
-    #     if message.item_data is None:
-    #         # User cancelled
-    #         self.app.notify("Item entry cancelled", severity="info")
-    #         return
-    #
-    #     try:
-    #         # Get current project and user info
-    #         project_id = self.app.app_state.get("project_id", 0)
-    #         user_id = self.app.app_state.get("user_id", -1)
-    #
-    #         if project_id <= 0:
-    #             self.app.notify("No project selected", severity="error")
-    #             return
-    #
-    #         if user_id <= 0:
-    #             self.app.notify("Not logged in", severity="error")
-    #             return
-    #
-    #         # Add project_id to item data
-    #         message.item_data['project_id'] = project_id
-    #
-    #         # TODO: Save to database
-    #         # dbh = self.app._config["dbh"]
-    #         # item_id = dbh.op_item_create(message.item_data)
-    #
-    #         # For now, just show success message
-    #         self.app.notify(
-    #             f"Item '{message.item_data['name']}' created! (DB save pending)",
-    #             severity="success"
-    #         )
-    #
-    #         # Log the item data for debugging
-    #         self.app.log(f"Item data: {message.item_data}")
-    #
-    #         # Clear the form for next entry
-    #         form = self.query_one(ItemInputForm)
-    #         form._clear_form()
-    #
-    #     except Exception as e:
-    #         self.app.notify(f"Error creating item: {str(e)}", severity="error")
-    #         self.app.log(f"Error in on_item_input_form_item_created: {e}")
-    #
-    # def _clear_and_refocus(self) -> None:
-    #     """Clear the form and refocus for new entry."""
-    #     try:
-    #         form = self.query_one(ItemInputForm)
-    #         form._clear_form()
-    #     except Exception as e:
-    #         self.app.log(f"Error clearing form: {e}")
 
     def _return_to_main_screen(self) -> None:
         """Pop all screens to return to the main screen."""
@@ -309,68 +224,6 @@ class InputsScreen(ReactiveScreen):
         except Exception as e:
             self.app.log(f"Error returning to main screen: {e}")
 
-    def _navigate_period(self, direction: int) -> None:
-        """
-        Navigate to the previous or next period.
-
-        Args:
-            direction: -1 for previous, 1 for next
-        """
-        if self._current_period_type == "week":
-            self._current_week += direction
-
-            # Handle year boundaries for weeks
-            if self._current_week < 1:
-                self._current_year -= 1
-                # Get last week of previous year
-                last_day = datetime.date(self._current_year, 12, 31)
-                self._current_week = last_day.isocalendar()[1]
-            elif self._current_week > 52:
-                # Check if week 53 exists for this year
-                last_day = datetime.date(self._current_year, 12, 31)
-                max_week = last_day.isocalendar()[1]
-                if self._current_week > max_week:
-                    self._current_year += 1
-                    self._current_week = 1
-        else:  # month
-            self._current_month += direction
-
-            # Handle year boundaries for months
-            if self._current_month < 1:
-                self._current_year -= 1
-                self._current_month = 12
-            elif self._current_month > 12:
-                self._current_year += 1
-                self._current_month = 1
-
-        # Update the display
-        self._update_period_display()
-
-        # Update app_state
-        self._update_app_state_period()
-
-        # Log the change
-        if self._current_period_type == "week":
-            self.app.log(f"Navigated to: {self._current_year} Week {self._current_week}")
-        else:
-            self.app.log(f"Navigated to: {self._current_year} Month {self._current_month}")
-
-    def _update_period_display(self) -> None:
-        """Update the period display widgets with current values."""
-        try:
-            # Update year
-            year_widget = self.query_one("#period-year", Static)
-            year_widget.update(str(self._current_year))
-
-            # Update week/month value
-            value_widget = self.query_one("#period-value", Static)
-            if self._current_period_type == "week":
-                value_widget.update(f"W{self._current_week}")
-            else:
-                # Format month with leading zero
-                value_widget.update(f"M{self._current_month:02d}")
-        except Exception as e:
-            self.app.log(f"Error updating period display: {e}")
 
     def _update_app_state_period(self) -> None:
         """Update app_state with current period selection."""

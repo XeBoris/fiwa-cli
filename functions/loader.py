@@ -3,6 +3,51 @@ import os
 import yaml
 import time
 
+def load_dynamic_css(widget, css_filename: str) -> None:
+    """Load external CSS file based on app theme configuration.
+
+    Attempts to load a widget's CSS file from the theme directory
+    specified in app_state. Falls back silently if CSS cannot be loaded.
+
+    This function should be called from a widget's on_mount() method after
+    the app is fully initialized and app_state is available.
+
+    Args:
+        widget: The Textual widget instance (must have self.app attribute)
+        css_filename: Name of the CSS file (e.g., "components_week_month_picker.tcss")
+
+    Example:
+        >>> def on_mount(self):
+        >>>     load_dynamic_css(self, "components_calendar_picker.tcss")
+    """
+    try:
+        # Get theme and base path from app state
+        css_form = widget.app.app_state.get("css_form", "handsome")
+        abs_path = widget.app.app_state["abs_path"]
+
+        # Build path to CSS file
+        css_file = os.path.join(abs_path, "css", css_form, css_filename)
+
+        # Check if file exists
+        if not os.path.exists(css_file):
+            widget.app.log(f"✗ CSS file not found: {css_file}")
+            return
+
+        # Read CSS content
+        with open(css_file, "r") as f:
+            css_content = f.read()
+
+        # Add to app stylesheet and force refresh
+        widget.app.stylesheet.add_source(css_content)
+        widget.refresh(layout=True)
+
+        widget.app.log(f"✓ Loaded CSS from: {css_file}")
+
+    except (AttributeError, KeyError) as e:
+        widget.app.log(f"✗ app_state not available: {e}")
+    except Exception as e:
+        widget.app.log(f"✗ Failed to load CSS: {e}")
+
 def get_abs_path():
     """
     Get the absolute path of the current script.

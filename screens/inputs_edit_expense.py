@@ -22,6 +22,16 @@ class EditExpenseView(VerticalScroll):
         background: $accent;
         color: $text;
     }
+    
+    EditExpenseView .date-info {
+        text-align: center;
+        padding: 1;
+        margin: 0 0 1 0;
+        background: $primary 30%;
+        color: $text;
+        border: solid $primary;
+        text-style: bold;
+    }
 
     EditExpenseView TabbedContent {
         height: auto;
@@ -43,6 +53,17 @@ class EditExpenseView(VerticalScroll):
 
     def compose(self) -> ComposeResult:
         yield Static("Edit Expenses", classes="form-title")
+
+        # Display current date selection
+        period_start = self.app.app_state.get("current_period_start")
+        period_end = self.app.app_state.get("current_period_end")
+
+        if period_start and period_end:
+            date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+        else:
+            date_range_text = "📅 Showing all expenses"
+
+        yield Static(date_range_text, id="date-selection-display", classes="date-info")
 
         # Get project and users
         project_id = self.app.app_state.get("project_id", 0)
@@ -158,9 +179,30 @@ class EditExpenseView(VerticalScroll):
             self.app.log(f"Error fetching user items: {e}")
             return []
 
+    def _update_date_display(self) -> None:
+        """Update the date selection display with current period."""
+        try:
+            period_start = self.app.app_state.get("current_period_start")
+            period_end = self.app.app_state.get("current_period_end")
+
+            if period_start and period_end:
+                date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            else:
+                date_range_text = "📅 Showing all expenses"
+
+            # Update the Static widget
+            date_display = self.query_one("#date-selection-display", Static)
+            date_display.update(date_range_text)
+
+        except Exception as e:
+            self.app.log(f"Error updating date display: {e}")
+
     def refresh_tables(self) -> None:
         """Refresh all DataTables with items for the current period."""
         try:
+            # Update the date selection display
+            self._update_date_display()
+
             project_id = self.app.app_state.get("project_id", 0)
             if project_id <= 0:
                 return

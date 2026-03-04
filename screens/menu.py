@@ -100,11 +100,53 @@ class MenuScreen(ModalScreen):
                                  # self.handle_login_result
                                  )
         elif option_id == "menu-login" and self.app.app_state.get("is_logged_in", False) is True:
+            # Perform logout directly here
+            self._perform_logout()
             self.dismiss()
-            # Perform logout directly here and update app state
-            ls = LoginScreen(is_logged_in=self.app.app_state.get("is_logged_in", False),
-                             username=self.app.app_state.get("user_name"))
-            ls.perform_logout()
         else:
             self.app.notify(f"Selected: {event.option.prompt}")
             self.dismiss()
+
+    def _perform_logout(self) -> None:
+        """Perform logout operation directly from menu."""
+        try:
+            # Get database handler
+            k = self.app._config.get("dbh")
+
+            # Verify logout (optional - could skip this if you want faster logout)
+            verify = k.logout_user()
+
+            if verify:
+                # Update app state to logged-out state
+                self.app.app_state = {
+                    "user_name": "Guest",
+                    "user_id": -1,
+                    "user_scope": "user:write",
+                    "session_uuid": "No session",
+                    "session_start": None,
+                    "is_logged_in": False,
+                    "project_names": ["No Projects"],
+                    "project_ids": [0],
+                    "project_id": 0,
+                }
+
+                self.app.notify("Logout successful!", severity="success")
+
+                # Pop all screens to return to main screen
+                self.app.call_after_refresh(self._return_to_main_screen)
+            else:
+                self.app.notify("Logout failed. Please try again.", severity="error")
+
+        except Exception as e:
+            self.app.notify(f"Error during logout: {str(e)}", severity="error")
+            self.app.log(f"Logout error: {e}")
+
+    def _return_to_main_screen(self) -> None:
+        """Pop all screens to return to the main screen."""
+        try:
+            # Pop all screens except the main screen
+            while len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
+        except Exception as e:
+            self.app.log(f"Error returning to main screen: {e}")
+

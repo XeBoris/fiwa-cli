@@ -115,7 +115,7 @@ class FiwaHeader(Static):
             from screens.menu import MenuScreen
             self.app.push_screen(MenuScreen())
         elif event.button.id == "calendar-button":
-            from components.calendar_display import CalendarWidget
+            from components.calendar_picker import CalendarWidget
             self.app.push_screen(CalendarWidget(
                                         initial_date=None,
                                         margin=(3, 0, 0, 15),
