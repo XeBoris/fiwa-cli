@@ -10,6 +10,8 @@ import re
 
 from textual import on
 
+from functions.loader import load_dynamic_css
+
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days
 
@@ -99,89 +101,6 @@ class LabelModalScreen(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-    DEFAULT_CSS = """
-    LabelModalScreen {
-        align: center middle;
-        background: $background 85%;
-    }
-    
-    LabelModalScreen > Vertical {
-        width: 80;
-        height: 45;
-        background: $panel;
-        border: thick $accent;
-        padding: 2;
-    }
-    
-    LabelModalScreen .modal-header {
-        width: 100%;
-        height: auto;
-        margin: 0 0 1 0;
-    }
-    
-    LabelModalScreen .modal-title {
-        text-style: bold;
-        text-align: center;
-        color: $accent;
-        padding: 1;
-        background: $surface;
-        height: 3;
-    }
-    
-    LabelModalScreen .selection-count {
-        text-align: center;
-        color: $success;
-        padding: 0 0 1 0;
-        height: 2;
-    }
-    
-    LabelModalScreen TabbedContent {
-        width: 100%;
-        height: 1fr;
-        border: solid $primary;
-        margin: 0 0 1 0;
-    }
-    
-    LabelModalScreen TabPane {
-        padding: 1;
-    }
-    
-    LabelModalScreen .no-labels-message {
-        height: 10;
-        padding: 2;
-        color: $warning;
-        text-align: center;
-        text-style: italic;
-    }
-    
-    LabelModalScreen .button-row {
-        layout: horizontal;
-        height: auto;
-        align: center middle;
-        padding: 0 0 0 0;
-    }
-    
-    LabelModalScreen #label-ok-button {
-        background: green;
-        color: white;
-        margin: 0 1;
-        min-width: 18;
-    }
-    
-    LabelModalScreen #label-cancel-button {
-        background: red;
-        color: white;
-        margin: 0 1;
-        min-width: 18;
-    }
-    
-    LabelModalScreen #label-clear-button {
-        background: orange;
-        color: white;
-        margin: 0 1;
-        min-width: 18;
-    }
-    """
 
     def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -252,7 +171,11 @@ class LabelModalScreen(ModalScreen):
                 yield Button("✗ Cancel", id="label-cancel-button", variant="error")
 
     def on_mount(self) -> None:
-        """Update selection count when mounted."""
+        """Load CSS and update selection count when mounted."""
+        try:
+            load_dynamic_css(self, "components_label_modal.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load CSS for LabelModalScreen: {e}")
         self._update_selection_count()
 
     def on_selection_list_selected_changed(self, event: SelectionList.SelectedChanged) -> None:
@@ -340,95 +263,17 @@ class ItemConfirmationModal(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-    DEFAULT_CSS = """
-    ItemConfirmationModal {
-        align: center middle;
-        background: $background 80%;
-    }
-    
-    ItemConfirmationModal > Vertical {
-        width: 70;
-        height: auto;
-        background: $panel;
-        border: thick $accent;
-        padding: 0;
-    }
-    
-    ItemConfirmationModal .modal-title {
-        text-style: bold;
-        text-align: center;
-        color: $accent;
-        padding: 0;
-        background: $surface;
-        height: 3;
-        margin: 0 0 0 0;
-    }
-    
-    ItemConfirmationModal .summary-section {
-        padding: 0;
-        border: solid $primary;
-        margin: 0 0;
-        background: $surface;
-        min-height: 10;
-        height: auto;
-    }
-    
-    ItemConfirmationModal .section-title {
-        text-style: bold;
-        color: $accent;
-        padding: 0 0 0 0;
-        height: auto;
-        min-height: 3;
-    }
-    
-    ItemConfirmationModal .summary-row {
-        padding: 0 0;
-        height: auto;
-        min-height: 1;
-    }
-    
-    ItemConfirmationModal .cost-share-row {
-        padding: 0 1;
-        height: auto;
-        min-height: 3;
-        color: $warning;
-    }
-    
-    ItemConfirmationModal .total-row {
-        padding: 0 0;
-        height: auto;
-        min-height: 3;
-        text-style: bold;
-        color: $success;
-    }
-    
-    ItemConfirmationModal .button-row {
-        layout: horizontal;
-        min-height: 3;
-        align: center middle;
-        padding: 0 0 0 0;
-    }
-    
-    ItemConfirmationModal #confirm-ok-button {
-        background: green;
-        color: white;
-        margin: 0 0;
-        min-width: 25;
-        border: none;
-    }
-    
-    ItemConfirmationModal #confirm-back-button {
-        background: orange;
-        color: white;
-        margin: 0 0;
-        min-width: 25;
-        border: none;
-    }
-    """
 
     def __init__(self, item_data: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.item_data = item_data
+
+    def on_mount(self) -> None:
+        """Load CSS when modal is mounted."""
+        try:
+            load_dynamic_css(self, "components_item_confirmation_modal.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load CSS for ItemConfirmationModal: {e}")
 
     def compose(self) -> ComposeResult:
         # Debug logging
@@ -520,49 +365,17 @@ class DeleteConfirmationModal(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-    DEFAULT_CSS = """
-    DeleteConfirmationModal {
-        align: center middle;
-        background: $background 85%;
-    }
-    
-    DeleteConfirmationModal > Vertical {
-        width: 60;
-        height: auto;
-        background: $panel;
-        border: thick $error;
-        padding: 2;
-    }
-    
-    DeleteConfirmationModal .warning-title {
-        text-style: bold;
-        text-align: center;
-        color: $error;
-        padding: 1;
-        background: $surface;
-    }
-    
-    DeleteConfirmationModal .warning-message {
-        text-align: center;
-        padding: 2;
-    }
-    
-    DeleteConfirmationModal .button-row {
-        layout: horizontal;
-        height: auto;
-        align: center middle;
-        padding: 1;
-    }
-    
-    DeleteConfirmationModal Button {
-        margin: 0 1;
-        min-width: 15;
-    }
-    """
 
     def __init__(self, item_name: str):
         super().__init__()
         self.item_name = item_name
+
+    def on_mount(self) -> None:
+        """Load CSS when modal is mounted."""
+        try:
+            load_dynamic_css(self, "components_delete_confirmation_modal.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load CSS for DeleteConfirmationModal: {e}")
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -594,297 +407,6 @@ class ItemInputForm(ModalScreen):
         ("escape", "dismiss_form", "Close"),
     ]
 
-    DEFAULT_CSS = """
-    ItemInputForm {
-        width: 100%;
-        height: 100%;
-        border: solid $accent;
-        padding: 1;
-        background: $background 95%;
-    }
-
-    ItemInputForm .form-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 1 0;
-        background: $accent;
-        color: $text;
-        height: 2;
-    }
-
-    # ItemInputForm .form-section {
-    #     margin: 1 0;
-    #     padding: 1;
-    #     background: $panel;
-    #     border: solid $primary;
-    # }
-
-    # ItemInputForm .section-title {
-    #     text-style: bold;
-    #     color: $accent;
-    #     padding: 0 0 1 0;
-    # }
-    
-    # ItemInputForm #form-label {
-    #     text-style: bold;
-    #     padding: 0 0 0 0;
-    #     height: 3;
-    # }
-    # 
-    # ItemInputForm .form-label {
-    #     text-style: bold;
-    #     padding: 0 0 0 0;
-    #     height: 1;
-    #     border: none;
-    # }
-    # 
-    # ItemInputForm Input {
-    #     width: 100%;
-    #     margin: 0 0 1 0;
-    # }
-    
-    
-    # ItemInputForm .item-name {
-    #     border: none;
-    #     height: 2;
-    # }
-    # 
-    # ItemInputForm .item-price {
-    #     width: 30;
-    #     border: none;
-    # }
-
-    # ItemInputForm Select {
-    #     width: 100%;
-    #     margin: 0 0 1 0;
-    # }
-
-
-
-    # ItemInputForm .form-row {
-    #     grid-size: 2 1;
-    #     grid-gutter: 2;
-    #     width: 100%;
-    #     height: auto;
-    #     margin: 0 0 1 0;
-    # }
-    # 
-    # 
-    # ItemInputForm .form-row-3 {
-    #     grid-size: 3 1;
-    #     grid-gutter: 1;
-    #     width: 100%;
-    #     height: auto;
-    #     margin: 0 0 1 0;
-    # }
-
-    ItemInputForm .form-buttons {
-        grid-size: 3 1;
-        grid-gutter: 1;
-        width: 100%;
-        height: auto;
-        margin-top: 2;
-    }
-    
-    ItemInputForm .button-row {
-        border: round $accent;
-        background: $surface;
-        layout: horizontal;
-        align: center bottom;
-        height: 7;
-        width: 100%;
-        margin: 0 0 0 0;
-        padding: 0;
-    }
-    
-    ItemInputForm .button-row Vertical {
-        width: 1fr;
-        height: 100%;
-    }
-
-    ItemInputForm #save-button {
-        background: green;
-        color: white;
-        width: 100%;
-        height: 3;
-    }
-
-    ItemInputForm #save-button:hover {
-        background: darkgreen;
-    }
-
-    ItemInputForm #clear-button {
-        background: orange;
-        color: white;
-        width: 100%;
-        height: 3;
-    }
-
-    ItemInputForm #clear-button:hover {
-        background: darkorange;
-    }
-
-    ItemInputForm #cancel-button {
-        background: red;
-        color: white;
-        width: 100%;
-        height: 3;
-    }
-
-    ItemInputForm #cancel-button:hover {
-        background: darkred;
-    }
-    
-    ItemInputForm .form-grid-row-1 {
-        border: round $accent;
-        background: $surface;
-        grid-size: 6 2;
-        grid-gutter: 0;
-        grid-columns: 1fr 15 12 1fr 1fr 1fr;
-        width: 100%;
-        height: auto;
-        margin: 0 0 0 0;
-    }
-    
-    ItemInputForm .form-grid-row-2 {
-        grid-size: 6 2;
-        grid-gutter: 0;
-        grid-columns: 20 20 1fr 1fr 1fr 1fr;
-        width: 100%;
-        height: auto;
-        margin: 0 0 1 0;
-    }
-    
-    ItemInputForm .form-grid-label {
-        text-style: bold;
-        padding: 0 0 0 0;
-        width: 20;
-        height: 3;
-    }
-    # row 1
-    ItemInputForm #grid-item-name {
-        width: 100%;
-        border: solid $primary;
-        height: 3;
-    }
-    ItemInputForm #grid-item-price {
-        width: 100%;
-        border: solid $primary;
-        height: 3;
-    }
-    ItemInputForm #grid-item-currency {
-        width: 100%;
-        border: none;
-        height: 3;
-    }
-    ItemInputForm #grid-item-bought-date {
-        width: 100%;
-        border: solid $primary;
-        height: 3;
-    }
-
-    ItemInputForm #grid-item-bought-by {
-        width: 100%;
-        border: none;
-        height: 4;
-    }
-    
-    ItemInputForm #open-label-modal-button {
-        width: 100%;
-        height: 3;
-        background: $accent;
-        color: $text;
-    }
-    
-    ItemInputForm #open-label-modal-button:hover {
-        background: $accent-darken-1;
-    }
-
-    # row 2    
-    ItemInputForm #bought-for-horizontal-wrapper {
-        layout: horizontal;
-        width: 100%;
-        height: auto;
-        margin: 0 0 0 0;
-    } 
-    
-    ItemInputForm #bought-for-scroll {
-        width: 35;
-        min-height: 3;
-        height: auto;
-        margin: 0 0;
-        border: round $accent;
-        background: $surface;
-    }
-    
-    ItemInputForm #additional-content-wrapper {
-        width: 1fr;  /* Takes remaining space after 35-width bought-for-scroll */
-        height: auto;
-        margin: 0 0 0 2;  /* 2 units left margin for spacing */
-        padding: 0;
-        border: round $accent;
-        background: $surface;
-    }
-    
-    ItemInputForm #bought-for-wrapper {
-        width: 100%;
-        padding: 0;
-        margin: 0 0;
-    }
-    
-    ItemInputForm .bought-for-title {
-        height: 2;
-        width: 100%;
-        text-style: bold;
-        text-align: center;
-        color: $text;
-        background: $accent;
-        padding: 0;
-        margin: 0 0 0 0;
-    }
-    
-    ItemInputForm .bought-for-user-row {
-        layout: horizontal;
-        min-height: 4;
-        height: 3;
-        width: 100%;
-        margin: 0 0 0 0;
-        content-align: left top;
-    }
-    
-    ItemInputForm .user-name-label {
-        height: 3;
-        width: 15;
-        padding: 0 0 0 0;
-        background: $surface;
-        content-align: left middle;
-    }
-    
-    ItemInputForm .user-share-input {
-        height: 3;
-        width: 15;
-        border: solid $primary;
-    }
-    
-    ItemInputForm #bought-for-container {
-        width: 35;
-        height: auto;
-        padding: 1;
-        border: $accent;
-        background: $panel;
-    }
-    
-    ItemInputForm #bought-for-no-users {
-        height: 3;
-        width: 100%;
-        padding: 1;
-        color: $warning;
-    }
-    ItemInputForm .bought-for-spacer {
-    height: 5;  /* Forces extra height to trigger scroll */
-    width: 100%;
-}
-    """
 
     class ItemCreated(Message):
         """Message sent when an item is created and saved to database."""
@@ -917,9 +439,18 @@ class ItemInputForm(ModalScreen):
             self._selected_label_ids = []
 
     def on_mount(self) -> None:
-        """Called when the form is mounted - check if bought-for-grid exists."""
+        """Called when the form is mounted - load CSS and check widgets."""
+        self.app.log("=== ItemInputForm on_mount called ===")
+
+        # Load CSS with detailed logging
         try:
-            self.app.log("=== ItemInputForm on_mount called ===")
+            self.app.log("Attempting to load CSS: components_item_input_form.tcss")
+            load_dynamic_css(self, "components_item_input_form.tcss")
+            self.app.log("✓ CSS load completed (check logs above for success/failure)")
+        except Exception as e:
+            self.app.log(f"✗ EXCEPTION loading CSS for ItemInputForm: {e}")
+
+        try:
 
             # Update label button if labels are pre-selected (edit mode)
             if self._selected_label_ids:
@@ -1001,9 +532,13 @@ class ItemInputForm(ModalScreen):
         self._project_users = project_users  # Store for later use
         user_options = [(u['username'], u['user_id']) for u in project_users]
 
-        # Initially show ALL project users in the "Bought For" section
-        # The list will be dynamically filtered when user selects "Bought By"
-        user_options_share_to = [(u['username'], u['user_id']) for u in project_users if u["user_id"] != user_id]
+        # Show ALL project users in the "Bought For" section
+        # Logic: By default, bought_by user gets 100% (buying for themselves)
+        # Users can then adjust to share costs with others
+        user_options_share_to = [(u['username'], u['user_id']) for u in project_users]
+
+        # Determine default bought_by user (current user or first in list)
+        default_bought_by_id = user_id if user_id > 0 else (user_options[0][1] if user_options else -1)
 
         # Get project labels
         project_labels = self._get_project_labels(project_id)
@@ -1016,7 +551,7 @@ class ItemInputForm(ModalScreen):
             yield Static("Currency *", classes="form-grid-label")
             yield Static("Date Purchased *", classes="form-grid-label")
             yield Static("Bought by *", classes="form-grid-label")
-            yield Static("Labels *", classes="form-grid-label")
+            yield Static("", classes="form-grid-label")
             # row 2
             yield Input(
                 placeholder="e.g., Groceries, Rent, Salary",
@@ -1047,35 +582,42 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-bought-by",
                 allow_blank=False
             )
-            yield Button("🏷️ Select Labels", id="open-label-modal-button", variant="primary")
+            yield Button("🏷️ Labels",
+                         id="open-label-modal-button",
+                         variant="default",
+                         compact=True)
 
-        # Wrap "Bought For" section - hide in edit mode since cost sharing can't be changed
-        if not self._edit_mode:
-            user_count = len(user_options_share_to)
+        # Main horizontal layout - different for create vs edit mode
+        with Horizontal(id="bought-for-horizontal-wrapper"):
+            # Left side: Bought For section (only in create mode)
+            if not self._edit_mode:
+                user_count = len(user_options_share_to)
 
-            self.app.log(f"=== BOUGHT FOR SECTION DEBUG ===")
-            self.app.log(f"user_count: {user_count}")
-            self.app.log(f"user_options_share_to: {user_options_share_to}")
+                self.app.log(f"=== BOUGHT FOR SECTION DEBUG ===")
+                self.app.log(f"user_count: {user_count}")
+                self.app.log(f"user_options_share_to: {user_options_share_to}")
 
-            with Horizontal(id="bought-for-horizontal-wrapper"):
-                # left side: Bought For title and user list
                 if user_count > 0:
                     self.app.log(f"Creating Vertical layout with {user_count} users")
 
                     with ScrollableContainer(id="bought-for-scroll"):
                         with Vertical(id="bought-for-wrapper"):
-                            # Title
-                            yield Static("Bought For *", id="bought-for-title")
+                            # Title (using class, not ID to avoid duplicates when rebuilding)
+                            yield Static("Bought For *", classes="bought-for-title")
                             self.app.log("Yielded bought-for-title")
 
                             # Add each user as a Horizontal row
                             for idx, i_item in enumerate(user_options_share_to):
                                 self.app.log(f"Adding user {idx + 1}/{user_count}: {i_item[0]} (ID: {i_item[1]})")
+
+                                # Set default share: 100% for bought_by user, 0% for others
+                                default_share = "100" if i_item[1] == default_bought_by_id else "0"
+
                                 with Horizontal(classes="bought-for-user-row"):
                                     yield Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label")
                                     yield Input(
                                         placeholder="0-100%",
-                                        value="0",
+                                        value=default_share,
                                         type="number",
                                         id=f"share-{i_item[1]}",
                                         classes="user-share-input"
@@ -1085,53 +627,47 @@ class ItemInputForm(ModalScreen):
                     self.app.log("No users - creating fallback container")
                     with ScrollableContainer(id="bought-for-scroll"):
                         with Vertical(id="bought-for-wrapper"):
-                            yield Static("Bought For *", id="bought-for-title", classes="form-grid-label")
-                            yield Static("No users available", id="bought-for-no-users", classes="form-grid-label")
+                            yield Static("Bought For *", classes="bought-for-title")
+                            yield Static("No users available", classes="bought-for-no-users")
 
-                    # Right side: Additional content (fills remaining width)
-                    with Vertical(id="additional-content-wrapper"):
-                        pass  # Placeholder
-                    pass  # Placeholder
+            # Right side: Exchange rate, date, and note fields (always shown)
+            with Vertical(id="additional-content-wrapper"):
+                # Exchange Rate
+                with Horizontal(classes="exchange-rate-row"):
+                    with Vertical(classes="field-group"):
+                        yield Static("Exchange Rate", classes="form-label")
+                        yield Input(
+                            placeholder="1.0",
+                            id="item-exchange-rate",
+                            value=str(self._item_data['exchange_rate']) if self._edit_mode and self._item_data else "1.0",
+                            type="number"
+                        )
+                    with Vertical(classes="field-group"):
+                        yield Static("Exchange Rate Date", classes="form-label")
+                        yield Input(
+                            placeholder="YYYY-MM-DD",
+                            id="item-exchange-date",
+                            value=str(self._item_data['exchange_rate_date']).split()[0] if self._edit_mode and self._item_data else datetime.now().strftime("%Y-%m-%d")
+                        )
 
-        # Exchange rate and note fields (always shown)
-        with Horizontal():
-            with Vertical():
-                yield Static("Exchange Rate", classes="form-label")
-                yield Input(
-                         placeholder="1.0",
-                         id="item-exchange-rate",
-                         value=str(self._item_data['exchange_rate']) if self._edit_mode and self._item_data else "1.0",
-                         type="number"
-                     )
-            with Vertical():
-                yield Static("Exchange Rate Date", classes="form-label")
-                yield Input(
-                    placeholder="YYYY-MM-DD",
-                    id="item-exchange-date",
-                    value=str(self._item_data['exchange_rate_date']).split()[0] if self._edit_mode and self._item_data else datetime.now().strftime("%Y-%m-%d")
-                )
-        with Horizontal():
-            with Vertical():
-                yield Static("Note", classes="form-label")
-                yield Input(
-                    placeholder="Additional details (optional)",
-                    id="item-note",
-                    max_length=255,
-                    value=self._item_data['note'] if self._edit_mode and self._item_data and self._item_data['note'] else ""
-                )
+                # Note field
+                with Horizontal(classes="note-row"):
+                    with Vertical(classes="field-group-full"):
+                        yield Static("Note", classes="form-label")
+                        yield Input(
+                            placeholder="Additional details (optional)",
+                            id="item-note",
+                            max_length=255,
+                            value=self._item_data['note'] if self._edit_mode and self._item_data and self._item_data['note'] else ""
+                        )
 
         with Horizontal(classes="button-row"):
-            with Vertical():
-                yield Button("💾 Save", id="save-button")
-            with Vertical():
-                yield Button("🔄 Clear", id="clear-button")
+            yield Button("💾 Save", id="save-button")
+            yield Button("🔄 Clear", id="clear-button")
             # Show Delete button only in edit mode
             if self._edit_mode:
-                with Vertical():
-                    yield Button("🗑️ Delete", id="delete-button", variant="error")
-            with Vertical():
-                yield Button("❌ Cancel", id="cancel-button")
-
+                yield Button("🗑️ Delete", id="delete-button", variant="error")
+            yield Button("❌ Cancel", id="cancel-button")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -1170,13 +706,13 @@ class ItemInputForm(ModalScreen):
                 else:
                     button.label = "🏷️ Select Labels"
 
-                self.app.notify(f"{len(self._selected_label_ids)} label(s) selected", severity="info")
+                #self.app.notify(f"{len(self._selected_label_ids)} label(s) selected", severity="info")
             else:  # User clicked Cancel
                 self.app.log("Label selection cancelled")
 
         except Exception as e:
             self.app.log(f"Error opening label modal: {e}")
-            self.app.notify(f"Error: {str(e)}", severity="error")
+            #self.app.notify(f"Error: {str(e)}", severity="error")
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle select widget changes."""
@@ -1187,124 +723,68 @@ class ItemInputForm(ModalScreen):
             if not self._edit_mode:
                 self._update_bought_for_section(selected_user_id)
 
-    def _update_bought_for_section(self, exclude_user_id: int) -> None:
-        """Update the 'Bought For' section to exclude the selected 'bought by' user."""
-        self.app.notify(f"Updating 'Bought For' section, excluding user ID: {exclude_user_id}")
+    def _update_bought_for_section(self, selected_bought_by_id: int) -> None:
+        """Update the 'Bought For' section when bought_by user changes.
 
-        # Rebuild with updated user list (excluding the selected user)
+        Logic: The bought_by user should automatically get 100% share (buying for themselves).
+        All other users get 0% by default. Users can then adjust percentages to share costs.
+
+        Args:
+            selected_bought_by_id: The user ID of the person selected in "Bought By"
+        """
+        self.app.log(f"Updating 'Bought For' section, bought_by user: {selected_bought_by_id}")
+
+        # Include ALL users in the bought-for section
         user_options_share_to = [
             (u['username'], u['user_id'])
             for u in self._project_users
-            if u['user_id'] != exclude_user_id
         ]
 
-        self.app.notify(f"{user_options_share_to}")
+        self.app.log(f"All users for bought-for: {user_options_share_to}")
 
         user_count = len(user_options_share_to)
 
         # Update Section:
         wrapper = self.query_one("#bought-for-wrapper", Vertical)
 
-        self.app.notify(f"{str(wrapper)}")
         # Remove all children
         wrapper.remove_children()
         # Force a refresh to ensure children are removed
         wrapper.refresh()
-        self.app.notify(f"f {str(wrapper)}")
 
         # Rebuild the content
-        # Add title
-        s = Static("Bought For *", classes="bought-for-title")
-        wrapper.mount(s)
+        # Add title (no ID to avoid duplicates when rebuilding)
+        title = Static("Bought For *", classes="bought-for-title")
+        wrapper.mount(title)
+
         # Add users
-        if user_count >= 0:
-            for i_item in user_options_share_to:
-                # Create user row container
-                user_row = Horizontal(classes="bought-for-user-row")
+        for i_item in user_options_share_to:
+            # Set share: 100% for bought_by user, 0% for others
+            default_share = "100" if i_item[1] == selected_bought_by_id else "0"
 
-                # Mount the row to wrapper first
-                wrapper.mount(user_row)
+            # Create user row container
+            user_row = Horizontal(classes="bought-for-user-row")
 
-                # Then mount children to the row
-                user_row.mount(Static(
-                    f"user {i_item[0]} [%]",
-                    id=f"user-label-{i_item[1]}",
-                    classes="user-name-label"
-                ))
-                user_row.mount(Input(
-                    placeholder="0-100%",
-                    value="0",
-                    type="number",
-                    id=f"share-{i_item[1]}",
-                    classes="user-share-input"
-                ))
+            # Mount the row to wrapper first
+            wrapper.mount(user_row)
 
-                self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
+            # Then mount children to the row
+            user_row.mount(Static(
+                f"{i_item[0]}",
+                id=f"user-label-{i_item[1]}",
+                classes="user-name-label"
+            ))
+            user_row.mount(Input(
+                placeholder="0-100%",
+                value=default_share,
+                type="number",
+                id=f"share-{i_item[1]}",
+                classes="user-share-input"
+            ))
 
+            self.app.log(f"Added user {i_item[0]} with share {default_share}%")
 
-
-
-        # try:
-        #     # Rebuild with updated user list (excluding the selected user)
-        #     user_options_share_to = [
-        #         (u['username'], u['user_id'])
-        #         for u in self._project_users
-        #         if u['user_id'] != exclude_user_id
-        #     ]
-        #
-        #     user_count = len(user_options_share_to)
-        #     self.app.log(f"Updated 'Bought For' section, excluding user {exclude_user_id}, {user_count} users remaining")
-        #
-        #     wrapper = self.query_one("#bought-for-wrapper", Vertical)
-        #
-        #     # Remove all children
-        #     wrapper.remove_children()
-        #
-        #     # Rebuild the content
-        #     # Add title
-        #     wrapper.mount(Static("Bought For *", id="bought-for-title"))
-        #     wrapper.mount(Static(f"{user_options_share_to} - {exclude_user_id}"))
-        #
-        #     # Find and update the bought-for-wrapper container
-        #     try:
-        #         wrapper = self.query_one("#bought-for-wrapper", Vertical)
-        #
-        #         # Remove all children
-        #         wrapper.remove_children()
-        #
-        #         # Rebuild the content
-        #         # Add title
-        #         wrapper.mount(Static("Bought For *", id="bought-for-title"))
-        #         wrapper.mount(Static(f"{user_options_share_to} - {exclude_user_id}"))
-        #         # Add users
-        #         if user_count >= 0:
-        #             for i_item in user_options_share_to:
-        #                 # Create user row
-        #                 user_row = Horizontal(classes="bought-for-user-row")
-        #                 user_row.mount(Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label"))
-        #                 user_row.mount(Input(
-        #                     placeholder="0-100%",
-        #                     value="0",
-        #                     type="number",
-        #                     id=f"share-{i_item[1]}",
-        #                     classes="user-share-input"
-        #                 ))
-        #                 wrapper.mount(user_row)
-        #
-        #
-        #             self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
-        #         else:
-        #             wrapper.mount(Static("No users available", id="bought-for-no-users", classes="form-grid-label"))
-        #             self.app.log("✓ Updated bought-for section - no users available")
-        #
-        #     except Exception as e:
-        #         self.app.log(f"Could not find #bought-for-wrapper: {e}")
-        #         self.app.log("Bought-for section may not be initialized yet")
-        #
-        # except Exception as e:
-        #     self.app.log(f"Error updating bought-for section: {e}")
-        #     import traceback
-        #     self.app.log(f"Traceback: {traceback.format_exc()}")
+        self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
 
 
     def action_dismiss_form(self) -> None:
@@ -1545,16 +1025,20 @@ class ItemInputForm(ModalScreen):
             # Create one item entry for each user who shares the cost
             for share in cost_shares:
                 user_id = share.get('user_id')
-                share_amount = share.get('amount')
+                share_amount = share.get('amount')  # Final price share
+                share_percentage = share.get('percentage', 100.0)
                 username = share.get('username')
+
+                # Calculate proportional original price (in original currency)
+                original_price_share = (item_data['price'] * share_percentage) / 100.0
 
                 # Prepare item data for this specific user's share
                 db_item_data = {
                     'item_uuid': item_data['item_uuid'],
                     'name': item_data['name'],
                     'note': item_data.get('note', ''),
-                    'price': item_data['price'],
-                    'price_final': share_amount,  # Use the user's share amount as their final price
+                    'price': original_price_share,  # Split original price by percentage
+                    'price_final': share_amount,  # Split final converted price by percentage
                     'currency': item_data['currency'],
                     'currency_final': item_data['currency_final'],
                     'bought_date': item_data['bought_date'],
@@ -1571,8 +1055,11 @@ class ItemInputForm(ModalScreen):
                 import json
                 db_item_data['tags'] = json.dumps(db_item_data['tags'])
 
-                # Log the data being saved
-                self.app.log(f"Saving item share for {username}: {share_amount:.2f} {item_data['currency_final']}")
+                # Log the data being saved with both prices
+                self.app.log(f"Saving item share for {username}: "
+                           f"{original_price_share:.2f} {item_data['currency']} → "
+                           f"{share_amount:.2f} {item_data['currency_final']} "
+                           f"({share_percentage:.1f}%)")
 
                 # Save to database
                 item_id = dbh.op_item_create(db_item_data)

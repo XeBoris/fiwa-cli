@@ -1,0 +1,43 @@
+/* ============================================
+   DELETE CONFIRMATION MODAL STYLING
+   File: css/handsome/components_delete_confirmation_modal.tcss
+   Component: DeleteConfirmationModal
+   ============================================ */
+
+DeleteConfirmationModal {
+    align: center middle;
+    background: $background 85%;
+}
+
+DeleteConfirmationModal > Vertical {
+    width: 60;
+    height: auto;
+    background: $panel;
+    border: thick $error;
+    padding: 2;
+}
+
+DeleteConfirmationModal .warning-title {
+    text-style: bold;
+    text-align: center;
+    color: $error;
+    padding: 1;
+    background: $surface;
+}
+
+DeleteConfirmationModal .warning-message {
+    text-align: center;
+    padding: 2;
+}
+
+DeleteConfirmationModal .button-row {
+    layout: horizontal;
+    height: auto;
+    align: center middle;
+    padding: 1;
+}
+
+DeleteConfirmationModal Button {
+    margin: 0 1;
+    min-width: 15;
+}

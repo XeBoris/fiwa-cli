@@ -1,0 +1,89 @@
+/* ============================================
+   ITEM CONFIRMATION MODAL STYLING
+   File: css/handsome/components_item_confirmation_modal.tcss
+   Component: ItemConfirmationModal
+   ============================================ */
+
+ItemConfirmationModal {
+    align: center middle;
+    background: $background 80%;
+}
+
+ItemConfirmationModal > Vertical {
+    width: 70;
+    height: auto;
+    background: $panel;
+    border: thick $accent;
+    padding: 0;
+}
+
+ItemConfirmationModal .modal-title {
+    text-style: bold;
+    text-align: center;
+    color: $accent;
+    padding: 0;
+    background: $surface;
+    height: 3;
+    margin: 0 0 0 0;
+}
+
+ItemConfirmationModal .summary-section {
+    padding: 0;
+    border: solid $primary;
+    margin: 0 0;
+    background: $surface;
+    min-height: 10;
+    height: auto;
+}
+
+ItemConfirmationModal .section-title {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 0 0;
+    height: auto;
+    min-height: 3;
+}
+
+ItemConfirmationModal .summary-row {
+    padding: 0 0;
+    height: auto;
+    min-height: 1;
+}
+
+ItemConfirmationModal .cost-share-row {
+    padding: 0 1;
+    height: auto;
+    min-height: 3;
+    color: $warning;
+}
+
+ItemConfirmationModal .total-row {
+    padding: 0 0;
+    height: auto;
+    min-height: 3;
+    text-style: bold;
+    color: $success;
+}
+
+ItemConfirmationModal .button-row {
+    layout: horizontal;
+    min-height: 3;
+    align: center middle;
+    padding: 0 0 0 0;
+}
+
+ItemConfirmationModal #confirm-ok-button {
+    background: green;
+    color: white;
+    margin: 0 0;
+    min-width: 25;
+    border: none;
+}
+
+ItemConfirmationModal #confirm-back-button {
+    background: orange;
+    color: white;
+    margin: 0 0;
+    min-width: 25;
+    border: none;
+}

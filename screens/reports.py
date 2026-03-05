@@ -4,38 +4,13 @@ from textual.containers import Vertical
 from textual.widgets import Static, Button
 from textual.app import ComposeResult
 
+from functions.loader import load_dynamic_css
+
+
 class ReportsScreen(ModalScreen):
     """Reports screen - view financial reports and analytics."""
-
-    DEFAULT_CSS = """
-    ReportsScreen {
-        align: center middle;
-    }
-
-    ReportsScreen > Vertical {
-        width: 80;
-        height: 80%;
-        background: $surface;
-        border: solid $accent;
-        padding: 2;
-    }
-
-    ReportsScreen #reports-title {
-        text-style: bold;
-        padding: 0 0 2 0;
-        text-align: center;
-    }
-
-    ReportsScreen #reports-content {
-        height: 1fr;
-    }
-
-    ReportsScreen #close-button {
-        margin-top: 1;
-        width: 100%;
-    }
-    """
-
+    def on_mount(self) -> None:
+        load_dynamic_css(self, "screens_reports.tcss")
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("Reports", id="reports-title")

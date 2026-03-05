@@ -1,0 +1,38 @@
+EditExpenseView {
+
+}
+
+EditExpenseView .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+/*    border: solid $accent;*/
+    color: $text;
+}
+
+EditExpenseView .date-info {
+    padding: 0 0 0 0;
+    margin: 0 4 0 4;
+    background: $primary 30%;
+    color: $text;
+    border: round $primary;
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+}
+
+EditExpenseView TabbedContent {
+    height: auto;
+    margin: 1 0;
+}
+
+EditExpenseView TabPane {
+    padding: 1;
+}
+
+EditExpenseView DataTable {
+    height: 25;
+    max-height: 25;
+}

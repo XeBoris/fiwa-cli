@@ -1,9 +1,12 @@
 """Inputs screen - add transactions and items."""
-from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid, VerticalScroll
+from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid, VerticalScroll, Container
 from textual.widgets import Static, Button, Select
 from textual.app import ComposeResult
 from components import FiwaHeader
 import datetime
+
+
+from functions.loader import load_dynamic_css
 
 from .base import ReactiveScreen
 
@@ -25,73 +28,7 @@ class InputsScreen(ReactiveScreen):
         self._current_week = datetime.date.today().isocalendar()[1]
         self._current_month = datetime.date.today().month
 
-    DEFAULT_CSS = """
-    InputsScreen {
-        layout: vertical;
-    }
-
-    InputsScreen #inputs-body {
-        layout: horizontal;
-        height: 1fr;
-    }
-
-    InputsScreen #inputs-sidebar {
-        width: 30;
-        background: $panel;
-        border-right: solid $accent;
-        padding: 1;
-        scrollbar-size: 4 1;
-    }
-
-    InputsScreen .menu-section {
-        text-style: bold;
-        padding: 1 0 0 0;
-        color: $accent;
-    }
-    
-    InputsScreen #inputs-sidebar.new-item-button {
-        width: 40%;
-        margin: 0 0 1 0;
-        border: none
-    }
-    
-    # InputsScreen #inputs-sidebar Button {
-    #     width: 13;
-    #     height: 3;
-    #     margin: 0 0 1 0;
-    #     padding: 0 1;
-    #     border: solid $accent;
-    # }
-
-    InputsScreen #inputs-content-area {
-        width: 1fr;
-        height: 100%;
-        padding: 0;
-        scrollbar-size: 3 1;
-    }
-
-    InputsScreen #inputs-title {
-        text-style: bold;
-        padding: 0 0 2 0;
-        text-align: center;
-    }
-
-    SettingsScreen #back-button {
-        margin-top: 1;
-        width: 100%;
-    }
-    
-    # InputsScreen .info-panel {
-    #     background: $panel;
-    #     padding: 2;
-    #     margin: 0 0 2 0;
-    #     border: solid $accent;
-    # }
-    # 
-    # InputsScreen .info-row {
-    #     padding: 0 0 1 0;
-    # }
-    """
+    # DEFAULT_CSS = ""
 
     def compose(self) -> ComposeResult:
         yield FiwaHeader(
@@ -100,14 +37,18 @@ class InputsScreen(ReactiveScreen):
             project_id=self.app.app_state["project_id"],
             project_ids=self.app.app_state["project_ids"]
         )
-        yield Static("Inputs - Add Transaction", id="inputs-title")
 
-        with Horizontal(id="inputs-body"):
-            # Left sidebar with quick actions
-            with ScrollableContainer(id="inputs-sidebar"):
+        with Container(id="container-body"):
+            with ScrollableContainer(id="container-sidebar"):
                 yield Static("Quick Actions", classes="menu-section")
-                yield Button("New", id="new-item-button", variant="success", compact=True, flat=True)
-                yield Button("Edit", id="edit-item-button", variant="success", compact=True, flat=True)
+                yield Button("New",
+                             id="new-item-button",
+                             classes="sidebar-menu-button",
+                             compact=True, flat=True)
+                yield Button("Edit",
+                             id="edit-item-button",
+                             classes="sidebar-menu-button",
+                             compact=True, flat=True)
 
                 yield Static("Period", classes="menu-section")
 
@@ -136,6 +77,9 @@ class InputsScreen(ReactiveScreen):
     def on_mount(self) -> None:
         """Called when screen is mounted."""
         super().on_mount()
+
+        load_dynamic_css(self, "screens_inputs.tcss")
+
         self._mounted = True
         self.app.log("InputsScreen mounted")
 

@@ -1,0 +1,26 @@
+ReportsScreen {
+    align: center middle;
+}
+
+ReportsScreen > Vertical {
+    width: 80;
+    height: 80%;
+    background: $surface;
+    border: solid $accent;
+    padding: 2;
+}
+
+ReportsScreen #reports-title {
+    text-style: bold;
+    padding: 0 0 2 0;
+    text-align: center;
+}
+
+ReportsScreen #reports-content {
+    height: 1fr;
+}
+
+ReportsScreen #close-button {
+    margin-top: 1;
+    width: 100%;
+}

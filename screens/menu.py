@@ -113,8 +113,17 @@ class MenuScreen(ModalScreen):
             # Get database handler
             k = self.app._config.get("dbh")
 
-            # Verify logout (optional - could skip this if you want faster logout)
-            verify = k.logout_user()
+            # Get session UUID from app state
+            session_uuid = self.app.app_state.get("session_uuid")
+
+            # IMPORTANT: Preserve application-level configuration that should persist across login/logout
+            # These are not user-specific, they're application configuration
+            abs_path = self.app.app_state.get("abs_path", "")
+            css_form = self.app.app_state.get("css_form", "handsome")
+            css_theme = self.app.app_state.get("css_theme", "textual-light")
+
+            # Verify logout - call the correct database method with session_uuid
+            verify = k.op_user_logout(session_uuid=session_uuid)
 
             if verify:
                 # Update app state to logged-out state
@@ -128,6 +137,10 @@ class MenuScreen(ModalScreen):
                     "project_names": ["No Projects"],
                     "project_ids": [0],
                     "project_id": 0,
+                    # Restore application-level configuration
+                    "abs_path": abs_path,
+                    "css_form": css_form,
+                    "css_theme": css_theme,
                 }
 
                 self.app.notify("Logout successful!", severity="success")

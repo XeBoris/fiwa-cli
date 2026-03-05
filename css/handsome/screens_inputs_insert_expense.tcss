@@ -1,0 +1,28 @@
+CreateExpenseForm {
+    width: 100%;
+    height: 100%;
+}
+
+CreateExpenseForm .form-title {
+    text-style: bold;
+    text-align: center;
+    padding: 0 0 1 0;
+    background: $accent;
+    color: $text;
+}
+
+CreateExpenseForm .content-area {
+    padding: 2;
+    height: 1fr;
+}
+
+CreateExpenseForm #open-form-button {
+    width: 40;
+    height: 5;
+    # margin: 2 auto;
+    background: $primary;
+}
+
+CreateExpenseForm #open-form-button:hover {
+    background: $primary-lighten-1;
+}
