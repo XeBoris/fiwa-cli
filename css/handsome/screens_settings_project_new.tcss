@@ -1,0 +1,134 @@
+CreateProjectForm {
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+}
+
+CreateProjectForm .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+/*    border: solid $accent;*/
+    color: $text;
+}
+
+CreateProjectForm .form-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+}
+
+/* The main content area of the form, containing all input fields and buttons */
+
+/* Scrollable Container */
+CreateProjectForm #form-content {
+    height: 1fr;
+    width: 100%;
+    margin: 1 0 0 3;
+    padding: 0 0 0 0;
+    overflow-y: auto;
+    scrollbar-size: 3 1;
+}
+
+CreateProjectForm #form-project-area {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+CreateProjectForm #form-project-area > Input {
+    margin: 0 0 0 0;
+    width: 50%;
+}
+
+CreateProjectForm #form-project-area > TextArea {
+    height: 5;
+    width: 95%;
+    margin: 0 0 0 0;
+}
+
+CreateProjectForm Button {
+    min-width: 20;
+    height: 3;
+    margin: 0 1;
+}
+
+CreateProjectForm #form-currency-section {
+    height: 6;
+    margin: 0 1 1 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+CreateProjectForm #form-currency-section-main {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 1fr;
+}
+CreateProjectForm #form-currency-section-additional {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 2fr;
+}
+
+CreateProjectForm #action-buttons {
+    grid-size: 2 1;
+    grid-columns: 1fr 1fr;
+    grid-gutter: 1;
+    height: 3;
+    margin: 2 0 1 0;
+    width: 100%;
+}
+
+CreateProjectForm #project-create-button {
+    background: green;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+CreateProjectForm #project-create-button:hover {
+    background: darkgreen;
+}
+
+CreateProjectForm #project-reset-button {
+    background: $warning;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+}
+
+CreateProjectForm #project-reset-button:hover {
+    background: $warning-darken-1;
+}
+
+CreateProjectForm .warning-box {
+    background: $warning 20%;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: $error round;
+}
+
+CreateProjectForm .error-box {
+    background: $error 20%;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: $error round ;
+}
+
+CreateProjectForm .info-box {
+    background: $panel;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: round $accent;
+}

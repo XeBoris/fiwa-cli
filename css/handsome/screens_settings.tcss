@@ -1,0 +1,61 @@
+SettingsScreen {
+
+}
+
+SettingsScreen #settings-title {
+    text-style: bold;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+    text-align: center;
+}
+
+SettingsScreen #container-body {
+    layout: horizontal;
+    height: 1fr;
+}
+
+SettingsScreen #container-sidebar {
+    width: 27;
+    background: $panel;
+    border-right: solid $accent;
+    padding: 1;
+    scrollbar-size: 4 1;
+}
+
+SettingsScreen .menu-section {
+    text-style: bold;
+    padding: 1 0 1 0;
+    color: $accent;
+}
+
+SettingsScreen .sidebar-menu-button {
+    width: 90%;
+    min-width: 20;
+    height: 3;
+    margin: 0 0 1 0;
+    padding: 0 0 0 0;
+    border: none;
+    content-align: center middle;
+}
+
+SettingsScreen #container-sidebar > ScrollableContainer > Button {
+    width: 100%;
+    height: 3;
+    margin: 0 0 1 0;
+    padding: 0 1;
+    border: none;
+}
+
+SettingsScreen #back-button {
+    margin-top: 1;
+    width: 100%;
+}
+
+# This element controls the right content area where forms and messages are displayed
+# In particular the size and the scrollbar!!!
+SettingsScreen #settings-content-area {
+    width: 1fr;
+    height: 100%;
+    padding: 0;
+    scrollbar-size: 3 1;
+}

@@ -1,0 +1,260 @@
+LabelManagementForm {
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+}
+
+LabelManagementForm .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+/*    border: solid $accent;*/
+    color: $text;
+}
+
+LabelManagementForm .form-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+}
+
+LabelManagementForm .current-project-header {
+    background: $primary 40%;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: round $accent;
+}
+
+LabelManagementForm #form-content {
+    height: 1fr;
+    width: 100%;
+    margin: 1 0 0 3;
+    padding: 0 0 0 0;
+    overflow-y: auto;
+    scrollbar-size: 3 1;
+}
+
+
+LabelManagementForm .section-header {
+    text-style: bold;
+    padding: 0 0;
+    color: $accent;
+}
+
+LabelManagementForm DataTable {
+    height: 15;
+    margin: 0 0 1 0;
+}
+
+LabelManagementForm DataTable > .datatable--cursor {
+    background: $accent 30%;
+}
+
+LabelManagementForm .add-label-section {
+    background: $panel;
+    padding: 2;
+    margin: 0 0 2 0;
+    border: solid $accent;
+}
+
+LabelManagementForm .form-label {
+    padding: 1 0 0 0;
+    text-style: bold;
+}
+
+LabelManagementForm Input {
+    margin: 0 0 1 0;
+    width: 100%;
+}
+
+LabelManagementForm Button {
+    min-width: 20;
+    height: 3;
+    margin: 1;
+}
+
+LabelManagementForm #action-buttons {
+    height: auto;
+    margin-top: 2;
+    width: 100%;
+    align: center middle;
+    layout: horizontal;
+}
+
+LabelManagementForm #new-label-button {
+    background: blue;
+    color: white;
+    width: 25;
+    height: 3;
+}
+
+LabelManagementForm #new-label-button:hover {
+    background: darkblue;
+}
+
+
+LabelManagementForm #cancel-button {
+    background: red;
+    color: white;
+    width: 25;
+    height: 3;
+}
+
+LabelManagementForm #cancel-button:hover {
+    background: darkred;
+}
+
+LabelManagementForm #add-label-button {
+    background: blue;
+    color: white;
+    width: 25;
+    height: 3;
+    margin-top: 1;
+}
+
+LabelManagementForm #add-label-button:hover {
+    background: darkblue;
+}
+
+LabelManagementForm .label-type-buttons {
+    height: 5;
+    width: 100%;
+    margin: 1 0;
+}
+
+LabelManagementForm .label-type-button {
+    width: 15;
+    height: 3;
+    margin: 0 1;
+    background: $panel;
+    border: solid $accent;
+}
+
+LabelManagementForm .label-type-button-selected {
+    background: $success;
+    color: $text;
+    border: solid $success;
+}
+
+/* -------------------------------------------------------------------------
+     LabelEditorModal styles
+------------------------------------------------------------------------- */
+LabelEditorModal {
+    align: center middle;
+}
+
+LabelEditorModal > Vertical {
+    width: 60;
+    height: auto;
+    background: $surface;
+    border: solid $accent;
+    padding: 0 3 0 3;
+    margin: 0 0 0 0;
+}
+
+LabelEditorModal .modal-title {
+    text-style: bold;
+    text-align: center;
+    padding: 0 0 2 0;
+    color: $accent;
+}
+
+LabelEditorModal .form-label {
+    text-style: bold;
+    padding: 0 0 1 0;
+}
+
+LabelEditorModal Input {
+    width: 100%;
+    margin: 0 0 1 0;
+}
+
+LabelEditorModal .status-buttons {
+    grid-size: 3 1;
+    grid-gutter: 0;
+    grid-columns: 1fr 1fr 1fr;
+    content-align: center middle;
+    height: 6;
+    width: 100%;
+    margin: 0 0 0 0;
+}
+
+LabelEditorModal .status-button {
+    width: 100%;
+    height: 3;
+    border: none;
+}
+
+LabelEditorModal #status-active {
+    background: green;
+    color: white;
+    height: 3;
+    border: none;
+}
+
+LabelEditorModal #status-active:hover {
+    background: darkgreen;
+}
+
+LabelEditorModal #status-deactivated {
+    background: orange;
+    color: white;
+    height: 3;
+    border: none;
+}
+
+LabelEditorModal #status-deactivated:hover {
+    background: darkorange;
+}
+
+LabelEditorModal #status-deleted {
+    background: red;
+    color: white;
+    height: 3;
+    border: none;
+}
+
+LabelEditorModal #status-deleted:hover {
+    background: darkred;
+}
+
+LabelEditorModal .status-button-selected {
+    border: thick $accent;
+}
+
+LabelEditorModal .action-buttons {
+    grid-size: 2 1;
+    grid-gutter: 1;
+    height: auto;
+    width: 100%;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+LabelEditorModal #save-button {
+    background: green;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+LabelEditorModal #save-button:hover {
+    background: darkgreen;
+}
+
+LabelEditorModal #cancel-button {
+    background: $error;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+LabelEditorModal #cancel-button:hover {
+    background: $error-darken-1;
+}

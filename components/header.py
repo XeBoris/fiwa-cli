@@ -115,8 +115,14 @@ class FiwaHeader(Static):
             from screens.menu import MenuScreen
             self.app.push_screen(MenuScreen())
         elif event.button.id == "calendar-button":
-            from components.calendar_display import CalendarWidget
-            self.app.push_screen(CalendarWidget(), callback=self._handle_date_selected)
+            from components.calendar_picker import CalendarWidget
+            self.app.push_screen(CalendarWidget(
+                                        initial_date=None,
+                                        margin=(3, 0, 0, 15),
+                                        week_starts_monday=True
+                                 ),
+                                 callback=self._handle_date_selected
+            )
 
     def _handle_date_selected(self, selected_date) -> None:
         """Handle the date selected from the calendar."""

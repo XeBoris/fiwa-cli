@@ -8,6 +8,9 @@ configuration:
   model: local
   path: local
 
+style:
+  form: "handsome"
+  theme: ""
 
 development:
   stage: dev #dev, test, prod

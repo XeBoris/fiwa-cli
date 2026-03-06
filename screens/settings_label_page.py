@@ -1,10 +1,12 @@
 # settings_label_page.py
 from textual.widgets import Static, Button, Input, DataTable
-from textual.containers import Vertical, Horizontal, Container, Grid
+from textual.containers import Vertical, Horizontal, Container, Grid, ScrollableContainer
 from textual.app import ComposeResult
 from textual.message import Message
 from textual.screen import ModalScreen
 from datetime import datetime
+
+from functions.loader import load_dynamic_css
 
 class LabelEditorModal(ModalScreen):
     """Modal screen for editing label name, description, and status."""
@@ -13,115 +15,9 @@ class LabelEditorModal(ModalScreen):
         ("escape", "dismiss_modal", "Close"),
     ]
 
-    DEFAULT_CSS = """
-    LabelEditorModal {
-        align: center middle;
-    }
-    
-    LabelEditorModal > Vertical {
-        width: 60;
-        height: auto;
-        background: $surface;
-        border: solid $accent;
-        padding: 2;
-    }
-    
-    LabelEditorModal .modal-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 2 0;
-        color: $accent;
-    }
-    
-    LabelEditorModal .form-label {
-        text-style: bold;
-        padding: 1 0 0 0;
-    }
-    
-    LabelEditorModal Input {
-        width: 100%;
-        margin: 0 0 1 0;
-    }
-    
-    LabelEditorModal .status-section {
-        padding: 1 0;
-        margin: 1 0;
-    }
-    
-    LabelEditorModal .status-buttons {
-        grid-size: 3 1;
-        grid-gutter: 1;
-        height: 9;
-        width: 100%;
-        margin: 1 0;
-    }
-    
-    LabelEditorModal .status-button {
-        width: 100%;
-        height: 3;
-    }
-    
-    LabelEditorModal #status-active {
-        background: green;
-        color: white;
-    }
-    
-    LabelEditorModal #status-active:hover {
-        background: darkgreen;
-    }
-    
-    LabelEditorModal #status-deactivated {
-        background: orange;
-        color: white;
-    }
-    
-    LabelEditorModal #status-deactivated:hover {
-        background: darkorange;
-    }
-    
-    LabelEditorModal #status-deleted {
-        background: red;
-        color: white;
-    }
-    
-    LabelEditorModal #status-deleted:hover {
-        background: darkred;
-    }
-    
-    LabelEditorModal .status-button-selected {
-        border: round white;
-    }
-    
-    LabelEditorModal .action-buttons {
-        grid-size: 2 1;
-        grid-gutter: 1;
-        height: 9;
-        width: 100%;
-        margin-top: 2;
-    }
-    
-    LabelEditorModal #save-button {
-        background: green;
-        color: white;
-        width: 100%;
-        height: 3;
-    }
-    
-    LabelEditorModal #save-button:hover {
-        background: darkgreen;
-    }
-    
-    LabelEditorModal #cancel-button {
-        background: $panel;
-        border: solid $accent;
-        width: 100%;
-        height: 3;
-    }
-    
-    LabelEditorModal #cancel-button:hover {
-        background: darkred;
-    }
-    """
+    # DEFAULT_CSS = """
+    #
+    # """
 
     def __init__(self, label_id: int, label_name: str, label_description: str, current_status: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -130,6 +26,9 @@ class LabelEditorModal(ModalScreen):
         self.label_description = label_description
         self.current_status = current_status
         self.selected_status = current_status
+
+    def on_mount(self) -> None:
+        load_dynamic_css(self, "screens_settings_label_page.tcss")
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -148,8 +47,8 @@ class LabelEditorModal(ModalScreen):
                 deleted_classes = "status-button status-button-selected" if self.current_status == 0 else "status-button"
 
                 yield Button("✓ Active", id="status-active", classes=active_classes, flat=True)
-                yield Button("◐ Deactivated", id="status-deactivated", classes=deactivated_classes, flat=True)
-                yield Button("✗ Deleted", id="status-deleted", classes=deleted_classes, flat=True)
+                yield Button("◐ Deactivate", id="status-deactivated", classes=deactivated_classes, flat=True)
+                yield Button("✗ Delete", id="status-deleted", classes=deleted_classes, flat=True)
 
             with Grid(classes="action-buttons"):
                 yield Button("Save", id="save-button", flat=True)
@@ -208,131 +107,8 @@ class LabelEditorModal(ModalScreen):
 class LabelManagementForm(Vertical):
     """Widget for managing labels in a project."""
 
-    DEFAULT_CSS = """
-    LabelManagementForm {
-        width: 100%;
-        height: auto;
-    }
-
-    LabelManagementForm .form-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 1 0;
-        background: $accent;
-        color: $text;
-    }
-    
-    LabelManagementForm .section-header {
-        text-style: bold;
-        padding: 0 0;
-        color: $accent;
-    }
-
-    LabelManagementForm DataTable {
-        height: 15;
-        margin: 0 0 1 0;
-    }
-    
-    LabelManagementForm DataTable > .datatable--cursor {
-        background: $accent 30%;
-    }
-    
-    LabelManagementForm .add-label-section {
-        background: $panel;
-        padding: 2;
-        margin: 0 0 2 0;
-        border: solid $accent;
-    }
-
-    LabelManagementForm .form-label {
-        padding: 1 0 0 0;
-        text-style: bold;
-    }
-
-    LabelManagementForm Input {
-        margin: 0 0 1 0;
-        width: 100%;
-    }
-
-    LabelManagementForm Button {
-        min-width: 20;
-        height: 3;
-        margin: 1;
-    }
-    
-    LabelManagementForm #action-buttons {
-        height: auto;
-        margin-top: 2;
-        width: 100%;
-        align: center middle;
-        layout: horizontal;
-    }
-    
-    LabelManagementForm #new-label-button {
-        background: blue;
-        color: white;
-        width: 25;
-        height: 3;
-    }
-
-    LabelManagementForm #new-label-button:hover {
-        background: darkblue;
-    }
-    
-    LabelManagementForm #save-button {
-        background: green;
-        color: white;
-        width: 25;
-        height: 3;
-    }
-
-    LabelManagementForm #save-button:hover {
-        background: darkgreen;
-    }
-    
-    LabelManagementForm #cancel-button {
-        background: red;
-        color: white;
-        width: 25;
-        height: 3;
-    }
-
-    LabelManagementForm #cancel-button:hover {
-        background: darkred;
-    }
-    
-    LabelManagementForm #add-label-button {
-        background: blue;
-        color: white;
-        width: 25;
-        height: 3;
-        margin-top: 1;
-    }
-
-    LabelManagementForm #add-label-button:hover {
-        background: darkblue;
-    }
-    
-    LabelManagementForm .label-type-buttons {
-        height: 5;
-        width: 100%;
-        margin: 1 0;
-    }
-    
-    LabelManagementForm .label-type-button {
-        width: 15;
-        height: 3;
-        margin: 0 1;
-        background: $panel;
-        border: solid $accent;
-    }
-    
-    LabelManagementForm .label-type-button-selected {
-        background: $success;
-        color: $text;
-        border: solid $success;
-    }
-    """
+    # DEFAULT_CSS = """
+    # }
 
     class LabelsModified(Message):
         """Message sent when labels are modified."""
@@ -352,11 +128,15 @@ class LabelManagementForm(Vertical):
         self._deleted_labels = set()  # Track labels marked for deletion
         self._selected_label_type = 1  # Default to level 1
 
+    def on_mount(self) -> None:
+        load_dynamic_css(self, "screens_settings_label_page.tcss")
+
     def compose(self) -> ComposeResult:
-        yield Static("Label Management", classes="form-title")
 
         # Get current project info
         project_id = self.app.app_state.get("project_id", 0)
+        user_id = self.app.app_state.get("user_id", -1)
+
         project_names = self.app.app_state.get("project_names", [])
         project_ids = self.app.app_state.get("project_ids", [])
 
@@ -366,7 +146,18 @@ class LabelManagementForm(Vertical):
             idx = project_ids.index(project_id)
             project_name = project_names[idx]
 
-        yield Static(f"Project: {project_name}", classes="section-header")
+        # Get project details from database
+        project_info = None
+        if project_id and user_id > 0:
+            dbh = self.app._config["dbh"]
+            all_projects = dbh.op_project_get_info(user_id)
+            self.app.log(f"Retrieved {len(all_projects)} projects for user {user_id}")
+            project_info = next((p for p in all_projects if p["project_id"] == project_id), None)
+            if project_info:
+                self.app.log(f"Found project: {project_info.get('project_name', 'Unknown')}")
+            else:
+                self.app.log(f"No project found with id {project_id}")
+
 
         # Load labels from database
         if project_id > 0:
@@ -384,33 +175,43 @@ class LabelManagementForm(Vertical):
             x.get('name', '').lower()         # Name: alphabetically
         ))
 
-        # Labels table
-        yield Static("Existing Labels:", classes="section-header")
-        table = DataTable(id="labels-table")
-        table.add_columns("Name", "Description", "Status", "Type")
+        # Header:
+        yield Static("Label Management", classes="form-title")
+        # Show current project name as header
+        if project_info:
+            current_name = project_info.get("project_name", "Unknown Project")
+            yield Static(f"Currently Editing: {current_name}", classes="current-project-header")
+        else:
+            yield Static("No Project Loaded", classes="current-project-header")
 
-        # Populate table with existing labels
-        # Note: We store label_id as the row key for internal reference
-        for label in self._labels:
-            status_text = self._get_status_text(label['label_status'])
-            label_type_text = self._get_action_type(label['label_type'])
 
-            # Add row with plain text (no background colors)
-            table.add_row(
-                label['name'],
-                label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
-                status_text,
-                label_type_text,
-                key=f"label-id-{label['label_id']}"  # Store label_id in the row key
-            )
+        with ScrollableContainer(id="form-content"):
+            # Labels table
+            yield Static("Existing Labels:", classes="section-header")
+            table = DataTable(id="labels-table")
+            table.add_columns("Name", "Description", "Status", "Type")
 
-        yield table
+            # Populate table with existing labels
+            # Note: We store label_id as the row key for internal reference
+            for label in self._labels:
+                status_text = self._get_status_text(label['label_status'])
+                label_type_text = self._get_action_type(label['label_type'])
 
-        # Action buttons
-        with Horizontal(id="action-buttons"):
-            yield Button("New Label", id="new-label-button")
-            yield Button("Save All Changes", id="save-button")
-            yield Button("Cancel", id="cancel-button")
+                # Add row with plain text (no background colors)
+                table.add_row(
+                    label['name'],
+                    label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
+                    status_text,
+                    label_type_text,
+                    key=f"label-id-{label['label_id']}"  # Store label_id in the row key
+                )
+
+            yield table
+
+            # Action buttons
+            with Horizontal(id="action-buttons"):
+                yield Button("New Label", id="new-label-button")
+                yield Button("Cancel", id="cancel-button")
 
     def _get_status_text(self, status: int) -> str:
         """Convert status code to text."""
@@ -456,8 +257,6 @@ class LabelManagementForm(Vertical):
             self.post_message(self.NewLabelRequested())
         elif event.button.id == "add-label-button":
             self._add_new_label()
-        elif event.button.id == "save-button":
-            self._save_all_changes()
         elif event.button.id and event.button.id.startswith("label-type-"):
             # Handle label type button clicks
             label_type = int(event.button.id.split("-")[-1])
@@ -538,86 +337,51 @@ class LabelManagementForm(Vertical):
 
         self.app.log(f"Updating label '{old_name}' (ID: {label_id}): {', '.join(changes)}")
 
-        # Update in memory
-        label['name'] = new_name
-        label['description'] = new_description
-        label['label_status'] = new_status
-
-        # Track the modification
-        if label_id not in self._modified_labels:
-            self._modified_labels[label_id] = {}
-        self._modified_labels[label_id]['name'] = new_name
-        self._modified_labels[label_id]['description'] = new_description
-        self._modified_labels[label_id]['label_status'] = new_status
-
-        # Update table display
-        from textual.coordinate import Coordinate
-
-        # Update Name (column 0)
-        table.move_cursor(row=row_index, column=0)
-        table.update_cell_at(Coordinate(row_index, 0), new_name)
-
-        # Update Description (column 1)
-        table.move_cursor(row=row_index, column=1)
-        desc_display = new_description[:30] + "..." if len(new_description) > 30 else new_description
-        table.update_cell_at(Coordinate(row_index, 1), desc_display)
-
-        # Update Status (column 2)
-        table.move_cursor(row=row_index, column=2)
-        table.update_cell_at(Coordinate(row_index, 2), self._get_status_text(new_status))
-
-        self.app.notify(
-            f"Label updated: {', '.join(changes)}",
-            severity="information"
-        )
-
-    def _save_all_changes(self) -> None:
-        """Save all changes to the database."""
-        project_id = self.app.app_state.get("project_id", 0)
-
-        if project_id <= 0:
-            self.app.notify("No project selected", severity="error")
-            return
-
-        dbh = self.app._config["dbh"]
-        changes_count = 0
-        errors = []
-
+        # Save to database immediately
         try:
-            # Create new labels
-            for new_label in self._new_labels:
-                try:
-                    label_id = dbh.op_label_create(new_label, project_id)
-                    changes_count += 1
-                    self.app.log(f"Created label: {new_label['name']} (ID: {label_id})")
-                except Exception as e:
-                    errors.append(f"Failed to create '{new_label['name']}': {str(e)}")
-
-            # Update modified labels
-            for label_id, changes in self._modified_labels.items():
-                try:
-                    dbh.op_label_update(label_id, changes)
-                    changes_count += 1
-                    self.app.log(f"Updated label ID: {label_id}")
-                except Exception as e:
-                    errors.append(f"Failed to update label {label_id}: {str(e)}")
-
-            # Show results
-            if errors:
-                self.app.notify(f"Saved with errors: {len(errors)} failed", severity="warning")
-                for error in errors:
-                    self.app.log(error)
-            else:
-                self.app.notify(f"Successfully saved {changes_count} changes!", severity="information")
-
-            # Post message about changes
-            summary = {
-                'total_changes': changes_count,
-                'new_labels': len(self._new_labels),
-                'modified_labels': len(self._modified_labels),
-                'errors': len(errors)
+            dbh = self.app._config["dbh"]
+            update_data = {
+                'name': new_name,
+                'description': new_description,
+                'label_status': new_status
             }
-            self.post_message(self.LabelsModified(summary))
+            dbh.op_label_update(label_id, update_data)
+            self.app.log(f"Successfully saved label {label_id} to database")
+
+            # Update in memory after successful database save
+            label['name'] = new_name
+            label['description'] = new_description
+            label['label_status'] = new_status
+
+            # Track the modification (for reference/undo feature if needed later)
+            if label_id not in self._modified_labels:
+                self._modified_labels[label_id] = {}
+            self._modified_labels[label_id]['name'] = new_name
+            self._modified_labels[label_id]['description'] = new_description
+            self._modified_labels[label_id]['label_status'] = new_status
+
+            # Update table display
+            from textual.coordinate import Coordinate
+
+            # Update Name (column 0)
+            table.move_cursor(row=row_index, column=0)
+            table.update_cell_at(Coordinate(row_index, 0), new_name)
+
+            # Update Description (column 1)
+            table.move_cursor(row=row_index, column=1)
+            desc_display = new_description[:30] + "..." if len(new_description) > 30 else new_description
+            table.update_cell_at(Coordinate(row_index, 1), desc_display)
+
+            # Update Status (column 2)
+            table.move_cursor(row=row_index, column=2)
+            table.update_cell_at(Coordinate(row_index, 2), self._get_status_text(new_status))
+
+            self.app.notify(
+                f"Label saved: {', '.join(changes)}",
+                severity="information"
+            )
 
         except Exception as e:
-            self.app.notify(f"Error saving changes: {str(e)}", severity="error")
+            self.app.notify(f"Error saving label: {str(e)}", severity="error")
+            self.app.log(f"Database update error for label {label_id}: {e}")
+

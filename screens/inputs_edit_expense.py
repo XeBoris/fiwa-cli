@@ -5,48 +5,46 @@ from textual.app import ComposeResult
 from textual import on
 from components.item_input_form import ItemInputForm
 
+from functions.loader import load_dynamic_css
+
 
 class EditExpenseView(VerticalScroll):
     """View for editing expenses with tabs per user showing their items."""
 
-    DEFAULT_CSS = """
-    EditExpenseView {
-        width: 100%;
-        height: 100%;
-    }
-
-    EditExpenseView .form-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 1 0;
-        background: $accent;
-        color: $text;
-    }
-
-    EditExpenseView TabbedContent {
-        height: auto;
-        margin: 1 0;
-    }
-
-    EditExpenseView TabPane {
-        padding: 1;
-    }
-
-    EditExpenseView DataTable {
-        height: 25;
-        max-height: 25;
-    }
-    """
+    # DEFAULT_CSS = """
+    #
+    # """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def on_mount(self) -> None:
+        """Load dynamic CSS when the view is mounted."""
+        try:
+            load_dynamic_css(self, "screens_inputs_edit_expense.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load external CSS for EditExpenseView: {e}")
+
     def compose(self) -> ComposeResult:
         yield Static("Edit Expenses", classes="form-title")
+
+        # Display current date selection
+        period_start = self.app.app_state.get("current_period_start")
+        period_end = self.app.app_state.get("current_period_end")
+
+        if period_start and period_end:
+            date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+        else:
+            date_range_text = "📅 Showing all expenses"
+
+        yield Static(date_range_text, id="date-selection-display", classes="date-info")
 
         # Get project and users
         project_id = self.app.app_state.get("project_id", 0)
         project_users = self._get_project_users(project_id)
+
+        # Get main currency for column header
+        currency_main = self.app.app_state.get("current_project_currency_main", "USD")
 
         # Create tabbed content with one tab per user
         with TabbedContent():
@@ -54,7 +52,14 @@ class EditExpenseView(VerticalScroll):
                 with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
                     # Create DataTable for this user's items
                     table = DataTable(id=f"items-table-{user['user_id']}")
-                    table.add_columns("ID", "Item Name", "Final Price", "Currency", "Purchase Date")
+                    table.add_columns(
+                        "ID",
+                        "Item Name",
+                        "Price",
+                        "Currency",
+                        f"Final [{currency_main}]",  # Show main currency in column header
+                        "Purchase Date"
+                    )
                     table.cursor_type = "row"
 
                     # Fetch items for this user
@@ -63,12 +68,13 @@ class EditExpenseView(VerticalScroll):
                         # Extract date only (remove time if present)
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
-                        # Add row with item_id as first column
+                        # Add row with all price information
                         table.add_row(
                             str(item['item_id']),
                             item['name'],
-                            f"{item['price_final']:.2f}",
-                            item['currency'],
+                            f"{item['price']:.2f}",  # Original price
+                            item['currency'],  # Original currency
+                            f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
                             key=str(item['item_id'])  # Use item_id as row key
                         )
@@ -116,12 +122,14 @@ class EditExpenseView(VerticalScroll):
             period_end = self.app.app_state.get("current_period_end")
 
             # Query ALL items for this user in the current period (no LIMIT)
+            # Filter by bought_for_id to show expenses that belong to this user
+            # (their share), regardless of who physically paid (bought_by_id)
             dbh.load()
             query = f"""
                 SELECT item_id, name, bought_date, price, currency, price_final, currency_final, 
                        bought_by_id, note, exchange_rate, exchange_rate_date, tags
                 FROM p{dbh._db_salt}_items
-                WHERE bought_by_id = ? 
+                WHERE bought_for_id = ? 
                 AND project_id = ?
                 AND bought_date BETWEEN ? AND ?
                 ORDER BY bought_date DESC
@@ -158,9 +166,30 @@ class EditExpenseView(VerticalScroll):
             self.app.log(f"Error fetching user items: {e}")
             return []
 
+    def _update_date_display(self) -> None:
+        """Update the date selection display with current period."""
+        try:
+            period_start = self.app.app_state.get("current_period_start")
+            period_end = self.app.app_state.get("current_period_end")
+
+            if period_start and period_end:
+                date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            else:
+                date_range_text = "📅 Showing all expenses"
+
+            # Update the Static widget
+            date_display = self.query_one("#date-selection-display", Static)
+            date_display.update(date_range_text)
+
+        except Exception as e:
+            self.app.log(f"Error updating date display: {e}")
+
     def refresh_tables(self) -> None:
         """Refresh all DataTables with items for the current period."""
         try:
+            # Update the date selection display
+            self._update_date_display()
+
             project_id = self.app.app_state.get("project_id", 0)
             if project_id <= 0:
                 return
@@ -188,8 +217,9 @@ class EditExpenseView(VerticalScroll):
                         table.add_row(
                             str(item['item_id']),
                             item['name'],
-                            f"{item['price_final']:.2f}",
-                            item['currency'],
+                            f"{item['price']:.2f}",  # Original price
+                            item['currency'],  # Original currency
+                            f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
                             key=str(item['item_id'])
                         )

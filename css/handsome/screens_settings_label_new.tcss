@@ -1,0 +1,167 @@
+CreateLabelForm {
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+}
+
+CreateLabelForm .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+/*    border: solid $accent;*/
+    color: $text;
+}
+
+CreateLabelForm .form-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+}
+
+CreateLabelForm .current-project-header {
+    background: $primary 40%;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: round $accent;
+}
+
+CreateLabelForm #form-content {
+    height: 1fr;
+    width: 100%;
+    margin: 1 0 0 3;
+    padding: 0 0 0 0;
+    overflow-y: auto;
+    scrollbar-size: 3 1;
+}
+
+CreateLabelForm #action-grid {
+    grid-size: 3 3;
+    grid-columns: 1fr 1fr 1fr;
+    grid-gutter: 1 1;
+    grid-rows: 3 3 3;
+    align: center middle;
+    margin: 0 1 0 0;
+    padding: 0 0 0 0;
+    width: 100%;
+    height: auto;
+}
+
+
+/*CreateLabelForm Input {
+    margin: 0 0 0 0;
+    width: 100%;
+}*/
+
+CreateLabelForm #new-label-name {
+    text-align: left;
+    content-align: left middle;
+    width: 100%;
+    height: 3;
+}
+CreateLabelForm #new-label-description {
+    width: 100%;
+    height: 3;
+}
+
+CreateLabelForm #label-type-select {
+    width: 100%;
+    height: 3;
+}
+
+
+CreateLabelForm #new-label-activated {
+    height: 100%;
+    align: right middle;
+    margin: 0 0 0 0;
+}
+
+
+CreateLabelForm #grid-label-create {
+    grid-size: 2 1;
+    grid-columns: 1fr 1fr;
+    grid-gutter: 1;
+    height: auto;
+    margin: 2 0 0 0;
+    width: 100%;
+}
+
+CreateLabelForm #label-create-button {
+    background: green;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+CreateLabelForm #label-create-button:hover {
+    background: darkgreen;
+}
+
+CreateLabelForm #label-reset-button {
+    background: $warning;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+}
+
+CreateLabelForm #label-reset-button:hover {
+    background: $warning-darken-1;
+}
+
+
+
+
+/*
+# CreateLabelForm .label-type-buttons {
+#     height: auto;
+#     width: 100%;
+#     margin: 1 0 2 0;
+# }
+#
+# CreateLabelForm .label-type-button {
+#     width: 15;
+#     height: 3;
+#     margin: 0 1;
+#     background: $panel;
+#     border: solid $accent;
+# }
+#
+# CreateLabelForm .label-type-button-selected {
+#     background: $success;
+#     color: $text;
+#     border: solid $success;
+# }
+#
+# CreateLabelForm #action-buttons {
+#     height: auto;
+#     margin-top: 2;
+#     width: 100%;
+# }
+#
+# CreateLabelForm #create-button {
+#     background: green;
+#     color: white;
+#     width: 20;
+#     height: 3;
+#     margin: 0 1;
+# }
+#
+# CreateLabelForm #create-button:hover {
+#     background: darkgreen;
+# }
+#
+# CreateLabelForm #cancel-button {
+#     background: red;
+#     color: white;
+#     width: 20;
+#     height: 3;
+#     margin: 0 1;
+# }
+#
+# CreateLabelForm #cancel-button:hover {
+#     background: darkred;
+# }*/

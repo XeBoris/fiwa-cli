@@ -1,0 +1,416 @@
+/**
+    ItemInputForm: Modal Screen Section
+**/
+
+ItemInputForm {
+    align: center middle;
+    width: 90%;
+    height: 90%;
+    border: solid $accent;
+    padding: 1 1 1 1;
+    margin: 0 0 0 0;
+    background: $background 95%;
+}
+
+ItemInputForm .form-title {
+    text-style: bold;
+    text-align: center;
+    content-align: center middle;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+    background: $foreground;
+    color: $text;
+    height: 3;
+}
+
+ItemInputForm .form-grid-row-1 {
+    border: round $accent;
+    background: $surface;
+    grid-size: 6 2;
+    grid-gutter: 0;
+    grid-columns: 1fr 15 12 1fr 1fr 1fr;
+    width: 100%;
+    min-height: 6;
+    height: auto;
+    padding: 0 0 0 0;
+    margin: 0 1 0 1;
+}
+
+ItemInputForm .form-grid-label {
+    text-style: bold;
+    padding: 0 0 0 0;
+    width: 20;
+    height: 1;
+}
+
+# row 1
+ItemInputForm #grid-item-name {
+    width: 100%;
+    border: solid $primary;
+    height: 3;
+}
+ItemInputForm #grid-item-price {
+    width: 100%;
+    border: solid $primary;
+    height: 3;
+}
+ItemInputForm #grid-item-currency {
+    width: 100%;
+    border: none;
+    height: 3;
+}
+ItemInputForm #grid-item-bought-date {
+    width: 100%;
+    border: solid $primary;
+    height: 3;
+}
+
+ItemInputForm #grid-item-bought-by {
+    width: 100%;
+    border: none;
+    height: 3;
+}
+
+ItemInputForm #open-label-modal-button {
+    width: 90%;
+    height: 3;
+    background: $primary;
+    color: $text;
+    border: none;
+    text-align: center;
+    margin: 0 0 1 0;
+}
+
+# row 2
+ItemInputForm #bought-for-horizontal-wrapper {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    margin: 0 0 0 0;
+}
+
+ItemInputForm #bought-for-scroll {
+    width: 35;
+    min-height: 3;
+    height: auto;
+    margin: 0 0;
+    border: round $accent;
+    background: $surface;
+}
+
+
+
+
+
+
+
+ItemInputForm .form-buttons {
+    grid-size: 3 1;
+    grid-gutter: 1;
+    width: 100%;
+    height: auto;
+    margin-top: 2;
+}
+
+ItemInputForm .button-row {
+    border: round $accent;
+    background: $surface;
+    layout: horizontal;
+    align: center bottom;
+    height: 6;
+    width: 100%;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+}
+
+ItemInputForm .button-row Vertical {
+    width: 1fr;
+    height: 100%;
+}
+
+ItemInputForm #save-button {
+    background: green;
+    color: white;
+    width: 20;
+    height: 3;
+    border: none;
+    margin: 0 3 0 0;
+    padding: 0 0 0 0;
+}
+
+ItemInputForm #save-button:hover {
+    background: darkgreen;
+}
+
+ItemInputForm #clear-button {
+    background: orange;
+    color: white;
+    width: 20;
+    height: 3;
+    border: none;
+    margin: 0 3 0 0;
+    padding: 0 0 0 0;
+}
+
+ItemInputForm #clear-button:hover {
+    background: darkorange;
+}
+
+ItemInputForm #cancel-button {
+    background: red;
+    color: white;
+    width: 20;
+    height: 3;
+    border: none;
+    margin: 0 3 0 0;
+    padding: 0 0 0 0;
+}
+
+ItemInputForm #cancel-button:hover {
+    background: darkred;
+}
+
+ItemInputForm #delete-button {
+    background: $error-darken-2;
+    color: white;
+    width: 20;
+    height: 3;
+    border: none;
+    margin: 0 3 0 0;
+    padding: 0 0 0 0;
+}
+
+ItemInputForm #delete-button:hover {
+    background: $error-darken-3;
+}
+
+ItemInputForm .form-grid-row-2 {
+    grid-size: 6 2;
+    grid-gutter: 0;
+    grid-columns: 20 20 1fr 1fr 1fr 1fr;
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+
+
+
+ItemInputForm #open-label-modal-button:hover {
+    background: $accent-darken-1;
+}
+
+
+
+
+
+/* Main horizontal wrapper for bought-for section and additional content */
+ItemInputForm #bought-for-horizontal-wrapper {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    margin: 1 0 1 0;
+}
+
+/* Left side: Bought-for scroll section (35 width) */
+ItemInputForm #bought-for-scroll {
+    width: 35;
+    min-height: 1;  /* Reduced from 3 to 1 */
+    height: auto;
+    max-height: 20;  /* Added: limit maximum height */
+    margin: 0 0;
+    padding: 0;  /* Added: remove any padding */
+    border: round $accent;
+    background: $surface;
+}
+
+/* Right side: Additional content (takes remaining space) */
+ItemInputForm #additional-content-wrapper {
+    width: 1fr;  /* Takes remaining space after 35-width bought-for-scroll */
+    height: auto;
+    margin: 0 0 0 2;  /* 2 units left margin for spacing */
+    padding: 1;
+    border: round $accent;
+    background: $surface;
+}
+
+/* Exchange rate row */
+ItemInputForm .exchange-rate-row {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+/* Note row */
+ItemInputForm .note-row {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    margin: 0 0 0 0;
+}
+
+/* Field groups for exchange rate inputs */
+ItemInputForm .field-group {
+    width: 1fr;
+    height: auto;
+    margin: 0 1 0 0;
+}
+
+/* Full width field group for note */
+ItemInputForm .field-group-full {
+    width: 100%;
+    height: auto;
+}
+
+/* Form labels inside additional content */
+ItemInputForm .field-group .form-label,
+ItemInputForm .field-group-full .form-label {
+    text-style: bold;
+    padding: 0 0 0 0;
+    height: auto;
+    margin: 0 0 0 0;
+}
+
+/* Input fields inside additional content */
+ItemInputForm .field-group Input,
+ItemInputForm .field-group-full Input {
+    width: 100%;
+    height: 3;
+    border: solid $primary;
+}
+
+ItemInputForm #bought-for-wrapper {
+    width: 100%;
+    height: auto;  /* Added: explicit auto height */
+    padding: 0;
+    margin: 0;
+}
+
+ItemInputForm .bought-for-title {
+    height: 1;  /* Reduced from 2 to 1 */
+    width: 100%;
+    text-style: bold;
+    text-align: center;
+    color: $text;
+    background: $accent;
+    padding: 0;
+    margin: 0;
+}
+
+ItemInputForm .bought-for-user-row {
+    layout: horizontal;
+    min-height: 3;  /* Reduced from 4 to 2 */
+    height: 2;  /* Reduced from 3 to 2 */
+    width: 100%;
+    margin: 0;
+    padding: 0;  /* Added: no padding */
+    content-align: left middle;
+}
+
+ItemInputForm .user-name-label {
+    height: 3;  /* Reduced from 3 to 2 */
+    width: 15;
+    padding: 0;
+    margin: 0;
+    background: $surface;
+    content-align: left middle;
+}
+
+ItemInputForm .user-share-input {
+    height: 3;  /* Reduced from 3 to 2 */
+    width: 15;
+    border: solid $primary;
+    padding: 0;
+    margin: 0;
+}
+
+ItemInputForm #bought-for-container {
+    width: 35;
+    height: auto;
+    padding: 1;
+    border: $accent;
+    background: $panel;
+}
+
+ItemInputForm #bought-for-no-users {
+    height: 2;  /* Reduced from 3 to 2 */
+    width: 100%;
+    padding: 0;  /* Reduced from 1 to 0 */
+    margin: 0;
+    color: $warning;
+}
+
+ItemInputForm .bought-for-spacer {
+    height: 5;  /* Forces extra height to trigger scroll */
+    width: 100%;
+}
+
+
+/*
+# ItemInputForm .form-section {
+#     margin: 1 0;
+#     padding: 1;
+#     background: $panel;
+#     border: solid $primary;
+# }
+
+# ItemInputForm .section-title {
+#     text-style: bold;
+#     color: $accent;
+#     padding: 0 0 1 0;
+# }
+
+# ItemInputForm #form-label {
+#     text-style: bold;
+#     padding: 0 0 0 0;
+#     height: 3;
+# }
+#
+# ItemInputForm .form-label {
+#     text-style: bold;
+#     padding: 0 0 0 0;
+#     height: 1;
+#     border: none;
+# }
+#
+# ItemInputForm Input {
+#     width: 100%;
+#     margin: 0 0 1 0;
+# }
+
+
+# ItemInputForm .item-name {
+#     border: none;
+#     height: 2;
+# }
+#
+# ItemInputForm .item-price {
+#     width: 30;
+#     border: none;
+# }
+
+# ItemInputForm Select {
+#     width: 100%;
+#     margin: 0 0 1 0;
+# }
+
+
+
+# ItemInputForm .form-row {
+#     grid-size: 2 1;
+#     grid-gutter: 2;
+#     width: 100%;
+#     height: auto;
+#     margin: 0 0 1 0;
+# }
+#
+#
+# ItemInputForm .form-row-3 {
+#     grid-size: 3 1;
+#     grid-gutter: 1;
+#     width: 100%;
+#     height: auto;
+#     margin: 0 0 1 0;
+# }
+*/

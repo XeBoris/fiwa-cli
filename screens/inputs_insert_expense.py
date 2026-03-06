@@ -5,40 +5,12 @@ from textual.app import ComposeResult
 from textual.message import Message
 from components.item_input_form import ItemInputForm
 
+from functions.loader import load_dynamic_css
+
 
 class CreateExpenseForm(Vertical):
     """Widget for creating a new expense."""
 
-    DEFAULT_CSS = """
-    CreateExpenseForm {
-        width: 100%;
-        height: 100%;
-    }
-
-    CreateExpenseForm .form-title {
-        text-style: bold;
-        text-align: center;
-        padding: 0 0 1 0;
-        background: $accent;
-        color: $text;
-    }
-    
-    CreateExpenseForm .content-area {
-        padding: 2;
-        height: 1fr;
-    }
-    
-    CreateExpenseForm #open-form-button {
-        width: 40;
-        height: 5;
-        # margin: 2 auto;
-        background: $primary;
-    }
-    
-    CreateExpenseForm #open-form-button:hover {
-        background: $primary-lighten-1;
-    }
-    """
 
     class ExpenseCreated(Message):
         """Message sent when an expense is created."""
@@ -49,6 +21,16 @@ class CreateExpenseForm(Vertical):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def on_mount(self) -> None:
+        """Load dynamic CSS and open the form modal."""
+        try:
+            load_dynamic_css(self, "screens_inputs_insert_expense.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load external CSS for CreateExpenseForm: {e}")
+
+        # Open the ItemInputForm modal
+        self.app.push_screen(ItemInputForm(), callback=self._handle_item_created)
+
     def compose(self) -> ComposeResult:
         yield Static("Create New Expense", classes="form-title")
 
@@ -56,9 +38,10 @@ class CreateExpenseForm(Vertical):
             yield Static("Click the button below to add a new expense transaction.", id="instructions")
             yield Button("📝 Add New Expense", id="open-form-button", variant="primary")
 
-    def on_mount(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press to open modal."""
-        self.app.push_screen(ItemInputForm(), callback=self._handle_item_created)
+        if event.button.id == "open-form-button":
+            self.app.push_screen(ItemInputForm(), callback=self._handle_item_created)
 
     def _handle_item_created(self, item_data) -> None:
         """Handle the item data returned from the modal."""

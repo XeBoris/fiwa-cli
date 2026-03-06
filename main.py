@@ -55,11 +55,13 @@ class MyApp(App):
         # let's update the app_state with actual session info from the database on startup
         self.app_state["user_name"] = u.get("user_info", {}).get("username", "Guest")
         self.app_state["user_id"] = u.get("user_info", {}).get("user_id", -1)
+        self.app_state["user_scope"] = u.get("user_info", {}).get("scope", "user:write")
         self.app_state["session_uuid"] = u.get("session_info", {}).get("session_uuid", "No session")
         self.app_state["session_start"] = u.get("session_info", {}).get("session_start", None)
         self.app_state["is_logged_in"] = u.get("session_info", {}).get("is_logged_in", False)
-
-
+        self.app_state["abs_path"] = self._config.get("_abs_path", "")
+        self.app_state["css_form"] = self._config.get("style", {}).get("form", "handsome")
+        self.app_state["css_theme"] = self._config.get("style", {}).get("theme", "textual-light") #todo: not implemented
 
 
         # Process project information
@@ -98,6 +100,10 @@ class MyApp(App):
             self.app_state["project_id"] = 0
             self.app_state["current_project_currency_main"] = "USD"
             self.app_state["current_project_currency_list"] = []
+
+    def on_mount(self) -> None:
+        self.theme = "textual-dark"  # Set initial theme
+        self.update_session_display()  # Update session info on mount
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -197,9 +203,11 @@ if __name__ == "__main__":
     config_path = "./config.yml"  # for testing purposes
     config = load_yaml_config(config_path)
 
+
     config = setup_fiwa(abs_path=abs_path,
                         config=config)  # Initialize FiWa with the loaded config
 
-
+    # print(config)
+    # exit()
     app = MyApp(config=config)
     app.run()

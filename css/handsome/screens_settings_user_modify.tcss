@@ -1,0 +1,148 @@
+/* ============================================
+   MODIFY USER FORM STYLING
+   File: css/handsome/screens_settings_user_modify.tcss
+   ============================================ */
+
+ModifyUserForm {
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+}
+
+ModifyUserForm .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+    color: $text;
+}
+
+ModifyUserForm .form-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+    color: $text;
+}
+
+ModifyUserForm .info-label {
+    padding: 0 0 1 0;
+    color: $text-muted;
+    text-style: italic;
+}
+
+ModifyUserForm .info-message {
+    padding: 1;
+    margin: 0 0 1 0;
+    background: $primary 30%;
+    color: $text;
+    border: solid $primary;
+    text-align: center;
+}
+
+ModifyUserForm .error-message {
+    padding: 1;
+    margin: 0 0 1 0;
+    background: $error 30%;
+    color: $error;
+    border: solid $error;
+    text-align: center;
+}
+
+ModifyUserForm .placeholder-message {
+    padding: 2;
+    margin: 2;
+    color: $text-muted;
+    text-align: center;
+    text-style: italic;
+}
+
+ModifyUserForm .readonly-field {
+    padding: 0 1;
+    margin: 0 0 1 0;
+    background: $panel;
+    color: $text-muted;
+    border: solid $border;
+    text-style: italic;
+}
+
+/* User selection dropdown */
+ModifyUserForm #user-select {
+    margin: 0 0 2 0;
+    width: 100%;
+    height: 3;
+}
+
+/* Form content area */
+ModifyUserForm #form-content {
+    height: 1fr;
+    width: 100%;
+    margin: 1 0 0 0;
+    padding: 0 0 0 0;
+    overflow-y: auto;
+    scrollbar-size: 3 1;
+}
+
+ModifyUserForm #form-user-area {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 1 2 1 2;
+    width: 100%;
+}
+
+/* Input fields */
+ModifyUserForm #form-user-area > Input {
+    margin: 0 0 1 0;
+    width: 100%;
+}
+
+ModifyUserForm #form-user-area Input {
+    width: 100%;
+    margin: 0 0 1 0;
+}
+
+/* Action buttons */
+ModifyUserForm #action-buttons {
+    grid-size: 3 1;
+    grid-columns: 1fr 1fr 1fr;
+    grid-gutter: 1;
+    height: 3;
+    margin: 2 0 1 0;
+    width: 100%;
+}
+
+ModifyUserForm #user-update-button {
+    background: $success;
+    color: white;
+    width: auto;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+ModifyUserForm #user-update-button:hover {
+    background: $success-lighten-1;
+}
+
+ModifyUserForm #user-reset-button {
+    background: $warning;
+    color: white;
+    width: auto;
+    height: 3;
+    margin: 0 1;
+}
+
+ModifyUserForm #user-reset-button:hover {
+    background: $warning-lighten-1;
+}
+
+ModifyUserForm #user-cancel-button {
+    background: $error;
+    color: white;
+    width: auto;
+    height: 3;
+    margin: 0 1;
+}
+
+ModifyUserForm #user-cancel-button:hover {
+    background: $error-lighten-1;
+}

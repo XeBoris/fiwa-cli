@@ -1,0 +1,329 @@
+ModifyProjectForm {
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+}
+
+ModifyProjectForm .form-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+/*    border: solid $accent;*/
+    color: $text;
+}
+
+ModifyProjectForm .form-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+}
+
+ModifyProjectForm .current-project-header {
+    background: $primary 40%;
+    color: $text;
+    padding: 0 1 0 1;
+    margin: 0 4 0 4;
+    border: round $accent;
+}
+
+ModifyProjectForm #form-content {
+    height: 1fr;
+    width: 100%;
+    margin: 1 0 0 3;
+    padding: 0 0 0 0;
+    overflow-y: auto;
+    scrollbar-size: 3 1;
+}
+
+ModifyProjectForm #form-project-area {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+ModifyProjectForm #form-project-area > Input {
+    margin: 0 0 0 0;
+    width: 50%;
+}
+
+ModifyProjectForm #form-project-area > TextArea {
+    height: 5;
+    width: 95%;
+    margin: 0 0 0 0;
+}
+
+ModifyProjectForm #form-currency-section {
+    height: 6;
+    margin: 0 1 1 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+ModifyProjectForm #form-currency-section-main {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 1fr;
+}
+ModifyProjectForm #form-currency-section-additional {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 2fr;
+}
+
+ModifyProjectForm #form-user-section {
+    height: 6;
+    margin: 0 1 1 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+ModifyProjectForm #users-list-container {
+    width: 100%;
+    height: auto;
+    margin: 1 0 0 0;
+    padding: 1;
+    border: round $border;
+    background: $panel;
+}
+
+/* Users header with label and button */
+ModifyProjectForm .users-header {
+    width: 100%;
+    height: auto;
+    layout: horizontal;
+    margin: 0 0 1 0;
+}
+
+ModifyProjectForm .users-header .form-label {
+    width: 1fr;
+    padding: 0;
+}
+
+ModifyProjectForm .add-users-button {
+    width: auto;
+    min-width: 12;
+    height: 1;
+    padding: 0 1;
+    margin: 0;
+    background: $success;
+    border: none;
+}
+
+ModifyProjectForm .add-users-button:hover {
+    background: $success-lighten-1;
+}
+
+/* User row with button */
+ModifyProjectForm .user-row {
+    width: 100%;
+    height: auto;
+    layout: horizontal;
+}
+
+/* Individual user item */
+ModifyProjectForm .user-item {
+    width: 1fr;
+    padding: 0 1;
+    margin: 0;
+    color: $text;
+    background: transparent;
+}
+
+/* Edit permission button */
+ModifyProjectForm .edit-permission-button {
+    width: 5;
+    min-width: 3;
+    height: 1;
+    padding: 0;
+    margin: 0 0 0 1;
+    background: $accent;
+    border: none;
+}
+
+ModifyProjectForm .edit-permission-button:hover {
+    background: $accent-lighten-1;
+}
+
+/* Empty state message */
+ModifyProjectForm .user-item-empty {
+    padding: 1;
+    color: $text-muted;
+    text-align: center;
+    text-style: italic;
+}
+
+/* ============================================
+   PERMISSION DIALOG STYLING
+   ============================================ */
+
+UserPermissionsDialog {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#permission-dialog {
+    width: 60;
+    height: auto;
+    max-height: 35;
+    background: $surface;
+    border: thick $primary;
+    padding: 2;
+}
+
+UserPermissionsDialog .dialog-title {
+    text-style: bold underline;
+    text-align: center;
+    color: $primary;
+    margin: 0 0 1 0;
+}
+
+UserPermissionsDialog .dialog-user {
+    text-style: bold;
+    text-align: center;
+    color: $accent;
+    margin: 0 0 2 0;
+}
+
+#permission-list {
+    width: 100%;
+    height: auto;
+    margin: 0 0 2 0;
+    overflow-y: auto;
+}
+
+UserPermissionsDialog .permission-row {
+    width: 100%;
+    height: auto;
+    margin: 1 0 0 0;
+}
+
+UserPermissionsDialog .permission-checkbox {
+    width: 100%;
+}
+
+UserPermissionsDialog .permission-description {
+    color: $text-muted;
+    text-style: italic;
+    margin: 0 0 1 2;
+    padding: 0;
+}
+
+UserPermissionsDialog #dialog-buttons {
+    width: 100%;
+    height: auto;
+    layout: horizontal;
+    align: center middle;
+}
+
+UserPermissionsDialog #dialog-buttons Button {
+    width: 15;
+    margin: 0 1;
+}
+
+/* ============================================
+   ADD USER DIALOG STYLING
+   ============================================ */
+
+UserAddDialog {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+UserAddDialog #add-user-dialog {
+    width: 70;
+    height: auto;
+    max-height: 40;
+    background: $surface;
+    border: thick $success;
+    padding: 2;
+}
+
+UserAddDialog .dialog-title {
+    text-style: bold underline;
+    text-align: center;
+    color: $success;
+    margin: 0 0 1 0;
+}
+
+UserAddDialog .dialog-subtitle {
+    text-align: center;
+    color: $text-muted;
+    margin: 0 0 2 0;
+}
+
+UserAddDialog #available-users-list {
+    width: 100%;
+    height: auto;
+    margin: 0 0 2 0;
+    border: solid $border;
+    background: $panel;
+    padding: 1;
+    overflow-y: auto;
+}
+
+UserAddDialog .user-checkbox {
+    width: 100%;
+    margin: 0 0 1 0;
+}
+
+UserAddDialog .empty-message {
+    text-align: center;
+    color: $text-muted;
+    text-style: italic;
+    padding: 2;
+}
+
+
+
+ModifyProjectForm #project-currency-grid {
+    grid-size: 2 2;
+    grid-columns: 1fr 1fr;
+    grid-gutter: 0;
+    width: 100%;
+    height: 10;
+}
+ModifyProjectForm #project-currency-grid Static {
+    padding: 0 0 0 0;
+}
+ModifyProjectForm #project-currency-grid Input {
+    padding: 0;
+    width: 100%;
+}
+
+ModifyProjectForm #project-buttons {
+    grid-size: 2 1;
+    grid-columns: 1fr 1fr;
+    grid-gutter: 1;
+    height: 3;
+    margin: 2 0 1 0;
+    width: 100%;
+}
+
+ModifyProjectForm #project-update-button {
+    background: green;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+    border: none;
+}
+
+ModifyProjectForm #project-update-button:hover {
+    background: darkgreen;
+}
+
+ModifyProjectForm #project-cancel-button {
+    background: $warning;
+    color: white;
+    width: 20;
+    height: 3;
+    margin: 0 1;
+}
+
+ModifyProjectForm #project-cancel-button:hover {
+    background: $warning-darken-1;
+}

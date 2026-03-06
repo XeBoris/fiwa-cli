@@ -5,34 +5,24 @@ from textual.widgets import Static, OptionList
 from textual.widgets.option_list import Option
 from textual.app import ComposeResult
 
+from functions.loader import load_dynamic_css
+
 class ProjectSelectorScreen(ModalScreen):
     """Screen to select a project from available projects."""
 
-    DEFAULT_CSS = """
-    ProjectSelectorScreen {
-        align: center middle;
-    }
+    BINDINGS = [
+        ("escape", "cancel", "Cancel"),
+    ]
 
-    ProjectSelectorScreen > Vertical {
-        width: 50;
-        height: auto;
-        max-height: 30;
-        background: $surface;
-        border: solid $accent;
-        padding: 1;
-    }
-
-    ProjectSelectorScreen #project-title {
-        text-style: bold;
-        padding: 0 0 1 0;
-        text-align: center;
-    }
-
-    ProjectSelectorScreen OptionList {
-        height: auto;
-        max-height: 20;
-    }
-    """
+    # DEFAULT_CSS = """
+    #
+    # """
+    def on_mount(self) -> None:
+        """Load CSS when screen is mounted."""
+        try:
+            load_dynamic_css(self, "screens_project_selection.tcss")
+        except Exception as e:
+            self.app.log(f"Could not load CSS for ProjectSelectorScreen: {e}")
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -124,3 +114,8 @@ class ProjectSelectorScreen(ModalScreen):
         except Exception as e:
             # Header might not be available yet or other error
             self.app.log(f"Could not refresh header: {e}")
+
+    def action_cancel(self) -> None:
+        """Handle escape key press - dismiss modal without selecting a project."""
+        self.dismiss()
+

@@ -197,16 +197,27 @@ class LoginScreen(ModalScreen):
                 project_ids = [0]
                 primary_project_id = 0
 
+            # IMPORTANT: Preserve application-level configuration during login
+            # These are set at app startup and should not be overwritten
+            abs_path = self.app.app_state.get("abs_path", "")
+            css_form = self.app.app_state.get("css_form", "handsome")
+            css_theme = self.app.app_state.get("css_theme", "textual-light")
+
             # Update app_state reactive dictionary with ALL information
             self.app.app_state = {
                 "user_name": user_info.get("username", username),
                 "user_id": user_id,
+                "user_scope": user_info.get("scope", "user:write"),
                 "session_uuid": user_session.get("session_uuid", "No session"),
                 "session_start": user_session.get("session_start"),
                 "is_logged_in": True,
                 "project_names": project_names,
                 "project_ids": project_ids,
                 "project_id": primary_project_id,
+                # Restore application-level configuration
+                "abs_path": abs_path,
+                "css_form": css_form,
+                "css_theme": css_theme,
             }
 
             self.notify("Login successful!", severity="success")
@@ -250,6 +261,7 @@ class LoginScreen(ModalScreen):
             self.app.app_state = {
                 "user_name": "Guest",
                 "user_id": -1,
+                "user_scope": "user:write",
                 "session_uuid": "No session",
                 "session_start": None,
                 "is_logged_in": False,

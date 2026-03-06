@@ -1,0 +1,23 @@
+ProjectSelectorScreen {
+    align: center middle;
+}
+
+ProjectSelectorScreen > Vertical {
+    width: 50;
+    height: auto;
+    max-height: 30;
+    background: $surface;
+    border: solid $accent;
+    padding: 1;
+}
+
+ProjectSelectorScreen #project-title {
+    text-style: bold;
+    padding: 0 0 1 0;
+    text-align: center;
+}
+
+ProjectSelectorScreen OptionList {
+    height: auto;
+    max-height: 20;
+}
