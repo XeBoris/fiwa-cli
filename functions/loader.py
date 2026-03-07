@@ -45,8 +45,10 @@ def load_dynamic_css(widget, css_filename: str) -> None:
 
     except (AttributeError, KeyError) as e:
         widget.app.log(f"✗ app_state not available: {e}")
+        widget.app.notify("Error loading theme CSS. 'all_state' not available.", severity="error")
     except Exception as e:
         widget.app.log(f"✗ Failed to load CSS: {e}")
+        widget.app.notify("Error loading theme CSS.", severity="error")
 
 def get_abs_path():
     """
