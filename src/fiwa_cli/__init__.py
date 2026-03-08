@@ -4,7 +4,14 @@ A comprehensive financial tracking and workflow management application
 built with Textual for terminal-based interfaces.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("fiwa-cli")
+except PackageNotFoundError:
+    # Package is not installed, use fallback during development
+    __version__ = "0.1.0.dev"
+
 __author__ = "Boris Bauermeister"
 
 # Import main components for easy access

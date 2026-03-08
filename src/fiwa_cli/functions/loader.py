@@ -502,6 +502,46 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
                                 project_perm_model='111100',
                                 project_primary=False)
 
+        # now we need labels for the bat cave project:
+        p_info = dbh.op_project_get_info(user_id=uid1)
+        p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
+
+        # action labels
+        action_labels = []
+        i_label = {"name": "expenses", "description": "Expenses", "composite": None,
+                   "label_status": 2, "label_type": 0}
+        action_labels.append(i_label)
+        i_label = {"name": "revenue", "description": "Revenue", "composite": None,
+                   "label_status": 2, "label_type": 0}
+        action_labels.append(i_label)
+        i_label = {"name": "recurring", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 0}
+        action_labels.append(i_label)
+        i_label = {"name": "permanent", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 0}
+        action_labels.append(i_label)
+        i_label = {"name": "irregular", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 0}
+        action_labels.append(i_label)
+
+        account_labels = []
+        i_label = {"name": "Liability", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 1}
+        action_labels.append(i_label)
+        i_label = {"name": "Income", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 1}
+        action_labels.append(i_label)
+        i_label = {"name": "Spending", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 1}
+        action_labels.append(i_label)
+
+        for i_label in action_labels:
+            dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
+
+        for i_label in account_labels:
+            dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
+
+
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
             dbh.op_user_login(username=config.get("user"),
