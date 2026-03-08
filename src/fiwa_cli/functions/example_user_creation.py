@@ -3,7 +3,7 @@ Example usage of SQLLiteHandler user creation functionality.
 This file demonstrates how to use the op_user_create method.
 """
 
-from fiwa.functions.handler_sqllite import SQLLiteHandler
+from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
 
 # Example 1: Create a basic user with required fields only
 def example_basic_user():

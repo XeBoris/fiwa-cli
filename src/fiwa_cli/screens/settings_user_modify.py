@@ -5,7 +5,7 @@ from textual.app import ComposeResult
 from textual.message import Message
 from datetime import datetime
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 
 class ModifyUserForm(Vertical):

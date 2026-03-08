@@ -6,7 +6,7 @@ from textual.message import Message
 from textual.screen import ModalScreen
 from datetime import datetime
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class LabelEditorModal(ModalScreen):
     """Modal screen for editing label name, description, and status."""

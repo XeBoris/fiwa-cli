@@ -12,7 +12,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from datetime import datetime
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class WeekMonthWidget(Widget):
     """A widget for navigating through weeks or months.

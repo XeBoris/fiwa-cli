@@ -10,7 +10,7 @@ import re
 
 from textual import on
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days

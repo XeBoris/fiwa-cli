@@ -3,7 +3,7 @@ import os
 import yaml
 import time
 
-from fiwa.functions.handler import Handler
+from fiwa_cli.functions.handler import Handler
 
 def load_dynamic_css(widget, css_filename: str) -> None:
     """Load external CSS file based on app theme configuration.

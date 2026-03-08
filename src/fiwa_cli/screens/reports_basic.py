@@ -3,7 +3,7 @@ from textual.containers import Vertical, ScrollableContainer, Horizontal
 from textual.widgets import Static, TabbedContent, TabPane, DataTable, Button
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 
 class RepayModal(ModalScreen):

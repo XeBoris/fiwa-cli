@@ -6,7 +6,7 @@ from textual.screen import ModalScreen
 from textual.message import Message
 import json
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 
 def translate_permissions(permission_string: str) -> str:

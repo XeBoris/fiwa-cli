@@ -1,6 +1,6 @@
 
-from fiwa.functions.handler_api import HandlerApi
-from fiwa.functions.handler_sqllite import SQLLiteHandler
+from fiwa_cli.functions.handler_api import HandlerApi
+from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
 
 class Handler():
     def __init__(self, method):

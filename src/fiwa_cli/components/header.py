@@ -5,7 +5,7 @@ from textual.widgets import Static, Button
 from textual.containers import Horizontal
 from textual.app import ComposeResult
 
-from fiwa.components.time_display import TimeDisplay
+from fiwa_cli.components.time_display import TimeDisplay
 from textual.reactive import reactive
 
 
@@ -112,10 +112,10 @@ class FiwaHeader(Static):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "header-menu-button":
-            from fiwa.screens.menu import MenuScreen
+            from fiwa_cli.screens.menu import MenuScreen
             self.app.push_screen(MenuScreen())
         elif event.button.id == "calendar-button":
-            from fiwa.components.calendar_picker import CalendarWidget
+            from fiwa_cli.components.calendar_picker import CalendarWidget
             self.app.push_screen(CalendarWidget(
                                         initial_date=None,
                                         margin=(3, 0, 0, 15),

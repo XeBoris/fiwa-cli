@@ -62,12 +62,12 @@ class MenuScreen(ModalScreen):
         option_id = event.option.id
 
         # Import here to avoid circular dependencies
-        from fiwa.screens.base import LoginScreen
-        from fiwa.screens.dashboard import DashboardScreen
-        from fiwa.screens.inputs import InputsScreen
-        from fiwa.screens.reports import ReportsScreen
-        from fiwa.screens.settings import SettingsScreen
-        from fiwa.screens.project_selector import ProjectSelectorScreen
+        from fiwa_cli.screens.base import LoginScreen
+        from fiwa_cli.screens.dashboard import DashboardScreen
+        from fiwa_cli.screens.inputs import InputsScreen
+        from fiwa_cli.screens.reports import ReportsScreen
+        from fiwa_cli.screens.settings import SettingsScreen
+        from fiwa_cli.screens.project_selector import ProjectSelectorScreen
 
         if option_id == "menu-dashboard":
             self.dismiss()

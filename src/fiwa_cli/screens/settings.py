@@ -3,10 +3,10 @@ from textual.screen import ModalScreen, Screen
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Container
 from textual.widgets import Static, Button
 from textual.app import ComposeResult
-from fiwa.components import FiwaHeader
+from fiwa_cli.components import FiwaHeader
 
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 # from .settings_project_new import CreateProjectModal
 from .settings_project_new import CreateProjectForm

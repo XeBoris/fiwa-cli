@@ -6,7 +6,7 @@ from textual.message import Message
 from datetime import datetime
 import hashlib
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class CreateProjectForm(ScrollableContainer):
     """Widget for creating a new project."""

@@ -3,9 +3,9 @@ from textual.widgets import Static, Button
 from textual.containers import Vertical
 from textual.app import ComposeResult
 from textual.message import Message
-from fiwa.components.item_input_form import ItemInputForm
+from fiwa_cli.components.item_input_form import ItemInputForm
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 
 class CreateExpenseForm(Vertical):

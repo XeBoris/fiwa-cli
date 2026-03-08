@@ -8,9 +8,9 @@ from textual.containers import Horizontal
 from textual.widgets import Button, Footer, Static
 from textual.reactive import reactive
 
-from fiwa.functions.loader import load_yaml_config
-from fiwa.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handle_args
-from fiwa.components.header import FiwaHeader
+from fiwa_cli.functions.loader import load_yaml_config
+from fiwa_cli.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handle_args
+from fiwa_cli.components.header import FiwaHeader
 
 import datetime
 import argparse
@@ -209,27 +209,27 @@ class MyApp(App):
 
     def action_open_menu(self) -> None:
         """An action to open the menu."""
-        from fiwa.screens.menu import MenuScreen
+        from fiwa_cli.screens.menu import MenuScreen
         self.push_screen(MenuScreen())
 
     def action_open_settings(self) -> None:
         """An action to open the settings screen."""
-        from fiwa.screens.settings import SettingsScreen
+        from fiwa_cli.screens.settings import SettingsScreen
         self.push_screen(SettingsScreen())
 
     def action_open_expenses(self) -> None:
         """An action to open the expenses/inputs screen."""
-        from fiwa.screens.inputs import InputsScreen
+        from fiwa_cli.screens.inputs import InputsScreen
         self.push_screen(InputsScreen())
 
     def action_open_reports(self) -> None:
         """An action to open the reports screen."""
-        from fiwa.screens.reports import ReportsScreen
+        from fiwa_cli.screens.reports import ReportsScreen
         self.push_screen(ReportsScreen())
 
     def action_select_project(self) -> None:
         """An action to open the project selector screen."""
-        from fiwa.screens.project_selector import ProjectSelectorScreen
+        from fiwa_cli.screens.project_selector import ProjectSelectorScreen
         self.push_screen(ProjectSelectorScreen())
 
 
@@ -249,6 +249,7 @@ def main():
     if _mode == "init":
         prep_fiwa(mode=_mode, config=_conf) #prepares the FiWa environment based on the mode (e.g., init or run)
         exit(0)
+
     elif _mode == "run":
         if 'user' in _conf and _conf['user'] is not None:
             print(f"Running FiWa as user: {_conf['user']}")

@@ -3,9 +3,9 @@ from textual.containers import VerticalScroll, Vertical
 from textual.widgets import Static, TabbedContent, TabPane, DataTable
 from textual.app import ComposeResult
 from textual import on
-from fiwa.components.item_input_form import ItemInputForm
+from fiwa_cli.components.item_input_form import ItemInputForm
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 
 class EditExpenseView(VerticalScroll):

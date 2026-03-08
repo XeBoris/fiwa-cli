@@ -8,6 +8,6 @@ __version__ = "0.1.0"
 __author__ = "Boris Bauermeister"
 
 # Import main components for easy access
-from fiwa.main import MyApp, main
+from fiwa_cli.main import MyApp, main
 
 __all__ = ["MyApp", "main", "__version__", "__author__"]

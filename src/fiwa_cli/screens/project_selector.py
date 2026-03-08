@@ -5,7 +5,7 @@ from textual.widgets import Static, OptionList
 from textual.widgets.option_list import Option
 from textual.app import ComposeResult
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class ProjectSelectorScreen(ModalScreen):
     """Screen to select a project from available projects."""

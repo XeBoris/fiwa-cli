@@ -2,12 +2,12 @@
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Static, Button
 from textual.app import ComposeResult
-from fiwa.components import FiwaHeader
-from fiwa.components.week_month_picker import WeekMonthWidget
+from fiwa_cli.components import FiwaHeader
+from fiwa_cli.components.week_month_picker import WeekMonthWidget
 
 from .reports_basic import BasicReportForm
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 from .base import ReactiveScreen
 import datetime

@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.message import Message
 from datetime import date
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class CreateUserForm(Widget):
     """Form for creating a new user."""

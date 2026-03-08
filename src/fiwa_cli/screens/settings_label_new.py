@@ -5,7 +5,7 @@ from textual.app import ComposeResult
 from textual.message import Message
 from textual import on
 
-from fiwa.functions.loader import load_dynamic_css
+from fiwa_cli.functions.loader import load_dynamic_css
 
 class CreateLabelForm(Vertical):
     """Widget for creating a new label."""

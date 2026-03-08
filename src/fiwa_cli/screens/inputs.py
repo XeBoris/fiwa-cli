@@ -5,9 +5,9 @@ from textual.app import ComposeResult
 
 import datetime
 
-from fiwa.components import FiwaHeader
-from fiwa.functions.loader import load_dynamic_css
-from fiwa.components.week_month_picker import WeekMonthWidget
+from fiwa_cli.components import FiwaHeader
+from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.components.week_month_picker import WeekMonthWidget
 
 from .base import ReactiveScreen
 from .inputs_insert_expense import CreateExpenseForm

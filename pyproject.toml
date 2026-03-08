@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
-    {name = "Boris Bauermeister", email = "your.email@example.com"}
+    {name = "Boris Bauermeister", email = "Boris.Bauermeister@gmail.com"}
 ]
 keywords = ["finance", "workflow", "cli", "textual"]
 classifiers = [
@@ -49,7 +49,7 @@ syntax = [
 ]
 
 [project.scripts]
-fiwa = "fiwa.main:main"
+fiwa = "fiwa_cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/Boris-Bauermeister/fiwa-cli"
@@ -62,13 +62,13 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["fiwa*"]
+include = ["fiwa_cli*"]
 
 [tool.setuptools.package-data]
-# Include main.tcss at the fiwa package root
-"fiwa" = ["main.tcss"]
+# Include main.tcss at the fiwa_cli package root
+"fiwa_cli" = ["main.tcss"]
 # Include all TCSS/CSS files in the css.handsome subpackage
-"fiwa.css.handsome" = ["*.tcss", "*.css"]
+"fiwa_cli.css.handsome" = ["*.tcss", "*.css"]
 # Include SQL files in database package
-"fiwa.database" = ["*.sql"]
+"fiwa_cli.database" = ["*.sql"]
 

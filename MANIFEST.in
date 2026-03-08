@@ -1,11 +1,11 @@
-# Include all CSS and TCSS files from src/fiwa/css
-recursive-include src/fiwa/css *.css *.tcss
+# Include all CSS and TCSS files from src/fiwa_cli/css
+recursive-include src/fiwa_cli/css *.css *.tcss
 
-# Include database schema files from src/fiwa/database
-recursive-include src/fiwa/database *.sql
+# Include database schema files from src/fiwa_cli/database
+recursive-include src/fiwa_cli/database *.sql
 
-# Include top-level main.tcss from src/fiwa
-include src/fiwa/main.tcss
+# Include top-level main.tcss from src/fiwa_cli
+include src/fiwa_cli/main.tcss
 
 # Include README and LICENSE
 include README.md
