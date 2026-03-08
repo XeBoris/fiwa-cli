@@ -1,0 +1,117 @@
+/* ============================================
+   BASIC REPORT (COST OVERVIEW) STYLING
+   File: css/handsome/screens_reports_basic.tcss
+   Component: BasicReportForm
+   ============================================ */
+BasicReportForm {
+
+}
+
+BasicReportForm .report-title {
+    text-style: bold;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+    text-align: center;
+}
+BasicReportForm .date-info {
+    text-align: center;
+    padding: 1;
+    margin: 0 0 1 0;
+    background: $primary 30%;
+    color: $text;
+    border: solid $primary;
+    text-style: bold;
+}
+BasicReportForm TabbedContent {
+    height: auto;
+    margin: 1 0;
+}
+BasicReportForm TabPane {
+    padding: 1;
+}
+BasicReportForm DataTable {
+    height: 15;
+    max-height: 20;
+    border: solid $accent;
+}
+BasicReportForm .user-total {
+    text-align: right;
+    padding: 1;
+    margin: 1 0 0 0;
+    color: $success;
+    text-style: bold;
+    background: $surface;
+    border-top: double $accent;
+}
+/* Repay button below all tabs */
+BasicReportForm .repay-button {
+    width: 30;
+    height: 3;
+    margin: 2 0 1 0;
+    background: $primary;
+    color: $text;
+}
+BasicReportForm .repay-button:hover {
+    background: $primary-lighten-1;
+}
+/* Repay Modal Styling */
+RepayModal {
+    align: center middle;
+}
+RepayModal #repay-modal-container {
+    width: 60;
+    height: auto;
+    max-height: 40;
+    background: $surface;
+    border: thick solid $accent;
+    padding: 2;
+}
+RepayModal .modal-title {
+    text-style: bold;
+    text-align: center;
+    padding: 0 0 1 0;
+    color: $accent;
+    background: $surface;
+}
+RepayModal .modal-subtitle {
+    text-style: bold;
+    padding: 1 0;
+    color: $text-muted;
+}
+RepayModal #repay-list-container {
+    height: auto;
+    max-height: 20;
+    margin: 1 0;
+    padding: 1;
+    background: $panel;
+    border: solid $primary;
+}
+RepayModal .repayment-item {
+    padding: 1 1;
+    margin: 0 0 1 0;
+    background: $surface;
+    border-left: thick solid $success;
+}
+RepayModal .repayment-settled {
+    text-align: center;
+    padding: 2;
+    color: $success;
+    text-style: italic bold;
+}
+RepayModal #ok-button {
+    width: 100%;
+    height: 3;
+    margin-top: 1;
+    background: $primary;
+}
+RepayModal #ok-button:hover {
+    background: $primary-lighten-1;
+}
+
+RepayModal .modal-period {
+    text-align: center;
+    padding: 0 0 1 0;
+    color: $text;
+    text-style: italic;
+    background: $surface;
+}
