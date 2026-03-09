@@ -225,11 +225,11 @@ class BasicReportForm(Vertical):
 
                         table.add_columns(
                             # "ID",
-                            "Item Name",
+                            "Name",
                             "Price",
                             "Currency",
                             f"Final [{currency_main}]",
-                            "Purchase Date",
+                            "Date",
                             "Bought by",
                         )
                         table.cursor_type = "row"
