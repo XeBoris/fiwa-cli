@@ -728,6 +728,78 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
             dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
 
         # Generate grocery shopping data with realistic patterns
+        label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
+        label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
+        label_id_spending = dbh.op_label_get_by_name("Spending", p_info["project_id"])
+        label_id_irregular = dbh.op_label_get_by_name("irregular", p_info["project_id"])
+        grocery_store_names = [
+            "Normal", "Haargummies", "Duschsachen", "Zahncreme", "Rasierklingen", "Deo", "Shampoo",
+            "DM", "Rossmann", "Müller", "Boots", "CVS", "Walgreens", "Superdrug",
+            "DVD"
+        ]
+
+        print(f"ID: ({label_id_person}), generating sample data...")
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid1,
+            bought_for_id=uid1,
+            names=grocery_store_names,
+            labels=[label_id_person, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=10.0,
+            max_weekly_spend=15.0
+        )
+        print(f"ID: ({label_id_person}), generating sample data...")
+
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid1,
+            bought_for_id=uid0,
+            names=grocery_store_names,
+            labels=[label_id_person, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=2.0,
+            max_weekly_spend=5.0
+        )
+        print(f"ID: ({label_id_person}), generating sample data...")
+
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid0,
+            bought_for_id=uid0,
+            names=grocery_store_names,
+            labels=[label_id_person, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=12.0,
+            max_weekly_spend=17.0
+        )
+        print(f"ID: ({label_id_person}), generating sample data...")
+
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid0,
+            bought_for_id=uid1,
+            names=grocery_store_names,
+            labels=[label_id_person, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=1.0,
+            max_weekly_spend=3.0
+        )
+        print(f"ID: ({label_id_person}), generating sample data...")
+
+        # Generate grocery shopping data with realistic patterns
         label_id_groceries = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
         label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
         label_id_spending = dbh.op_label_get_by_name("Spending", p_info["project_id"])
@@ -797,7 +869,6 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
             max_weekly_spend=10.0
         )
         print(f"✓ Clark generated {len(item_ids)} grocery transactions for Batman")
-
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
