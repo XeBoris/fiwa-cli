@@ -54,11 +54,11 @@ class EditExpenseView(VerticalScroll):
                     table = DataTable(id=f"items-table-{user['user_id']}")
                     table.add_columns(
                         "ID",
-                        "Item Name",
+                        "Name",
                         "Price",
                         "Currency",
                         f"Final [{currency_main}]",  # Show main currency in column header
-                        "Purchase Date"
+                        "Date"
                     )
                     table.cursor_type = "row"
 
