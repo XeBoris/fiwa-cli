@@ -1,9 +1,158 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 import os
 import yaml
 import time
+import random
+import uuid
+import json
+from datetime import datetime, timedelta
+import numpy as np
 
 from fiwa_cli.functions.handler import Handler
+
+
+def generate_grocery_shopping_data(
+    dbh,
+    project_id: int,
+    user_id: int,
+    bought_for_id: int,
+    start_date_str: str = "2024-11-01",
+    end_date: Optional[datetime] = None,
+    currency: str = "USD",
+    avg_weekly_spend: float = 100.0,
+    max_weekly_spend: float = 150.0
+) -> List[int]:
+    """
+    Generate realistic grocery shopping transaction data with Poisson-distributed shopping frequency.
+
+    Creates shopping entries from a start date to today (or specified end date) with:
+    - 1-8 shopping trips per week (Poisson distribution, mean ~3)
+    - Average weekly spend of ~100 (with variance)
+    - Individual trip amounts using clipped Poisson distribution (max 150)
+    - Realistic grocery store names
+
+    Args:
+        dbh: Database handler instance with op_item_create method
+        project_id (int): The project ID to associate items with
+        user_id (int): User ID who bought and added the items
+        bought_for_id (int): User ID for whom items were bought
+        start_date_str (str): Start date in format "YYYY-MM-DD" (default: "2024-11-01")
+        end_date (datetime, optional): End date for generation. Defaults to today.
+        currency (str): Currency code (default: "USD")
+        avg_weekly_spend (float): Average total spending per week (default: 100.0)
+        max_weekly_spend (float): Maximum allowed weekly spend (default: 150.0)
+
+    Returns:
+        List[int]: List of created item IDs
+
+    Example:
+        >>> item_ids = generate_grocery_shopping_data(
+        ...     dbh=database_handler,
+        ...     project_id=1,
+        ...     user_id=123,
+        ...     bought_for_id=123,
+        ...     start_date_str="2024-11-01"
+        ... )
+        >>> print(f"Created {len(item_ids)} grocery transactions")
+    """
+
+    # Grocery store names (mix of real chains from different regions)
+    grocery_stores = [
+        "Lidl", "Aldi", "Coop", "Netto", "Walmart", "Target", "Kroger",
+        "Tesco", "Carrefour", "Whole Foods", "Trader Joe's", "Safeway",
+        "ICA", "Rewe", "Edeka", "Albert Heijn", "Costco", "Sam's Club"
+    ]
+
+    # Parse dates
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    if end_date is None:
+        end_date = datetime.now()
+
+    # Calculate number of weeks
+    total_days = (end_date - start_date).days
+    num_weeks = total_days / 7.0
+
+    created_items = []
+    current_date = start_date
+
+    # Process week by week
+    week_num = 0
+    while current_date <= end_date:
+        week_num += 1
+        week_start = current_date
+        week_end = min(current_date + timedelta(days=6), end_date)
+
+        # Determine number of shopping trips this week (1-8, Poisson with mean 3)
+        # Using Poisson lambda=2.5 gives good distribution between 1-8
+        trips_this_week = min(8, max(1, int(np.random.poisson(2.5) + 1)))
+
+        # Generate random shopping days within the week
+        week_days_range = (week_end - week_start).days + 1
+        shopping_days = sorted(random.sample(range(week_days_range), min(trips_this_week, week_days_range)))
+
+        # Calculate target weekly spend with some variance (±20%)
+        weekly_variance = random.uniform(0.8, 1.2)
+        target_weekly_spend = min(avg_weekly_spend * weekly_variance, max_weekly_spend)
+
+        # Distribute the weekly spend across trips (with random variation)
+        trip_weights = [random.uniform(0.5, 1.5) for _ in range(trips_this_week)]
+        total_weight = sum(trip_weights)
+        trip_amounts = [target_weekly_spend * (w / total_weight) for w in trip_weights]
+
+        # Create shopping transactions for this week
+        for day_offset, trip_amount in zip(shopping_days, trip_amounts):
+            shopping_date = week_start + timedelta(days=day_offset)
+
+            # Add some time variation (morning to evening)
+            shopping_hour = random.randint(8, 20)
+            shopping_minute = random.randint(0, 59)
+            shopping_datetime = shopping_date.replace(hour=shopping_hour, minute=shopping_minute)
+
+            # Clip amount to max (simulating Poisson-like distribution with cap)
+            # Add Poisson-like variance to the amount
+            amount_variance = np.random.poisson(10) - 10  # Centers around 0
+            final_amount = max(5.0, min(trip_amount + amount_variance, max_weekly_spend))
+            final_amount = round(final_amount, 2)
+
+            # Select random store
+            store_name = random.choice(grocery_stores)
+
+            # Create item dictionary
+            item_dict = {
+                "item_uuid": str(uuid.uuid4()),
+                "name": f"{store_name}",
+                "note": f"Weekly shopping at {store_name}",
+                "price": final_amount,
+                "price_final": final_amount,
+                "currency": currency,
+                "currency_final": currency,
+                "bought_date": shopping_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_by_id": user_id,
+                "bought_for_id": bought_for_id,
+                "added_by_id": user_id,
+                "project_id": project_id,
+                "exchange_rate": 1.0,
+                "exchange_rate_date": shopping_date.strftime("%Y-%m-%d"),
+                "tags": json.dumps([])  # Empty tags for now, can be populated with label IDs
+            }
+
+            # Create item in database
+            try:
+                item_id = dbh.op_item_create(item_dict=item_dict)
+                if item_id:
+                    created_items.append(item_id)
+            except Exception as e:
+                print(f"Warning: Failed to create item for {shopping_date}: {e}")
+
+        # Move to next week
+        current_date = week_end + timedelta(days=1)
+
+    print(f"Generated {len(created_items)} grocery shopping transactions")
+    print(f"Period: {start_date_str} to {end_date.strftime('%Y-%m-%d')}")
+    print(f"Average trips per week: {len(created_items) / num_weeks:.1f}")
+
+    return created_items
+
 
 def load_dynamic_css(widget, css_filename: str) -> None:
     """Load external CSS file based on app theme configuration.
@@ -431,6 +580,16 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         dbh.initialize_database(schema_path=_schema_path)
 
+        user_dict = {"first_name": "Admin",
+                     "last_name": "User",
+                     "username": "admin",
+                     "email": "admin@info.com",
+                     "password": "admin123",
+                     "is_superuser": True,
+                     "scope": "admin:write",
+                     "activated": True}
+        uid0 = dbh.op_user_create(user_dict=user_dict)
+
         user_dict = {"first_name": "Clark",
                      "last_name": "Kent",
                      "username": "superman",
@@ -527,19 +686,103 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         account_labels = []
         i_label = {"name": "Liability", "description": "", "composite": None,
                    "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
+        account_labels.append(i_label)
         i_label = {"name": "Income", "description": "", "composite": None,
                    "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
+        account_labels.append(i_label)
         i_label = {"name": "Spending", "description": "", "composite": None,
                    "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
+        account_labels.append(i_label)
+
+        _labels = []
+        i_label = {"name": "Groceries", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Concerts/Festivals", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Sports", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Personal Supplies", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Books", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "eLearning", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Travel", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
+        i_label = {"name": "Gifts", "description": "", "composite": None,
+                   "label_status": 2, "label_type": 2}
+        _labels.append(i_label)
 
         for i_label in action_labels:
             dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
 
         for i_label in account_labels:
             dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
+
+        for i_label in _labels:
+            dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
+
+        # Generate grocery shopping data with realistic patterns
+        grocery_label_id = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
+        if grocery_label_id:
+            print(f"Found 'Groceries' label (ID: {grocery_label_id}), generating sample data...")
+            item_ids = generate_grocery_shopping_data(
+                dbh=dbh,
+                project_id=p_info["project_id"],
+                user_id=uid1,
+                bought_for_id=uid1,
+                start_date_str="2024-11-01",
+                currency="USD",
+                avg_weekly_spend=100.0,
+                max_weekly_spend=150.0
+            )
+            print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
+
+            item_ids = generate_grocery_shopping_data(
+                dbh=dbh,
+                project_id=p_info["project_id"],
+                user_id=uid1,
+                bought_for_id=uid0,
+                start_date_str="2024-11-01",
+                currency="USD",
+                avg_weekly_spend=10.0,
+                max_weekly_spend=15.0
+            )
+            print(f"✓ Batman generated {len(item_ids)} grocery transactions for Clark")
+
+            item_ids = generate_grocery_shopping_data(
+                dbh=dbh,
+                project_id=p_info["project_id"],
+                user_id=uid0,
+                bought_for_id=uid0,
+                start_date_str="2024-11-01",
+                currency="USD",
+                avg_weekly_spend=80.0,
+                max_weekly_spend=110.0
+            )
+            print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
+
+            item_ids = generate_grocery_shopping_data(
+                dbh=dbh,
+                project_id=p_info["project_id"],
+                user_id=uid0,
+                bought_for_id=uid1,
+                start_date_str="2024-11-01",
+                currency="USD",
+                avg_weekly_spend=5.0,
+                max_weekly_spend=10.0
+            )
+            print(f"✓ Clark generated {len(item_ids)} grocery transactions for Batman")
+
+        else:
+            print("Warning: 'Groceries' label not found, skipping data generation")
 
 
         # if user + password are provided, let's log in the user:
@@ -592,3 +835,52 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         configyml["dbh"] = dbh
         configyml["_abs_path"] = abs_path
         return configyml
+
+    # def generate_fake_shopping_data(dbh, start_date, end_date, user_id, num_entries=10):
+    #     """
+    #     Generate fake grocery shopping data with realistic patterns.
+    #
+    #     Args:
+    #         dbh: Database handler instance.
+    #         start_date (datetime): The start date for the data generation.
+    #         end_date (datetime): The end date for the data generation.
+    #         user_id (str): The ID of the user for whom the data is generated.
+    #         num_entries (int): The number of shopping entries to generate.
+    #
+    #     Returns:
+    #         list: A list of dictionaries containing fake shopping data.
+    #     """
+    #     fake_data = []
+    #     product_categories = ["Fruits", "Vegetables", "Dairy", "Meat", "Grains", "Snacks", "Beverages"]
+    #     store_locations = ["Store A", "Store B", "Store C"]
+    #
+    #     for _ in range(num_entries):
+    #         date = start_date + timedelta(days=random.randint(0, (end_date - start_date).days))
+    #         category = random.choice(product_categories)
+    #         store = random.choice(store_locations)
+    #         amount = round(random.uniform(5.0, 100.0), 2)  # Random amount between 5 and 100
+    #         price = round(random.uniform(1.0, 20.0), 2)    # Random price between 1 and 20
+    #
+    #         entry = {
+    #             "user_id": user_id,
+    #             "date": date.strftime("%Y-%m-%d"),
+    #             "category": category,
+    #             "store": store,
+    #             "amount": amount,
+    #             "price": price
+    #         }
+    #         fake_data.append(entry)
+    #
+    #         # Insert into database
+    #         dbh.op_shopping_create(shopping_dict=entry)
+    #
+    #     return fake_data
+
+    # Generate fake shopping data for testing
+    # start_date = datetime.strptime("2024-11-01", "%Y-%m-%d")
+    # end_date = datetime.now()
+    # user_id = "admin"  # Assuming admin user ID
+    # generate_fake_shopping_data(dbh, start_date, end_date, user_id, num_entries=10)
+
+
+

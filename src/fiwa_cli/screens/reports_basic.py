@@ -3,6 +3,7 @@ from textual.containers import Vertical, ScrollableContainer, Horizontal
 from textual.widgets import Static, TabbedContent, TabPane, DataTable, Button
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
+from textual import on
 from fiwa_cli.functions.loader import load_dynamic_css
 
 
@@ -75,6 +76,12 @@ class RepayModal(ModalScreen):
             period_end = self.app.app_state.get("current_period_end")
             currency_main = self.app.app_state.get("current_project_currency_main", "USD")
             
+            # Format dates for query
+            start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
+            end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+
+            self.app.log(f"Calculating repayments for period: {start_date_str} to {end_date_str}")
+
             # Query all items where bought_by != bought_for
             # This means someone bought something for someone else
             dbh.load()
@@ -89,8 +96,8 @@ class RepayModal(ModalScreen):
             
             results = dbh.execute_query(query, [
                 self.project_id,
-                period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01",
-                period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+                start_date_str,
+                end_date_str
             ])
             
             # Get user names for IDs
@@ -199,12 +206,14 @@ class BasicReportForm(Vertical):
         # Display current date selection
         period_start = self.app.app_state.get("current_period_start")
         period_end = self.app.app_state.get("current_period_end")
+        period_label = self.app.app_state.get("current_period_label", "")
 
         if period_start and period_end:
-            date_range_text = f"📅 Period: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
             date_range_text = "📅 All expenses"
 
+        self.app.log(f"BasicReportForm compose - Period: {date_range_text}")
         yield Static(date_range_text, id="date-selection-display", classes="date-info")
 
         # Get project and users
@@ -223,15 +232,14 @@ class BasicReportForm(Vertical):
                         # Create DataTable for this user's items
                         table = DataTable(id=f"items-table-{user['user_id']}")
 
-                        table.add_columns(
-                            # "ID",
-                            "Name",
-                            "Price",
-                            "Currency",
-                            f"Final [{currency_main}]",
-                            "Date",
-                            "Bought by",
-                        )
+                        # Add columns and store keys
+                        col_name = table.add_column("Name")
+                        col_price = table.add_column("Price")
+                        col_currency = table.add_column("Currency")
+                        col_final = table.add_column(f"Final [{currency_main}]")
+                        col_date = table.add_column("Date")
+                        col_bought_by = table.add_column("Bought by")
+
                         table.cursor_type = "row"
 
                         # Fetch items for this user
@@ -248,7 +256,6 @@ class BasicReportForm(Vertical):
 
                             # Add row with all price information
                             table.add_row(
-                                # str(item['item_id']),
                                 item['name'],
                                 f"{item['price']:.2f}",
                                 item['currency'],
@@ -272,6 +279,9 @@ class BasicReportForm(Vertical):
                                 if buyer_name not in bought_by_others:
                                     bought_by_others[buyer_name] = 0.0
                                 bought_by_others[buyer_name] += amount
+
+                        # Sort by Date column by default (descending - newest first)
+                        table.sort(col_date, reverse=True)
 
                         yield table
 
@@ -303,6 +313,17 @@ class BasicReportForm(Vertical):
             # Open repayment modal for the current project
             project_id = self.app.app_state.get("project_id", 0)
             self.app.push_screen(RepayModal(project_id))
+
+    @on(DataTable.HeaderSelected)
+    def on_header_selected(self, event: DataTable.HeaderSelected) -> None:
+        """Handle column header click to sort the table."""
+        table = event.data_table
+
+        # Sort by the clicked column
+        # The sort method will automatically toggle between ascending/descending
+        table.sort(event.column_key)
+
+        self.app.log(f"Sorted table by column: {event.column_key}")
 
     def _get_project_users(self, project_id: int) -> list:
         """Get all users for the current project.
@@ -342,6 +363,13 @@ class BasicReportForm(Vertical):
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
 
+            # Format dates for query
+            start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
+            end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+
+            self.app.log(f"Fetching items for user {user_id}, project {project_id}, " +
+                        f"period: {start_date_str} to {end_date_str}")
+
             # Query ALL items for this user in the current period
             # Filter by bought_for_id to show expenses that belong to this user
             dbh.load()
@@ -373,11 +401,12 @@ class BasicReportForm(Vertical):
             results = dbh.execute_query(query, [
                 user_id,
                 project_id,
-                period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01",
-                period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+                start_date_str,
+                end_date_str
             ])
             dbh.close()
-            #self.app.notify(f"Fetched {len(results)} items for user {user_id}")
+
+            self.app.log(f"Found {len(results)} items for user {user_id} in period {start_date_str} to {end_date_str}")
             items = []
             for row in results:
                 items.append({
@@ -414,11 +443,14 @@ class BasicReportForm(Vertical):
             # Update the date selection display
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
+            period_label = self.app.app_state.get("current_period_label", "")
 
             if period_start and period_end:
-                date_range_text = f"📅 Period: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
                 date_range_text = "📅 All expenses"
+
+            self.app.log(f"BasicReportForm refresh_data - Period: {date_range_text}")
 
             # Update the Static widget
             date_display = self.query_one("#date-selection-display", Static)
@@ -481,6 +513,12 @@ class BasicReportForm(Vertical):
                             if buyer_name not in bought_by_others:
                                 bought_by_others[buyer_name] = 0.0
                             bought_by_others[buyer_name] += amount
+
+                    # Sort by Date column by default (descending - newest first)
+                    # Get the Date column key (5th column, index 4 since we don't have ID column here)
+                    if table.columns:
+                        date_column_key = list(table.columns.keys())[4]  # Date is the 5th column (index 4)
+                        table.sort(date_column_key, reverse=True)
 
                     # Update total display with breakdown
                     try:

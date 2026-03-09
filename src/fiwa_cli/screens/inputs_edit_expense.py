@@ -31,12 +31,14 @@ class EditExpenseView(VerticalScroll):
         # Display current date selection
         period_start = self.app.app_state.get("current_period_start")
         period_end = self.app.app_state.get("current_period_end")
+        period_label = self.app.app_state.get("current_period_label", "")
 
         if period_start and period_end:
-            date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
             date_range_text = "📅 Showing all expenses"
 
+        self.app.log(f"EditExpenseView compose - Period: {date_range_text}")
         yield Static(date_range_text, id="date-selection-display", classes="date-info")
 
         # Get project and users
@@ -52,14 +54,15 @@ class EditExpenseView(VerticalScroll):
                 with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
                     # Create DataTable for this user's items
                     table = DataTable(id=f"items-table-{user['user_id']}")
-                    table.add_columns(
-                        "ID",
-                        "Name",
-                        "Price",
-                        "Currency",
-                        f"Final [{currency_main}]",  # Show main currency in column header
-                        "Date"
-                    )
+
+                    # Add columns and store the keys
+                    col_id = table.add_column("ID")
+                    col_name = table.add_column("Name")
+                    col_price = table.add_column("Price")
+                    col_currency = table.add_column("Currency")
+                    col_final = table.add_column(f"Final [{currency_main}]")
+                    col_date = table.add_column("Date")
+
                     table.cursor_type = "row"
 
                     # Fetch items for this user
@@ -78,6 +81,10 @@ class EditExpenseView(VerticalScroll):
                             date_str,
                             key=str(item['item_id'])  # Use item_id as row key
                         )
+
+                    # Sort by Date column by default (descending - newest first)
+                    # Use the column key object, not the string
+                    table.sort(col_date, reverse=True)
 
                     yield table
 
@@ -121,6 +128,13 @@ class EditExpenseView(VerticalScroll):
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
 
+            # Format dates for query
+            start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
+            end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+
+            self.app.log(f"EditExpenseView: Fetching items for user {user_id}, project {project_id}, " +
+                        f"period: {start_date_str} to {end_date_str}")
+
             # Query ALL items for this user in the current period (no LIMIT)
             # Filter by bought_for_id to show expenses that belong to this user
             # (their share), regardless of who physically paid (bought_by_id)
@@ -138,10 +152,12 @@ class EditExpenseView(VerticalScroll):
             results = dbh.execute_query(query, [
                 user_id,
                 project_id,
-                period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01",
-                period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+                start_date_str,
+                end_date_str
             ])
             dbh.close()
+
+            self.app.log(f"EditExpenseView: Found {len(results)} items for user {user_id} in period")
 
             items = []
             for row in results:
@@ -171,11 +187,14 @@ class EditExpenseView(VerticalScroll):
         try:
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
+            period_label = self.app.app_state.get("current_period_label", "")
 
             if period_start and period_end:
-                date_range_text = f"📅 Showing expenses from {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
                 date_range_text = "📅 Showing all expenses"
+
+            self.app.log(f"EditExpenseView refresh - Period: {date_range_text}")
 
             # Update the Static widget
             date_display = self.query_one("#date-selection-display", Static)
@@ -224,6 +243,12 @@ class EditExpenseView(VerticalScroll):
                             key=str(item['item_id'])
                         )
 
+                    # Sort by Date column by default (descending - newest first)
+                    # Get the last column key (Date column is the 6th column, index 5)
+                    if table.columns:
+                        date_column_key = list(table.columns.keys())[5]  # Date is the 6th column (index 5)
+                        table.sort(date_column_key, reverse=True)
+
                     self.app.log(f"Refreshed table for user {user['user_id']}: {len(items)} items")
 
                 except Exception as e:
@@ -231,6 +256,17 @@ class EditExpenseView(VerticalScroll):
 
         except Exception as e:
             self.app.log(f"Error refreshing data tables: {e}")
+
+    @on(DataTable.HeaderSelected)
+    def on_header_selected(self, event: DataTable.HeaderSelected) -> None:
+        """Handle column header click to sort the table."""
+        table = event.data_table
+
+        # Sort by the clicked column
+        # The sort method will automatically toggle between ascending/descending
+        table.sort(event.column_key)
+
+        self.app.log(f"Sorted table by column: {event.column_key}")
 
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected) -> None:

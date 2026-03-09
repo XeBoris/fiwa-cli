@@ -919,6 +919,36 @@ class SQLLiteHandler:
 
         return labels
 
+    def op_label_get_by_name(self, label_name: str, project_id: int) -> Optional[int]:
+        """
+        Get a label ID by its name within a specific project.
+
+        Args:
+            label_name: The name of the label to search for
+            project_id: The ID of the project
+
+        Returns:
+            The label_id if found, None otherwise
+
+        Example:
+            >>> groceries_id = dbh.op_label_get_by_name("Groceries", project_id=1)
+            >>> if groceries_id:
+            ...     print(f"Groceries label ID: {groceries_id}")
+        """
+        self.load()
+        result = self.execute_query(
+            f"""SELECT label_id
+                FROM p{self._db_salt}_labels 
+                WHERE project_id = ? AND name = ?
+                LIMIT 1""",
+            [project_id, label_name]
+        )
+        self.close()
+
+        if result and len(result) > 0:
+            return result[0][0]  # Return the label_id
+        return None
+
     def op_label_create(self, label_dict: Dict, project_id: int) -> Optional[int]:
         """
         Create a new label for a project.
