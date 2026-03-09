@@ -11,11 +11,13 @@ import numpy as np
 from fiwa_cli.functions.handler import Handler
 
 
-def generate_grocery_shopping_data(
+def generate_data(
     dbh,
     project_id: int,
     user_id: int,
     bought_for_id: int,
+    names: list = [],
+    labels: list = [],
     start_date_str: str = "2024-11-01",
     end_date: Optional[datetime] = None,
     currency: str = "USD",
@@ -57,11 +59,7 @@ def generate_grocery_shopping_data(
     """
 
     # Grocery store names (mix of real chains from different regions)
-    grocery_stores = [
-        "Lidl", "Aldi", "Coop", "Netto", "Walmart", "Target", "Kroger",
-        "Tesco", "Carrefour", "Whole Foods", "Trader Joe's", "Safeway",
-        "ICA", "Rewe", "Edeka", "Albert Heijn", "Costco", "Sam's Club"
-    ]
+    # grocery_stores =
 
     # Parse dates
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
@@ -115,7 +113,7 @@ def generate_grocery_shopping_data(
             final_amount = round(final_amount, 2)
 
             # Select random store
-            store_name = random.choice(grocery_stores)
+            store_name = random.choice(names)
 
             # Create item dictionary
             item_dict = {
@@ -133,7 +131,7 @@ def generate_grocery_shopping_data(
                 "project_id": project_id,
                 "exchange_rate": 1.0,
                 "exchange_rate_date": shopping_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps([])  # Empty tags for now, can be populated with label IDs
+                "tags": json.dumps(labels)  # Empty tags for now, can be populated with label IDs
             }
 
             # Create item in database
@@ -730,59 +728,75 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
             dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
 
         # Generate grocery shopping data with realistic patterns
-        grocery_label_id = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
-        if grocery_label_id:
-            print(f"Found 'Groceries' label (ID: {grocery_label_id}), generating sample data...")
-            item_ids = generate_grocery_shopping_data(
-                dbh=dbh,
-                project_id=p_info["project_id"],
-                user_id=uid1,
-                bought_for_id=uid1,
-                start_date_str="2024-11-01",
-                currency="USD",
-                avg_weekly_spend=100.0,
-                max_weekly_spend=150.0
-            )
-            print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
+        label_id_groceries = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
+        label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
+        label_id_spending = dbh.op_label_get_by_name("Spending", p_info["project_id"])
+        label_id_irregular = dbh.op_label_get_by_name("irregular", p_info["project_id"])
+        grocery_store_names = [
+            "Lidl", "Aldi", "Coop", "Netto", "Walmart", "Target", "Kroger",
+            "Tesco", "Carrefour", "Whole Foods", "Trader Joe's", "Safeway",
+            "ICA", "Rewe", "Edeka", "Albert Heijn", "Costco", "Sam's Club"
+        ]
+        print(f"Found 'Groceries' label (ID: {label_id_groceries}), generating sample data...")
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid1,
+            bought_for_id=uid1,
+            names=grocery_store_names,
+            labels=[label_id_groceries, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=100.0,
+            max_weekly_spend=150.0
+        )
+        print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
 
-            item_ids = generate_grocery_shopping_data(
-                dbh=dbh,
-                project_id=p_info["project_id"],
-                user_id=uid1,
-                bought_for_id=uid0,
-                start_date_str="2024-11-01",
-                currency="USD",
-                avg_weekly_spend=10.0,
-                max_weekly_spend=15.0
-            )
-            print(f"✓ Batman generated {len(item_ids)} grocery transactions for Clark")
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid1,
+            bought_for_id=uid0,
+            names=grocery_store_names,
+            labels=[label_id_groceries, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=10.0,
+            max_weekly_spend=15.0
+        )
+        print(f"✓ Batman generated {len(item_ids)} grocery transactions for Clark")
 
-            item_ids = generate_grocery_shopping_data(
-                dbh=dbh,
-                project_id=p_info["project_id"],
-                user_id=uid0,
-                bought_for_id=uid0,
-                start_date_str="2024-11-01",
-                currency="USD",
-                avg_weekly_spend=80.0,
-                max_weekly_spend=110.0
-            )
-            print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid0,
+            bought_for_id=uid0,
+            names=grocery_store_names,
+            labels=[label_id_groceries, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=80.0,
+            max_weekly_spend=110.0
+        )
+        print(f"✓ Generated {len(item_ids)} grocery transactions for Batman")
 
-            item_ids = generate_grocery_shopping_data(
-                dbh=dbh,
-                project_id=p_info["project_id"],
-                user_id=uid0,
-                bought_for_id=uid1,
-                start_date_str="2024-11-01",
-                currency="USD",
-                avg_weekly_spend=5.0,
-                max_weekly_spend=10.0
-            )
-            print(f"✓ Clark generated {len(item_ids)} grocery transactions for Batman")
-
-        else:
-            print("Warning: 'Groceries' label not found, skipping data generation")
+        item_ids = generate_data(
+            dbh=dbh,
+            project_id=p_info["project_id"],
+            user_id=uid0,
+            bought_for_id=uid1,
+            names=grocery_store_names,
+            labels=[label_id_groceries, label_id_expenses,
+                    label_id_spending, label_id_irregular],
+            start_date_str="2024-11-01",
+            currency="USD",
+            avg_weekly_spend=5.0,
+            max_weekly_spend=10.0
+        )
+        print(f"✓ Clark generated {len(item_ids)} grocery transactions for Batman")
 
 
         # if user + password are provided, let's log in the user:
