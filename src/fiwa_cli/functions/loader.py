@@ -438,19 +438,18 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         dbh.initialize_database(schema_path=_schema_path)
 
+        # This one creates the whole superhero project from scratch:
+        # handle with care!
         sph_user_ids = shp.generate_superhero_data(dbh)
 
         shp.generate_superhero_projects(dbh, users=sph_user_ids)
 
         shp.generate_superhero_labels(dbh, users=sph_user_ids)
 
-        # Generate personal supplies data (toiletries, etc.)
         shp.generate_personal_supplies_data(dbh, users=sph_user_ids)
 
-        # Generate grocery shopping data (food shopping)
         shp.generate_groceries_data(dbh, users=sph_user_ids)
-        #
-        # Generate book purchase data (books and audiobooks)
+
         shp.generate_books_data(dbh, users=sph_user_ids)
 
         shp.generate_income_data(dbh, users=sph_user_ids)
