@@ -313,6 +313,9 @@ class ItemConfirmationModal(ModalScreen):
                 with Vertical(classes="summary-section"):
                     yield Static("[bold]Cost Sharing Breakdown[/bold]", classes="section-title")
 
+                    # Calculate total percentage for validation
+                    total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
+
                     for share in cost_shares:
                         username = share.get('username', 'Unknown')
                         percentage = share.get('percentage', 0)
@@ -338,8 +341,35 @@ class ItemConfirmationModal(ModalScreen):
                         classes="total-row"
                     )
 
+                    # Validation: Check if total percentage equals 100%
+                    # Allow small tolerance for floating point errors (0.01%)
+                    percentage_valid = abs(total_percentage - 100.0) < 0.01
+
+                    if not percentage_valid:
+                        yield Static(
+                            f"[bold red]⚠ WARNING: Total percentage is {total_percentage:.1f}% (should be 100%)[/bold red]",
+                            classes="validation-error"
+                        )
+                        yield Static(
+                            "[red]Cannot save to database. Please go back and adjust the cost sharing percentages.[/red]",
+                            classes="validation-message"
+                        )
+
             with Horizontal(classes="button-row"):
-                yield Button("✓ OK - Save to Database", id="confirm-ok-button", variant="success", flat=True, compact=True)
+                # Disable OK button if cost shares don't add up to 100%
+                ok_button_disabled = False
+                if cost_shares:
+                    total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
+                    ok_button_disabled = abs(total_percentage - 100.0) >= 0.01
+
+                yield Button(
+                    "✓ OK - Save to Database" if not ok_button_disabled else "✗ Cannot Save - Invalid Total",
+                    id="confirm-ok-button",
+                    variant="success" if not ok_button_disabled else "error",
+                    flat=True,
+                    compact=True,
+                    disabled=ok_button_disabled
+                )
                 yield Button("← Back - Edit", id="confirm-back-button", variant="warning", flat=True, compact=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -867,44 +897,48 @@ class ItemInputForm(ModalScreen):
             total_percentage = 0.0
 
             if not self._edit_mode:
-                # First, add the "bought_by" user with their share
+                # Collect shares from ALL users (including bought_by user)
+                # Validate that user inputs sum to exactly 100%
                 for user in project_users:
-                    if user['user_id'] == bought_by_id:
-                        continue  # Skip bought_by user for now, calculate later
-
                     try:
                         share_input = self.query_one(f"#share-{user['user_id']}", Input)
                         share_value = share_input.value.strip()
 
                         if share_value:
                             share_percent = float(share_value)
-                            if share_percent > 0:
-                                share_amount = (price_final * share_percent) / 100.0
-                                cost_shares.append({
-                                    'user_id': user['user_id'],
-                                    'username': user['username'],
-                                    'percentage': share_percent,
-                                    'amount': share_amount
-                                })
-                                total_percentage += share_percent
-                    except:
-                        pass  # Input field not found or invalid value
+                            share_amount = (price_final * share_percent) / 100.0
+                            cost_shares.append({
+                                'user_id': user['user_id'],
+                                'username': user['username'],
+                                'percentage': share_percent,
+                                'amount': share_amount
+                            })
+                            total_percentage += share_percent
+                        else:
+                            # Empty field = 0%
+                            cost_shares.append({
+                                'user_id': user['user_id'],
+                                'username': user['username'],
+                                'percentage': 0.0,
+                                'amount': 0.0
+                            })
+                    except Exception as e:
+                        self.app.log(f"Error reading share for user {user['user_id']}: {e}")
+                        # Input field not found or invalid value - treat as 0%
+                        cost_shares.append({
+                            'user_id': user['user_id'],
+                            'username': user['username'],
+                            'percentage': 0.0,
+                            'amount': 0.0
+                        })
 
-                # Calculate bought_by user's share (remaining percentage)
-                bought_by_percentage = 100.0 - total_percentage
-                if bought_by_percentage < 0:
-                    self.app.notify("Total cost share exceeds 100%!", severity="error")
+                # VALIDATE: Total must equal exactly 100% (with small tolerance for floating point)
+                if abs(total_percentage - 100.0) >= 0.01:
+                    if total_percentage > 100.0:
+                        self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - exceeds 100%! Please adjust.", severity="error")
+                    else:
+                        self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - must be 100%! Please adjust.", severity="error")
                     return
-
-                bought_by_amount = (price_final * bought_by_percentage) / 100.0
-
-                # Add bought_by user's share at the beginning
-                cost_shares.insert(0, {
-                    'user_id': bought_by_id,
-                    'username': bought_by_name,
-                    'percentage': bought_by_percentage,
-                    'amount': bought_by_amount
-                })
             else:
                 # In edit mode, just update the single item - no cost sharing
                 cost_shares.append({
@@ -1210,24 +1244,38 @@ class ItemInputForm(ModalScreen):
             user_id = self.app.app_state.get("user_id", -1)
             currency_main = self.app.app_state.get("current_project_currency_main", "USD")
 
-            # Clear input fields
-            self.query_one("#item-name", Input).value = ""
+            # Clear main input fields (correct IDs: grid-item-*, not item-*)
+            self.query_one("#grid-item-name", Input).value = ""
+            self.query_one("#grid-item-price", Input).value = ""
+            self.query_one("#grid-item-currency", Select).value = currency_main
+            self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime("%Y-%m-%d")
+
+            # Clear additional fields
             self.query_one("#item-note", Input).value = ""
-            self.query_one("#item-price", Input).value = ""
-            self.query_one("#item-currency", Select).value = currency_main
             self.query_one("#item-exchange-rate", Input).value = "1.0"
             self.query_one("#item-exchange-date", Input).value = datetime.now().strftime("%Y-%m-%d")
-            self.query_one("#item-bought-date", Input).value = datetime.now().strftime("%Y-%m-%d")
 
-            # Reset select fields to current user if available
+            # Reset bought-by select field to current user if available
             try:
                 project_users = self._get_project_users(project_id)
                 if project_users:
                     default_user = user_id if user_id > 0 else project_users[0]['user_id']
-                    self.query_one("#item-bought-by", Select).value = default_user
-                    self.query_one("#item-bought-for", Select).value = default_user
-            except:
-                pass
+                    self.query_one("#grid-item-bought-by", Select).value = default_user
+
+                    # Clear cost-sharing fields (only in create mode)
+                    if not self._edit_mode:
+                        for user in project_users:
+                            try:
+                                share_input = self.query_one(f"#share-{user['user_id']}", Input)
+                                # Reset to default: 100% for bought_by user, 0% for others
+                                if user['user_id'] == default_user:
+                                    share_input.value = "100"
+                                else:
+                                    share_input.value = "0"
+                            except:
+                                pass  # Field might not exist
+            except Exception as e:
+                self.app.log(f"Error resetting user fields: {e}")
 
             # Clear label selections
             try:
@@ -1239,7 +1287,8 @@ class ItemInputForm(ModalScreen):
             # Generate new UUID for next item
             self._item_uuid = str(uuid.uuid4())
 
-            self.app.notify("Form cleared", severity="info")
+            self.app.notify("✓ Form cleared", severity="info")
 
         except Exception as e:
             self.app.log(f"Error clearing form: {e}")
+            self.app.notify("Error clearing form", severity="error")
