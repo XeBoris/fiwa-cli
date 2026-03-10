@@ -174,7 +174,7 @@ class InputsScreen(ReactiveScreen):
             # Calculate date range based on period type
             if self._current_period_type == "week":
                 # Calculate week boundaries
-                from functions.compute_time import TimeClass
+                from fiwa_cli.functions.compute_time import TimeClass
                 tc = TimeClass()
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
@@ -183,7 +183,7 @@ class InputsScreen(ReactiveScreen):
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries
-                from functions.compute_time import TimeClass
+                from fiwa_cli.functions.compute_time import TimeClass
                 tc = TimeClass()
                 month_info = tc.cmp_month_by_number(self._current_year, self._current_month)
 

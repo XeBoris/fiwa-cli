@@ -28,6 +28,7 @@ dependencies = [
     "textual",
     "httpx",
     "pyyaml",
+    "numpy",
 ]
 
 [project.optional-dependencies]

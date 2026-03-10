@@ -1,9 +1,16 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 import os
 import yaml
 import time
+import random
+import uuid
+import json
+from datetime import datetime, timedelta
+import numpy as np
 
 from fiwa_cli.functions.handler import Handler
+
+import fiwa_cli.functions.faker_superhero_project as shp
 
 def load_dynamic_css(widget, css_filename: str) -> None:
     """Load external CSS file based on app theme configuration.
@@ -431,116 +438,23 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         dbh.initialize_database(schema_path=_schema_path)
 
-        user_dict = {"first_name": "Clark",
-                     "last_name": "Kent",
-                     "username": "superman",
-                     "email": "superman@info.com",
-                     "password": "abc",
-                     "is_superuser": False,
-                     "scope": "user:write",
-                     "activated": True}
-        uid0 = dbh.op_user_create(user_dict=user_dict)
+        # This one creates the whole superhero project from scratch:
+        # handle with care!
+        sph_user_ids = shp.generate_superhero_data(dbh)
 
-        user_dict = {"first_name": "Bruce",
-                     "last_name": "Wayne",
-                     "username": "batman",
-                     "email": "batman@info.com",
-                     "password": "abc",
-                     "is_superuser": False,
-                     "scope": "user:write",
-                     "activated": True}
-        uid1 = dbh.op_user_create(user_dict=user_dict)
+        shp.generate_superhero_projects(dbh, users=sph_user_ids)
 
-        user_dict = {"first_name": "Peter",
-                     "last_name": "Parker",
-                     "username": "Spiderman",
-                     "email": "spiderman@info.com",
-                     "password": "abc",
-                     "is_superuser": False,
-                     "scope": "user:write",
-                     "activated": True}
-        uid2 = dbh.op_user_create(user_dict=user_dict)
+        shp.generate_superhero_labels(dbh, users=sph_user_ids)
 
-        # Create some projects:
-        project_dict = {
-            "name": "Bat Cave Expenses",
-            "description": "A common project of super heros",
-            "currency_main": "USD",
-            "currency_list": ["SEK", "EUR", "GBP"],
-            "project_store" : {"month_start": 25}
-        }
-        dbh.op_project_create(project_dict=project_dict,
-                              user_id=uid1)
+        shp.generate_personal_supplies_data(dbh, users=sph_user_ids)
 
-        project_dict = {
-            "name": "Sweden Day Job",
-            "description": "Being a friendly neighborhood spiderman is expensive",
-            "currency_main": "SEK",
-            "currency_list": ["USD", "EUR", "GBP"],
-            "project_store": {"month_start": 1}
+        shp.generate_groceries_data(dbh, users=sph_user_ids)
 
-        }
-        dbh.op_project_create(project_dict=project_dict,
-                              user_id=uid2)
+        shp.generate_books_data(dbh, users=sph_user_ids)
 
+        shp.generate_income_data(dbh, users=sph_user_ids)
 
-        # bruce adds clark to his project:
-        p_info = dbh.op_project_get_info(user_id=uid1)
-        p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
-
-        dbh.op_project_add_user(project_id=p_info["project_id"],
-                                user_id=uid0,
-                                project_perm_model='111100',
-                                project_primary=False)
-
-        # peter adds bruce to his project:
-        p_info = dbh.op_project_get_info(user_id=uid2)
-        p_info = [i for i in p_info if i["project_name"] == "Sweden Day Job"][0]
-
-        dbh.op_project_add_user(project_id=p_info["project_id"],
-                                user_id=uid1,
-                                project_perm_model='111100',
-                                project_primary=False)
-
-        # now we need labels for the bat cave project:
-        p_info = dbh.op_project_get_info(user_id=uid1)
-        p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
-
-        # action labels
-        action_labels = []
-        i_label = {"name": "expenses", "description": "Expenses", "composite": None,
-                   "label_status": 2, "label_type": 0}
-        action_labels.append(i_label)
-        i_label = {"name": "revenue", "description": "Revenue", "composite": None,
-                   "label_status": 2, "label_type": 0}
-        action_labels.append(i_label)
-        i_label = {"name": "recurring", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 0}
-        action_labels.append(i_label)
-        i_label = {"name": "permanent", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 0}
-        action_labels.append(i_label)
-        i_label = {"name": "irregular", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 0}
-        action_labels.append(i_label)
-
-        account_labels = []
-        i_label = {"name": "Liability", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
-        i_label = {"name": "Income", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
-        i_label = {"name": "Spending", "description": "", "composite": None,
-                   "label_status": 2, "label_type": 1}
-        action_labels.append(i_label)
-
-        for i_label in action_labels:
-            dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
-
-        for i_label in account_labels:
-            dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
-
+        shp.generate_savings_data(dbh, users=sph_user_ids)
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
@@ -592,3 +506,57 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         configyml["dbh"] = dbh
         configyml["_abs_path"] = abs_path
         return configyml
+
+    # def generate_fake_shopping_data(dbh, start_date, end_date, user_id, num_entries=10):
+    #     """
+    #     Generate fake grocery shopping data with realistic patterns.
+    #
+    #     Args:
+    #         dbh: Database handler instance.
+    #         start_date (datetime): The start date for the data generation.
+    #         end_date (datetime): The end date for the data generation.
+    #         user_id (str): The ID of the user for whom the data is generated.
+    #         num_entries (int): The number of shopping entries to generate.
+    #
+    #     Returns:
+    #         list: A list of dictionaries containing fake shopping data.
+    #     """
+    #     fake_data = []
+    #     product_categories = ["Fruits", "Vegetables", "Dairy", "Meat", "Grains", "Snacks", "Beverages"]
+    #     store_locations = ["Store A", "Store B", "Store C"]
+    #
+    #     for _ in range(num_entries):
+    #         date = start_date + timedelta(days=random.randint(0, (end_date - start_date).days))
+    #         category = random.choice(product_categories)
+    #         store = random.choice(store_locations)
+    #         amount = round(random.uniform(5.0, 100.0), 2)  # Random amount between 5 and 100
+    #         price = round(random.uniform(1.0, 20.0), 2)    # Random price between 1 and 20
+    #
+    #         entry = {
+    #             "user_id": user_id,
+    #             "date": date.strftime("%Y-%m-%d"),
+    #             "category": category,
+    #             "store": store,
+    #             "amount": amount,
+    #             "price": price
+    #         }
+    #         fake_data.append(entry)
+    #
+    #         # Insert into database
+    #         dbh.op_shopping_create(shopping_dict=entry)
+    #
+    #     return fake_data
+
+    # Generate fake shopping data for testing
+    # start_date = datetime.strptime("2024-11-01", "%Y-%m-%d")
+    # end_date = datetime.now()
+    # user_id = "admin"  # Assuming admin user ID
+    # generate_fake_shopping_data(dbh, start_date, end_date, user_id, num_entries=10)
+
+
+
+
+
+
+
+

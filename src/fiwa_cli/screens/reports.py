@@ -177,7 +177,7 @@ class ReportsScreen(ReactiveScreen):
             # Calculate date range based on period type
             if self._current_period_type == "week":
                 # Calculate week boundaries
-                from functions.compute_time import TimeClass
+                from fiwa_cli.functions.compute_time import TimeClass
                 tc = TimeClass()
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
@@ -186,7 +186,7 @@ class ReportsScreen(ReactiveScreen):
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries
-                from functions.compute_time import TimeClass
+                from fiwa_cli.functions.compute_time import TimeClass
                 tc = TimeClass()
                 month_info = tc.cmp_month_by_number(self._current_year, self._current_month)
 
@@ -205,8 +205,8 @@ class ReportsScreen(ReactiveScreen):
 
             self.app.log(f"Updated app_state period: {period_label} ({period_start} to {period_end})")
 
-            # Refresh the data tables with new period data
-            self._refresh_data_tables()
+            # Refresh the current report with new period data
+            self._refresh_current_report()
 
         except Exception as e:
             self.app.log(f"Error updating app_state period: {e}")
