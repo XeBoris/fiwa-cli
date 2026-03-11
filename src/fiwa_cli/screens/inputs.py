@@ -52,17 +52,7 @@ class InputsScreen(ReactiveScreen):
                 yield Static("Period", classes="menu-section")
 
                 # Week/Month picker widget (includes dropdown and navigation)
-                yield WeekMonthWidget()
-
-
-
-
-                # yield Button("View Recent", id="view-recent-button", variant="default")
-                # yield Button("Import CSV", id="import-csv-button", variant="default")
-                #
-                # yield Static("Statistics", classes="menu-section")
-                # yield Static("[bold]Today:[/bold] 0 items", classes="info-row")
-                # yield Static("[bold]This Month:[/bold] 0 items", classes="info-row")
+                yield WeekMonthWidget(id="reports-date-picker")
 
                 # Always show Back button
                 yield Button("Back", id="back-button", variant="primary")
