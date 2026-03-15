@@ -85,11 +85,13 @@ class MyApp(App):
             primary_project = next((p for p in project_info if p.get("project_primary", False)), None)
             primary_project_id = primary_project["project_id"] if primary_project else (project_ids[0] if project_ids else 0)
             primary_project_name = primary_project["project_name"] if primary_project else (project_names[0] if project_names else "No Projects")
+            primary_project_style = primary_project["project_style"] if primary_project else "default"
 
             self.app_state["project_ids"] = project_ids
             self.app_state["project_names"] = project_names
             self.app_state["project_id"] = primary_project_id
             self.app_state["project_name"] = primary_project_name
+            self.app_state["project_style"] = primary_project_style
 
             # Load currency information for the primary project
             if primary_project:
@@ -111,6 +113,7 @@ class MyApp(App):
             self.app_state["project_names"] = ["No Projects"]
             self.app_state["project_id"] = 0
             self.app_state["project_name"] = "No Project"
+            self.app_state["project_style"] = "default"
             self.app_state["current_project_currency_main"] = "USD"
             self.app_state["current_project_currency_list"] = []
 

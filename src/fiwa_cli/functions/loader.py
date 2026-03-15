@@ -451,11 +451,62 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         shp.generate_groceries_data(dbh, users=sph_user_ids)
 
         shp.generate_books_data(dbh, users=sph_user_ids)
-
+        #
         shp.generate_income_data(dbh, users=sph_user_ids)
+        #
+        # shp.generate_savings_data(dbh, users=sph_user_ids)
 
-        shp.generate_savings_data(dbh, users=sph_user_ids)
+        # if user + password are provided, let's log in the user:
+        if "user" in config and "password" in config:
+            dbh.op_user_login(username=config.get("user"),
+                              password=config.get("password"))
 
+        configyml["_data_directory"] = os_home_dir
+        configyml["dbh"] = dbh
+        configyml["_abs_path"] = abs_path
+        return configyml
+    elif opp_model == "local" and dev_config.get("stage", None) == "stage2":
+        print(f"[Stage2] Running in local mode with path: {os_home_dir}")
+        print(f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data")
+
+        # delete previous database for clean dev environment:
+        if os.path.exists(sqlite_path):
+            os.remove(sqlite_path)
+
+        h = Handler(method="sqlite")
+        dbh = h.load()
+        dbh.set_path(sqlite_path)
+
+        _schema_path = os.path.dirname(os.path.abspath(__file__))
+        _schema_path = _schema_path.split("functions")[0]
+        _schema_path = os.path.join(_schema_path, "database", "schema.sql")
+
+        dbh.initialize_database(schema_path=_schema_path)
+
+        # This one creates the whole superhero project from scratch:
+        # handle with care!
+        sph_user_ids = shp.generate_superhero_data(dbh)
+        print(sph_user_ids)
+        # Create some projects:
+        project_dict = {
+            "name": "Bat Cave Expenses",
+            "description": "A common project of super heros",
+            "currency_main": "USD",
+            "currency_list": ["SEK", "EUR", "GBP"],
+            "project_style": "ExpenseTracker",
+            "project_staged": False,
+            "project_activated": True,
+            "project_store": {"month_start": 25}
+        }
+        p0_id = dbh.op_project_create(project_dict=project_dict,
+                                      user_id=sph_user_ids["batman"])
+
+        dbh.op_project_stage(project_id=p0_id,
+                             users=[ {"user_id": sph_user_ids["batman"],
+                                      "user_name": "batman"} ]
+                             )
+
+        # exit()
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
             dbh.op_user_login(username=config.get("user"),

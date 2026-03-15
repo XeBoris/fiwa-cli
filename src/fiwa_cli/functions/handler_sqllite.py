@@ -1,9 +1,11 @@
+import copy
 import sqlite3
 from typing import Dict, Optional
 from pathlib import Path
 import os
 import hashlib
 import uuid
+import json
 from datetime import datetime
 from datetime import timedelta
 
@@ -14,6 +16,7 @@ class SQLLiteHandler:
         self._db_path = db_path
         self._connection = None
         self._cursor = None
+        self._label_cache: dict[int, list] = {}
 
     def set_path(self, db_path):
         self._db_path = db_path
@@ -126,6 +129,7 @@ class SQLLiteHandler:
             self._cursor.execute("PRAGMA foreign_keys = ON")
             self._connection.commit()
 
+            self._invalidate_label_cache()
             return dropped_count
 
         except Exception as e:
@@ -435,7 +439,7 @@ class SQLLiteHandler:
         result = self.execute_query(
             f"""SELECT p.project_id, p.name, p.description, p.created_at, 
                 p.currency_main, p.currency_list, p.project_hash, 
-                p.project_store,
+                p.project_store, p.project_style,
                 upm.project_primary, upm.project_perm_model
                 FROM p{self._db_salt}_projects p 
                 JOIN p{self._db_salt}_user_project_map upm ON p.project_id = upm.project_id 
@@ -458,8 +462,9 @@ class SQLLiteHandler:
                 "currency_list": row[5],
                 "project_hash": row[6],
                 "project_store": row[7],
-                "project_primary": bool(row[8]),
-                "project_perm_model": row[9]
+                "project_style": row[8],
+                "project_primary": bool(row[9]),
+                "project_perm_model": row[10]
             }
             project_list.append(project_info)
         return project_list
@@ -486,6 +491,9 @@ class SQLLiteHandler:
                 - description (optional): Project description
                 - currency_main (optional): Main currency (3-letter code)
                 - currency_list (optional): List of currencies
+                - project_style (optional): Style of the project (e.g., "ExpenseTracker")
+                - project_staged (optional): Whether the project is staged (default: False)
+                - project_activated (optional): Whether the project is activated (default: True)
                 - project_store (optional): JSON string or dict for project-specific data
             user_id: The ID of the user creating/owning the project
 
@@ -504,6 +512,9 @@ class SQLLiteHandler:
         created_at = project_dict.get('created_at', datetime.utcnow().isoformat())
         currency_main = project_dict.get('currency_main', None)
         currency_list = project_dict.get('currency_list', [])
+        project_style = project_dict.get('project_style', 'default')
+        project_staged = project_dict.get('project_staged', False)
+        project_activated = project_dict.get('project_activated', True)
 
         # Convert currency_list to JSON string for storage
         currency_list_str = json.dumps(currency_list) if currency_list else '[]'
@@ -546,12 +557,23 @@ class SQLLiteHandler:
         # Insert project
         query = f"""
             INSERT INTO p{self._db_salt}_projects 
-            (name, description, created_at, currency_main, currency_list, project_hash, project_store)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (name, 
+             description, 
+             created_at, 
+             currency_main, 
+             currency_list, 
+             project_hash,
+             project_style,
+             project_staged,
+             project_activated, 
+             project_store
+             )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         params = [
-            name, description, created_at, currency_main, currency_list_str, project_hash, project_store
+            name, description, created_at, currency_main, currency_list_str, project_hash,
+            project_style, project_staged, project_activated, project_store
         ]
 
         try:
@@ -585,6 +607,107 @@ class SQLLiteHandler:
         except Exception as e:
             self.close()
             raise Exception(f"Failed to create project: {str(e)}")
+
+    def op_project_stage(self, project_id, users=[]):
+        """
+        We stage a project for its self and for a user (labels) if needed
+        :param project_id:
+        :param user_id:
+        :return:
+        """
+        self.load()
+
+        # first step: fetch the project by the project id:
+        query = f"""
+        SELECT project_style, project_staged, project_activated 
+        FROM p{self._db_salt}_projects WHERE project_id = ?"""
+
+        p0 = self.execute_query(
+            query,
+            [project_id]
+        )
+        self.close()
+        # if we do not find the project, we return False
+        if len(p0) != 1:
+            print(f"Project with ID {project_id} not found")
+            return False
+
+        # if we find it, we extract the style
+        p0 = p0[0]
+        p_style = p0[0]
+        p_staged = p0[1]
+        p_activated = p0[2]
+
+        if p_style == "default":
+            print(f"Project {project_id} has default style, staging not required")
+            return True
+
+        if p_staged == 1 and len(users) == 0:
+            print(f"Project {project_id} is already staged. No user_id provided")
+            return True
+        elif p_staged == 0 and len(users) >= 0:
+            from fiwa_cli.functions.project_composer import ProjectComposer
+
+            print(f"Staging project {project_id} with style {p_style}")
+
+            # Get project users to pass to composer
+            # users = self.op_project_get_users(project_id)
+            # if not users:
+            #     print(f"No users found for project {project_id}, cannot stage")
+            #     self.close()
+            #     return False
+
+            # Create composer instance using factory method
+            pc = ProjectComposer.create(
+                compose_type=p_style,
+                dbh=self,
+                project_id=project_id,
+                users=users
+            )
+
+            # Compose Labels for the project
+            pc.compose_labels()
+            pc.compose_accounts()
+
+            k = pc.get()
+            print(k)
+
+            # Mark project as staged
+            self.load()
+            update_query = f"""
+            UPDATE p{self._db_salt}_projects 
+            SET project_staged = 1 
+            WHERE project_id = ?
+            """
+            self.execute_query(update_query, [project_id])
+            print(f"Project {project_id} successfully staged")
+            self.close()
+
+        elif p_staged == 1 and len(users) > 0:
+            from fiwa_cli.functions.project_composer import ProjectComposer
+
+            print(f"Staging project {project_id} with style {p_style}")
+
+            # Get project users to pass to composer
+            # users = self.op_project_get_users(project_id)
+            # if not users:
+            #     print(f"No users found for project {project_id}, cannot stage")
+            #     self.close()
+            #     return False
+
+            # Create composer instance using factory method
+            pc = ProjectComposer.create(
+                compose_type=p_style,
+                dbh=self,
+                project_id=project_id,
+                users=users
+            )
+
+            # Compose Labels for the project
+            pc.compose_accounts()
+
+        print(project_id)
+        print(p0)
 
     def op_project_update(self, project_dict: Dict) -> bool:
         """
@@ -874,20 +997,29 @@ class SQLLiteHandler:
 
         return users
 
-    def op_label_get_all(self, project_id: int) -> list:
+    def op_label_get_all(self, project_id: int, *,
+                         use_cache: bool = True,
+                         force_refresh: bool = False) -> list:
         """
         Get all labels for a specific project.
 
         Args:
             project_id: The ID of the project
+            use_cache: Return cached data when available
+            force_refresh: Bypass cache and query the database
 
         Returns:
             List of label dictionaries
         """
+        if use_cache and not force_refresh:
+            cached = self._label_cache.get(project_id)
+            if cached is not None:
+                return copy.deepcopy(cached)
+
         self.load()
         result = self.execute_query(
             f"""SELECT label_id, name, description, created_at, composite, 
-                label_status, label_type
+                label_status, label_type, label_owner
                 FROM p{self._db_salt}_labels 
                 WHERE project_id = ?
                 ORDER BY name""",
@@ -896,26 +1028,27 @@ class SQLLiteHandler:
         self.close()
 
         if not result:
+            if use_cache:
+                self._label_cache[project_id] = []
             return []
 
-        labels = []
-        for row in result:
-            import json
-            try:
-                composite = json.loads(row[4]) if row[4] else []
-            except:
-                composite = []
-
-            label = {
+        labels = [
+            {
                 "label_id": row[0],
                 "name": row[1],
                 "description": row[2],
                 "created_at": row[3],
-                "composite": composite,
-                "label_status": row[5],  # 0=deleted, 1=deactivated, 2=active
-                "label_type": row[6]
+                "composite": row[4],
+                "label_status": row[5],
+                "label_type": row[6],
+                "label_owner": row[7],
             }
-            labels.append(label)
+            for row in result
+        ]
+
+        if use_cache:
+            self._label_cache[project_id] = copy.deepcopy(labels)
+            return copy.deepcopy(self._label_cache[project_id])
 
         return labels
 
@@ -960,6 +1093,7 @@ class SQLLiteHandler:
                 - composite (optional): List of composite elements
                 - label_status (optional): Status (0=deleted, 1=deactivated, 2=active)
                 - label_type (optional): Type (default: 1)
+                - label_owner (optional): User ID who owns the label, or -1 for project-wide (default: -1)
             project_id: The ID of the project
 
         Returns:
@@ -978,6 +1112,7 @@ class SQLLiteHandler:
         composite_str = json.dumps(composite)
         label_status = label_dict.get('label_status', 2)  # Default: active
         label_type = label_dict.get('label_type', 1)
+        label_owner = label_dict.get('label_owner', -1)  # Default: -1 (project-wide/common)
         created_at = datetime.utcnow().isoformat()
 
         self.load()
@@ -993,18 +1128,23 @@ class SQLLiteHandler:
             self.close()
             raise ValueError(f"Label '{name}' already exists in this project")
 
-        # Insert label
+        # Insert label with label_owner
         query = f"""
             INSERT INTO p{self._db_salt}_labels 
-            (name, description, created_at, project_id, composite, label_status, label_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (name, description, created_at, project_id, composite, label_owner, label_status, label_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
 
-        params = [name, description, created_at, project_id, composite_str, label_status, label_type]
+        params = [name, description, created_at, project_id, composite_str, label_owner, label_status, label_type]
 
         try:
             self.execute_query(query, params)
             label_id = self._cursor.lastrowid
+
+            # Invalidate the cache for this project so that next fetch gets fresh data
+            if project_id in self._label_cache:
+                del self._label_cache[project_id]
+
             self.close()
             return label_id
         except sqlite3.IntegrityError as e:
@@ -1028,6 +1168,7 @@ class SQLLiteHandler:
                 - composite (optional): Updated composite list
                 - label_status (optional): Updated status
                 - label_type (optional): Updated type
+                - label_owner (optional): Updated label owner
 
         Returns:
             True if successful, raises exception otherwise
@@ -1036,15 +1177,17 @@ class SQLLiteHandler:
 
         self.load()
 
-        # Check if label exists
+        # Check if label exists and get project_id for cache invalidation
         existing = self.execute_query(
-            f"""SELECT label_id FROM p{self._db_salt}_labels WHERE label_id = ?""",
+            f"""SELECT label_id, project_id FROM p{self._db_salt}_labels WHERE label_id = ?""",
             [label_id]
         )
 
         if not existing:
             self.close()
             raise ValueError(f"Label with ID {label_id} not found")
+
+        project_id = existing[0][1]  # Get project_id from the query result
 
         # Build update query dynamically
         update_fields = []
@@ -1070,6 +1213,10 @@ class SQLLiteHandler:
             update_fields.append("label_type = ?")
             params.append(label_dict['label_type'])
 
+        if 'label_owner' in label_dict:
+            update_fields.append("label_owner = ?")
+            params.append(label_dict['label_owner'])
+
         if not update_fields:
             self.close()
             raise ValueError("No fields to update")
@@ -1086,6 +1233,11 @@ class SQLLiteHandler:
 
         try:
             self.execute_query(query, params)
+
+            # Invalidate the cache for this project so that next fetch gets fresh data
+            if project_id in self._label_cache:
+                del self._label_cache[project_id]
+
             self.close()
             return True
         except sqlite3.IntegrityError as e:
@@ -1286,6 +1438,57 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to delete item {item_id}: {str(e)}")
 
+    def op_user_update_password(self, user_id: int, old_password: str, new_password: str) -> bool:
+        """
+        Update a user's password after verifying the old password.
+
+        Args:
+            user_id: The ID of the user whose password to update
+            old_password: The current password (plain text) for verification
+            new_password: The new password (plain text) to set
+
+        Returns:
+            True if password was updated successfully, False if old password is incorrect
+
+        Raises:
+            Exception: If database operation fails
+        """
+        try:
+            # Hash the old password for verification
+            old_password_hash = self.hash_password(password=old_password, salt=self._pw_salt)
+
+            self.load()
+
+            # Verify the old password matches
+            result = self.execute_query(
+                f"""SELECT user_id FROM p{self._db_salt}_users 
+                    WHERE user_id = ? AND password_hash = ?""",
+                [user_id, old_password_hash]
+            )
+
+            if not result:
+                # Old password doesn't match
+                self.close()
+                return False
+
+            # Hash the new password
+            new_password_hash = self.hash_password(password=new_password, salt=self._pw_salt)
+
+            # Update the password
+            self.execute_query(
+                f"""UPDATE p{self._db_salt}_users 
+                    SET password_hash = ? 
+                    WHERE user_id = ?""",
+                [new_password_hash, user_id]
+            )
+
+            self.close()
+            return True
+
+        except Exception as e:
+            self.close()
+            raise Exception(f"Failed to update password for user {user_id}: {str(e)}")
+
     def op_get_current_user(self):
         """
         This is database operation (op_) to get the current user from the database.
@@ -1306,3 +1509,10 @@ class SQLLiteHandler:
 
 
         return {"users": u, "projects": p}
+
+    def _invalidate_label_cache(self, project_id: Optional[int] = None) -> None:
+        """Invalidate cached label lists."""
+        if project_id is None:
+            self._label_cache.clear()
+        else:
+            self._label_cache.pop(project_id, None)

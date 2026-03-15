@@ -239,6 +239,7 @@ class BasicReportForm(Vertical):
                         col_final = table.add_column(f"Final [{currency_main}]")
                         col_date = table.add_column("Date")
                         col_bought_by = table.add_column("Bought by")
+                        col_label = table.add_column("Label")
 
                         table.cursor_type = "row"
 
@@ -254,6 +255,9 @@ class BasicReportForm(Vertical):
                             # Extract date only (remove time if present)
                             date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
+                            # Get main label for display
+                            label_display = item.get('label_m', '')
+
                             # Add row with all price information
                             table.add_row(
                                 item['name'],
@@ -262,6 +266,7 @@ class BasicReportForm(Vertical):
                                 f"{item['price_final']:.2f}",
                                 date_str,
                                 f"{item['bought_by_last_name']}",
+                                label_display,
                                 key=str(item['item_id'])
                             )
 
@@ -407,8 +412,39 @@ class BasicReportForm(Vertical):
             dbh.close()
 
             self.app.log(f"Found {len(results)} items for user {user_id} in period {start_date_str} to {end_date_str}")
+
+            # Get all labels for the project to build label map
+            labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+            label_map = {l['label_id']: l for l in labels}
+
+            # Get ProjectComposer instance for tag parsing
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+
+            try:
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+            except Exception as e:
+                self.app.log(f"Error creating ProjectComposer: {e}")
+                pc = None
+
             items = []
             for row in results:
+                tags_raw = row[14] if row[14] else ""
+
+                # Parse tags using ProjectComposer
+                if pc:
+                    parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
+                else:
+                    parsed_tags = {'c': '', 't': '', 'b': '', 'm': '', 's': []}
+
+                # Extract main label for display
+                main_label = parsed_tags.get('m', '')
+
                 items.append({
                     'item_id': row[0],
                     'name': row[1],
@@ -424,7 +460,9 @@ class BasicReportForm(Vertical):
                     'note': row[11],
                     'exchange_rate': row[12],
                     'exchange_rate_date': row[13],
-                    'tags': row[14]
+                    'tags': tags_raw,
+                    'parsed_tags': parsed_tags,
+                    'label_m': main_label  # Main label for display
                 })
 
             return items
@@ -488,6 +526,9 @@ class BasicReportForm(Vertical):
                         # Extract date only (remove time if present)
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
+                        # Get main label for display
+                        label_display = item.get('label_m', '')
+
                         table.add_row(
                             # str(item['item_id']),
                             item['name'],
@@ -496,6 +537,7 @@ class BasicReportForm(Vertical):
                             f"{item['price_final']:.2f}",
                             date_str,
                             f"{item['bought_by_last_name']}",
+                            label_display,
                             key=str(item['item_id'])
                         )
 

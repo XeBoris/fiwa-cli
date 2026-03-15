@@ -8,6 +8,7 @@ import hashlib
 
 from fiwa_cli.functions.loader import load_dynamic_css
 
+
 class CreateProjectForm(ScrollableContainer):
     """Widget for creating a new project."""
 
@@ -63,6 +64,13 @@ class CreateProjectForm(ScrollableContainer):
                 yield Static("Description", classes="form-label")
                 yield TextArea(id="project-description")
 
+                yield Static("Month starts at", classes="form-label")
+                yield Input(
+                    placeholder=f"pick a day",
+                    id="project-start-date",
+                    value=f"01"
+                )
+
             with Horizontal(id="form-currency-section"):
                 with Vertical(id="form-currency-section-main"):
                     yield Static("Main Currency *", classes="form-label")
@@ -93,6 +101,7 @@ class CreateProjectForm(ScrollableContainer):
             self.query_one("#project-description", TextArea).text = ""
             self.query_one("#currency-main", Input).value = ""
             self.query_one("#currency-list", Input).value = ""
+            self.query_one("#project-start-date", Input).value = datetime.now().replace(day=1).strftime("%Y-%m-%d")
 
             # Focus on the first field
             self.query_one("#project-name", Input).focus()
@@ -142,137 +151,20 @@ class CreateProjectForm(ScrollableContainer):
             currency_list = [c.strip().upper() for c in currency_list_str.split(",") if c.strip()]
 
         project_hash = hashlib.sha256(f"{name}{datetime.now().isoformat()}".encode()).hexdigest()
+        project_start_date = self.query_one("#project-start-date", Input).value.strip()
+
+        project_style = "ExpenseTracker"  # Placeholder for future style selection
 
         project_data = {
             "name": name,
             "description": description if description else None,
-            "created_at": datetime.now(),
+            #"created_at": datetime.now(),
             "currency_main": currency_main,
             "currency_list": currency_list,
-            "project_hash": project_hash
+            "project_hash": project_hash,
+            "project_store": {"month_start": int(project_start_date),
+                              "style": project_style}
+
         }
 
         self.post_message(self.ProjectCreated(project_data))
-
-
-# from textual.screen import ModalScreen
-# from textual.containers import Vertical, Grid
-# from textual.widgets import Static, Button, Input, TextArea
-# from textual.app import ComposeResult
-# from datetime import datetime
-# import hashlib
-# import uuid
-#
-#
-# class CreateProjectModal(ModalScreen):
-#     """Modal screen for creating a new project."""
-#
-#     DEFAULT_CSS = """
-#     CreateProjectModal {
-#         align: center middle;
-#     }
-#
-#     CreateProjectModal > Vertical {
-#         width: 60;
-#         height: auto;
-#         background: $surface;
-#         border: solid $accent;
-#         padding: 2;
-#     }
-#
-#     CreateProjectModal #modal-title {
-#         text-style: bold;
-#         padding: 0 0 1 0;
-#         text-align: center;
-#     }
-#
-#     CreateProjectModal .form-label {
-#         padding: 1 0 0 0;
-#         text-style: bold;
-#     }
-#
-#     CreateProjectModal Input {
-#         margin: 0 0 1 0;
-#     }
-#
-#     CreateProjectModal TextArea {
-#         height: 5;
-#         margin: 0 0 1 0;
-#     }
-#
-#     CreateProjectModal Grid {
-#         grid-size: 2;
-#         grid-gutter: 1;
-#         margin-top: 1;
-#         background: green;
-#         padding: 1;
-#     }
-#
-#     CreateProjectModal Button {
-#         width: 50%;
-#         background: darkgreen;
-#     }
-#     """
-#
-#     def compose(self) -> ComposeResult:
-#         with Vertical():
-#             yield Static("Create New Project", id="modal-title")
-#
-#             yield Static("Project Name *", classes="form-label")
-#             yield Input(placeholder="Enter project name", id="project-name")
-#
-#             yield Static("Description", classes="form-label")
-#             yield TextArea(id="project-description")
-#
-#             yield Static("Main Currency (3-letter code) *", classes="form-label")
-#             yield Input(placeholder="e.g., USD, EUR, GBP", id="currency-main", max_length=3)
-#
-#             yield Static("Additional Currencies (comma-separated)", classes="form-label")
-#             yield Input(placeholder="e.g., USD,EUR,JPY", id="currency-list")
-#
-#             with Grid():
-#                 yield Button("Create", id="create-button", variant="success")
-#                 yield Button("Cancel", id="cancel-button", variant="error")
-#
-#     def on_button_pressed(self, event: Button.Pressed) -> None:
-#         if event.button.id == "cancel-button":
-#             self.dismiss(None)
-#         elif event.button.id == "create-button":
-#             self.create_project()
-#
-#     def create_project(self) -> None:
-#         """Validate and create the project."""
-#         name = self.query_one("#project-name", Input).value.strip()
-#         description = self.query_one("#project-description", TextArea).text.strip()
-#         currency_main = self.query_one("#currency-main", Input).value.strip().upper()
-#         currency_list_str = self.query_one("#currency-list", Input).value.strip()
-#
-#         # Validation
-#         if not name:
-#             self.notify("Project name is required", severity="error")
-#             return
-#
-#         if not currency_main or len(currency_main) != 3:
-#             self.notify("Valid 3-letter currency code required", severity="error")
-#             return
-#
-#         # Parse currency list
-#         currency_list = []
-#         if currency_list_str:
-#             currency_list = [c.strip().upper() for c in currency_list_str.split(",") if c.strip()]
-#
-#         # Generate project hash
-#         project_hash = hashlib.sha256(f"{name}{datetime.now().isoformat()}".encode()).hexdigest()
-#
-#         # Prepare project data
-#         project_data = {
-#             "name": name,
-#             "description": description if description else None,
-#             "created_at": datetime.now(),
-#             "currency_main": currency_main,
-#             "currency_list": currency_list,
-#             "project_hash": project_hash
-#         }
-#
-#         # Dismiss with project data
-#         self.dismiss(project_data)

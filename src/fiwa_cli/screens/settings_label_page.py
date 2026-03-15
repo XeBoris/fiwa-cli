@@ -7,6 +7,7 @@ from textual.screen import ModalScreen
 from datetime import datetime
 
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.functions.project_composer import ProjectComposer
 
 class LabelEditorModal(ModalScreen):
     """Modal screen for editing label name, description, and status."""
@@ -161,9 +162,11 @@ class LabelManagementForm(Vertical):
 
         # Load labels from database
         if project_id > 0:
+
             try:
                 dbh = self.app._config["dbh"]
-                self._labels = dbh.op_label_get_all(project_id)
+                # Force refresh to bypass cache and get latest data from database
+                self._labels = dbh.op_label_get_all(project_id, use_cache=False, force_refresh=True)
             except Exception as e:
                 self.app.log(f"Error loading labels: {e}")
                 self._labels = []
@@ -189,7 +192,19 @@ class LabelManagementForm(Vertical):
             # Labels table
             yield Static("Existing Labels:", classes="section-header")
             table = DataTable(id="labels-table")
-            table.add_columns("Name", "Description", "Status", "Type")
+            table.add_columns("Name", "Description", "Status", "Type", "Owner")
+
+            # Get project users to map user_id to username
+            user_map = {}  # {user_id: username}
+            if project_id > 0:
+                try:
+                    dbh = self.app._config["dbh"]
+                    project_users = dbh.op_project_get_users(project_id)
+                    for user in project_users:
+                        user_map[user.get('user_id')] = user.get('username', 'Unknown')
+                    self.app.log(f"Loaded {len(user_map)} users for label owner mapping")
+                except Exception as e:
+                    self.app.log(f"Error loading project users: {e}")
 
             # Populate table with existing labels
             # Note: We store label_id as the row key for internal reference
@@ -197,12 +212,20 @@ class LabelManagementForm(Vertical):
                 status_text = self._get_status_text(label['label_status'])
                 label_type_text = self._get_action_type(label['label_type'])
 
+                # Get label owner text
+                label_owner_id = label.get('label_owner', -1)
+                if label_owner_id == -1:
+                    owner_text = "Common"
+                else:
+                    owner_text = user_map.get(label_owner_id, f"User {label_owner_id}")
+
                 # Add row with plain text (no background colors)
                 table.add_row(
                     label['name'],
                     label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
                     status_text,
                     label_type_text,
+                    owner_text,
                     key=f"label-id-{label['label_id']}"  # Store label_id in the row key
                 )
 
@@ -224,11 +247,13 @@ class LabelManagementForm(Vertical):
 
     def _get_action_type(self, status: int) -> str:
         """Convert status code to text."""
-        status_map = {
-            0: "Action",
-            1: "Account",
-            2: "Label"
-        }
+        pc = ProjectComposer.create(
+            compose_type=self.app.app_state["project_style"],
+            dbh=self,
+            project_id=self.app.app_state["project_id"],
+            users=[]
+        )
+        status_map = pc.get_label_map()
         return status_map.get(status, "Unknown")
 
     def _set_label_type(self, label_type: int) -> None:

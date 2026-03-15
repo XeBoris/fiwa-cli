@@ -102,8 +102,8 @@ ModifyUserForm #form-user-area Input {
 
 /* Action buttons */
 ModifyUserForm #action-buttons {
-    grid-size: 3 1;
-    grid-columns: 1fr 1fr 1fr;
+    grid-size: 4 1;
+    grid-columns: 1fr 1fr 1fr 1fr;
     grid-gutter: 1;
     height: 3;
     margin: 2 0 1 0;
@@ -145,4 +145,16 @@ ModifyUserForm #user-cancel-button {
 
 ModifyUserForm #user-cancel-button:hover {
     background: $error-lighten-1;
+}
+
+ModifyUserForm #password-update-button {
+    background: $warning;
+    color: white;
+    width: auto;
+    height: 3;
+    margin: 0 1;
+}
+
+ModifyUserForm #password-update-button:hover {
+    background: $warning-lighten-1;
 }

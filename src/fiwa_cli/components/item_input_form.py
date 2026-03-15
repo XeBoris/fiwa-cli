@@ -89,10 +89,9 @@ def sanitize_string(
 class LabelModalScreen(ModalScreen):
     """Modal screen for selecting labels for a transaction.
 
-    Labels are organized by type in tabs:
-    - Type 0: Transactional labels
-    - Type 1: Konto (Account) labels
-    - Type 2: Category labels
+    Labels are organized by type in tabs dynamically based on the project's style.
+    Tab structure comes from ProjectComposer.get_label_map() which returns:
+    {type_id: group_name} - e.g., {0: "Balance", 1: "Transaction", 2: "Account", 3: "Main Labels"}
 
     This tab-based design scales well with many labels.
     """
@@ -101,23 +100,52 @@ class LabelModalScreen(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-
     def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.project_labels = project_labels
         self.selected_labels = selected_labels or []
 
-        # Organize labels by type
-        self.labels_by_type = {
-            0: [],  # Transactional
-            1: [],  # Konto
-            2: []   # Category
-        }
+        # Get label map from ProjectComposer based on project style
+        self.label_map = self._get_label_map_from_composer()
 
+        # Organize labels by type dynamically
+        self.labels_by_type = {}
+        for type_id in self.label_map.keys():
+            self.labels_by_type[type_id] = []
+
+        # Populate labels by type
         for label in project_labels:
             label_type = label.get('label_type', 0)
             if label_type in self.labels_by_type:
                 self.labels_by_type[label_type].append(label)
+
+    def _get_label_map_from_composer(self) -> dict:
+        """Get label map from ProjectComposer based on current project style."""
+        try:
+            from fiwa_cli.functions.project_composer import ProjectComposer
+
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = self.app.app_state.get("project_id", 0)
+
+            if project_style and project_style != "default":
+                dbh = self.app._config.get("dbh")
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+                label_map = pc.get_label_map()
+                self.app.log(f"Loaded label map from ProjectComposer ({project_style}): {label_map}")
+                return label_map
+            else:
+                # Fallback to default label types
+                self.app.log("Using default label map (project_style is 'default')")
+                return {0: "Action", 1: "Account", 2: "Label"}
+        except Exception as e:
+            self.app.log(f"Error loading label map from ProjectComposer: {e}")
+            # Fallback to default
+            return {0: "Action", 1: "Account", 2: "Label"}
 
     def compose(self) -> ComposeResult:
         from textual.widgets import TabbedContent, TabPane
@@ -128,42 +156,30 @@ class LabelModalScreen(ModalScreen):
                 yield Static(f"Currently selected: {len(self.selected_labels)} label(s)",
                            id="selection-count", classes="selection-count")
 
-            with TabbedContent(initial="tab-transactional"):
-                # Tab 1: Transactional Labels (Type 0)
-                with TabPane("🔄 Transactional", id="tab-transactional"):
-                    if self.labels_by_type[0]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[0]],
-                                id="label-selection-transactional"
-                            )
-                    else:
-                        yield Static("No transactional labels available", classes="no-labels-message")
+            # Determine initial tab ID (first available type as string)
+            if self.label_map:
+                first_type_id = min(self.label_map.keys())
+                initial_tab = f"tab-{first_type_id}"
+            else:
+                initial_tab = "tab-0"
 
-                # Tab 2: Konto Labels (Type 1)
-                with TabPane("💼 Konto", id="tab-konto"):
-                    if self.labels_by_type[1]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[1]],
-                                id="label-selection-konto"
-                            )
-                    else:
-                        yield Static("No konto labels available", classes="no-labels-message")
+            with TabbedContent(initial=initial_tab):
+                # Dynamically create tabs based on label_map
+                for type_id, group_name in sorted(self.label_map.items()):
+                    tab_id = f"tab-{type_id}"
+                    selection_list_id = f"label-selection-{type_id}"
 
-                # Tab 3: Category Labels (Type 2)
-                with TabPane("📁 Category", id="tab-category"):
-                    if self.labels_by_type[2]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[2]],
-                                id="label-selection-category"
-                            )
-                    else:
-                        yield Static("No category labels available", classes="no-labels-message")
+                    # Create a tab for this label type
+                    with TabPane(group_name, id=tab_id):
+                        if self.labels_by_type.get(type_id):
+                            with ScrollableContainer():
+                                yield SelectionList[int](
+                                    *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
+                                      for label in self.labels_by_type[type_id]],
+                                    id=selection_list_id
+                                )
+                        else:
+                            yield Static(f"No {group_name.lower()} labels available", classes="no-labels-message")
 
             with Horizontal(classes="button-row"):
                 yield Button("🗑️ Clear All", id="label-clear-button", variant="warning")
@@ -186,8 +202,9 @@ class LabelModalScreen(ModalScreen):
         """Update the selection count display."""
         try:
             selected = []
-            # Collect from all three lists
-            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+            # Collect from all dynamically created SelectionLists
+            for type_id in self.label_map.keys():
+                list_id = f"label-selection-{type_id}"
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     selected.extend(list(sel_list.selected))
@@ -202,29 +219,17 @@ class LabelModalScreen(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses in the label modal."""
         if event.button.id == "label-ok-button":
-            # Get selected labels from all three SelectionLists
+            # Get selected labels from all dynamically created SelectionLists
             selected = []
             try:
-                # Collect from transactional labels
-                try:
-                    sel_list = self.query_one("#label-selection-transactional", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
-
-                # Collect from konto labels
-                try:
-                    sel_list = self.query_one("#label-selection-konto", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
-
-                # Collect from category labels
-                try:
-                    sel_list = self.query_one("#label-selection-category", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
+                # Collect from all label type SelectionLists
+                for type_id in self.label_map.keys():
+                    list_id = f"label-selection-{type_id}"
+                    try:
+                        sel_list = self.query_one(f"#{list_id}", SelectionList)
+                        selected.extend(list(sel_list.selected))
+                    except:
+                        pass
 
                 self.dismiss(selected)  # Return list of selected label IDs
             except Exception as e:
@@ -232,8 +237,9 @@ class LabelModalScreen(ModalScreen):
                 self.dismiss([])  # Return empty list on error
 
         elif event.button.id == "label-clear-button":
-            # Clear all selections
-            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+            # Clear all selections from all dynamically created SelectionLists
+            for type_id in self.label_map.keys():
+                list_id = f"label-selection-{type_id}"
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     sel_list.deselect_all()
@@ -456,14 +462,61 @@ class ItemInputForm(ModalScreen):
 
         # Load selected labels from item_data in edit mode
         if edit_mode and item_data and item_data.get('tags'):
-            import json
+            # In edit mode, tags come from database as a string (e.g., "3_4_5_6_[7,8]")
+            # We need to parse it to get individual label IDs
+            tags_str = item_data['tags']
+
+            # Try to parse using ProjectComposer if available
             try:
-                # Parse tags if it's a JSON string
-                if isinstance(item_data['tags'], str):
-                    self._selected_label_ids = json.loads(item_data['tags'])
+                from fiwa_cli.functions.project_composer import ProjectComposer
+
+                project_style = self.app.app_state.get("project_style", "default")
+                project_id = item_data.get('project_id', self.app.app_state.get("project_id", 0))
+
+                # Get label map
+                dbh = self.app._config.get("dbh")
+                if dbh:
+                    labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+                    label_map = {l['label_id']: l for l in labels}
+
+                    # Create ProjectComposer instance
+                    pc = ProjectComposer.create(
+                        compose_type=project_style,
+                        dbh=dbh,
+                        project_id=project_id,
+                        users=[]
+                    )
+
+                    # Parse the tag string - this returns names, but we need IDs
+                    # We need to extract IDs from the string directly
+                    parts = tags_str.split('_')
+                    label_ids = []
+
+                    if len(parts) >= 4:
+                        # Extract IDs from positions 0-3
+                        for i in range(4):
+                            if parts[i].strip().isdigit():
+                                label_id = int(parts[i].strip())
+                                if label_id > 0:
+                                    label_ids.append(label_id)
+
+                        # Extract secondary IDs from position 4 (the list part)
+                        if len(parts) >= 5:
+                            s_part = parts[4].strip().strip('[]')
+                            if s_part:
+                                for s_id in s_part.split(','):
+                                    if s_id.strip().isdigit():
+                                        label_id = int(s_id.strip())
+                                        if label_id > 0:
+                                            label_ids.append(label_id)
+
+                    self._selected_label_ids = label_ids
+                    self.app.log(f"Parsed tag string '{tags_str}' to label IDs: {label_ids}")
                 else:
-                    self._selected_label_ids = item_data['tags']
-            except:
+                    self._selected_label_ids = []
+
+            except Exception as e:
+                self.app.log(f"Error parsing tag string in edit mode: {e}")
                 self._selected_label_ids = []
         else:
             self._selected_label_ids = []
@@ -1053,6 +1106,22 @@ class ItemInputForm(ModalScreen):
 
             self.app.log(f"Creating {len(cost_shares)} item entries for cost sharing")
 
+            # Get ProjectComposer instance for building tag string
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = item_data['project_id']
+
+            try:
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+            except Exception as e:
+                self.app.log(f"Error creating ProjectComposer: {e}")
+                pc = None
+
             # Keep track of created item IDs
             created_item_ids = []
 
@@ -1082,12 +1151,28 @@ class ItemInputForm(ModalScreen):
                     'project_id': item_data['project_id'],
                     'exchange_rate': item_data['exchange_rate'],
                     'exchange_rate_date': item_data['exchange_rate_date'],
-                    'tags': item_data['tags'],  # Convert to JSON below
+                    'tags': item_data['tags'],  # Will be converted to string below
                 }
 
-                # Convert tags list to JSON string
-                import json
-                db_item_data['tags'] = json.dumps(db_item_data['tags'])
+                # Convert tags to proper string format using ProjectComposer
+                # item_data['tags'] is a list of selected label IDs
+                # We need to build a tags_dict and then convert to string
+                if pc and item_data['tags']:
+                    # For now, store the main label in position 'm' (position 3)
+                    # In future, user can select which position each label goes to
+                    tags_dict = {
+                        'c': item_data['tags'][0] if len(item_data['tags']) > 0 else 0,
+                        't': item_data['tags'][1] if len(item_data['tags']) > 1 else 0,
+                        'b': item_data['tags'][2] if len(item_data['tags']) > 2 else 0,
+                        'm': item_data['tags'][3] if len(item_data['tags']) > 3 else 0,
+                        's': item_data['tags'][4:] if len(item_data['tags']) > 4 else []
+                    }
+                    db_item_data['tags'] = pc.build_tags_string(tags_dict)
+                    self.app.log(f"Built tag string: {db_item_data['tags']} from dict: {tags_dict}")
+                else:
+                    # Fallback: empty tag string
+                    db_item_data['tags'] = "0_0_0_0_[]"
+                    self.app.log("Using fallback empty tag string")
 
                 # Log the data being saved with both prices
                 self.app.log(f"Saving item share for {username}: "
@@ -1134,11 +1219,42 @@ class ItemInputForm(ModalScreen):
                 self.app.notify("Database connection not available", severity="error")
                 return False
 
+            # Get ProjectComposer instance for building tag string
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = item_data['project_id']
+
+            try:
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+            except Exception as e:
+                self.app.log(f"Error creating ProjectComposer: {e}")
+                pc = None
+
+            # Convert tags to proper string format using ProjectComposer
+            if pc and item_data['tags']:
+                # For now, store the main label in position 'm' (position 3)
+                tags_dict = {
+                    'c': item_data['tags'][0] if len(item_data['tags']) > 0 else 0,
+                    't': item_data['tags'][1] if len(item_data['tags']) > 1 else 0,
+                    'b': item_data['tags'][2] if len(item_data['tags']) > 2 else 0,
+                    'm': item_data['tags'][3] if len(item_data['tags']) > 3 else 0,
+                    's': item_data['tags'][4:] if len(item_data['tags']) > 4 else []
+                }
+                tags_string = pc.build_tags_string(tags_dict)
+                self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
+            else:
+                # Fallback: empty tag string
+                tags_string = "0_0_0_0_[]"
+                self.app.log("Using fallback empty tag string for update")
+
             # Prepare UPDATE query
             dbh.load()
 
-            import json
-            tags_json = json.dumps(item_data['tags'])
 
             query = f"""
                 UPDATE p{dbh._db_salt}_items
@@ -1167,7 +1283,7 @@ class ItemInputForm(ModalScreen):
                 item_data['bought_by_id'],
                 item_data['exchange_rate'],
                 item_data['exchange_rate_date'],
-                tags_json,
+                tags_string,
                 self._item_id,
                 item_data['project_id']
             ]

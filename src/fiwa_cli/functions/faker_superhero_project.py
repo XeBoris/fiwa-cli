@@ -22,6 +22,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Armin",
                  "last_name": "Admin",
                  "username": "admin",
+                 "birthday": "1980-01-01",
                  "email": "admin@info.com",
                  "password": "admin123",
                  "is_superuser": True,
@@ -33,6 +34,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Clark",
                  "last_name": "Kent",
                  "username": "superman",
+                 "birthday": "1976-05-01",
                  "email": "superman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -44,6 +46,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Bruce",
                  "last_name": "Wayne",
                  "username": "batman",
+                 "birthday": "1979-02-11",
                  "email": "batman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -55,6 +58,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Peter",
                  "last_name": "Parker",
                  "username": "spiderman",
+                 "birthday": "2001-09-18",
                  "email": "spiderman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -74,22 +78,37 @@ def generate_superhero_projects(dbh, users={}):
         "description": "A common project of super heros",
         "currency_main": "USD",
         "currency_list": ["SEK", "EUR", "GBP"],
+        "project_style": "ExpenseTracker",
+        "project_staged": False,
+        "project_activated": True,
         "project_store" : {"month_start": 25}
     }
-    dbh.op_project_create(project_dict=project_dict,
+    p0_id = dbh.op_project_create(project_dict=project_dict,
                           user_id=users["batman"])
+
+    dbh.op_project_stage(project_id=p0_id,
+                         users=[{"user_id": users["batman"],
+                                 "user_name": "batman"}]
+                         )
 
     project_dict = {
         "name": "Sweden Day Job",
         "description": "Being a friendly neighborhood spiderman is expensive",
         "currency_main": "SEK",
         "currency_list": ["USD", "EUR", "GBP"],
+        "project_style": "ExpenseTracker",
+        "project_staged": False,
+        "project_activated": True,
         "project_store": {"month_start": 1}
 
     }
-    dbh.op_project_create(project_dict=project_dict,
+    p1_id = dbh.op_project_create(project_dict=project_dict,
                           user_id=users["spiderman"])
 
+    dbh.op_project_stage(project_id=p1_id,
+                         users=[{"user_id": users["spiderman"],
+                                 "user_name": "spiderman"}]
+                         )
 
     # bruce adds clark to his project:
     p_info = dbh.op_project_get_info(user_id=users["batman"])
@@ -100,6 +119,12 @@ def generate_superhero_projects(dbh, users={}):
                             project_perm_model='111100',
                             project_primary=False)
 
+    dbh.op_project_stage(project_id=p_info["project_id"],
+                         users=[{"user_id": users["superman"],
+                                 "user_name": "superman"}]
+                         )
+
+
     # peter adds bruce to his project:
     p_info = dbh.op_project_get_info(user_id=users["spiderman"])
     p_info = [i for i in p_info if i["project_name"] == "Sweden Day Job"][0]
@@ -108,6 +133,10 @@ def generate_superhero_projects(dbh, users={}):
                             user_id=users["batman"],
                             project_perm_model='111100',
                             project_primary=False)
+    dbh.op_project_stage(project_id=p_info["project_id"],
+                         users=[{"user_id": users["batman"],
+                                 "user_name": "batman"}]
+                         )
 
 def generate_superhero_labels(dbh, users):
 
@@ -115,75 +144,43 @@ def generate_superhero_labels(dbh, users):
     # now we need labels for the bat cave project:
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
-    print(p_info)
 
-    # action labels
-    action_labels = []
-    i_label = {"name": "expenses", "description": "Expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "revenue", "description": "Revenue", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "fixed",
-               "description": "Slow changing revenues or expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "variable",
-               "description": "Fast changing revenues or expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "daily",
-               "description": "Your day-2-day costs", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-
-    for i_label in action_labels:
-        dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
-
-    print(f"Created {len(action_labels)} action labels for project {p_info['project_name']}")
     #-----------------
 
     account_labels = []
-    i_label = {"name": "Liability Account Batman", "description": "", "composite": None,
-               "label_status": 2, "label_type": 1}
-    account_labels.append(i_label)
     i_label = {"name": "Wayne Enterprises", "description": "Revenue from Wayne Enterprises", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "Inheritance", "description": "Monthly take out of inhertiance money", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "Wayne Enterprises Creditcard", "description": "Credit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "Joker Card", "description": "Debit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "BM: Savings Account I", "description": "Savings I", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "BM: Savings Account II", "description": "Savings II", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["batman"]}
     account_labels.append(i_label)
 
-    i_label = {"name": "Liability Account Superman", "description": "", "composite": None,
-               "label_status": 2, "label_type": 1}
-    account_labels.append(i_label)
     i_label = {"name": "Daily Planet Income", "description": "Revenue from day job", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "Daily Planet Company Card", "description": "Credit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "Gotham Bank Card", "description": "Debit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "SM: Savings Account I", "description": "Savings I", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "SM: Savings Account II", "description": "Savings II", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_owner": users["superman"]}
     account_labels.append(i_label)
 
     for i_label in account_labels:
@@ -193,29 +190,17 @@ def generate_superhero_labels(dbh, users):
 
     #-------------------
     _labels = []
-    i_label = {"name": "Groceries", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
     i_label = {"name": "Concerts/Festivals", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_owner": -1}
     _labels.append(i_label)
     i_label = {"name": "Sports", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Personal Supplies", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Books", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_owner": -1}
     _labels.append(i_label)
     i_label = {"name": "eLearning", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_owner": -1}
     _labels.append(i_label)
-    i_label = {"name": "Travel", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Gifts", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+    i_label = {"name": "Wages", "description": "", "composite": None,
+               "label_status": 2, "label_type": 3, "label_owner": -1}
     _labels.append(i_label)
 
     for i_label in _labels:
@@ -392,6 +377,8 @@ def generate_personal_supplies_data(dbh, users):
         "DM", "Rossmann", "Müller", "Boots", "CVS", "Walgreens", "Superdrug",
         "DVD"
     ]
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
+
 
     item_ids = generate_data(
         dbh=dbh,
@@ -399,8 +386,7 @@ def generate_personal_supplies_data(dbh, users):
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=2,
@@ -415,8 +401,7 @@ def generate_personal_supplies_data(dbh, users):
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.4,
@@ -432,8 +417,7 @@ def generate_personal_supplies_data(dbh, users):
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=1.7,
@@ -448,8 +432,7 @@ def generate_personal_supplies_data(dbh, users):
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.5,
@@ -484,6 +467,7 @@ def generate_groceries_data(dbh, users):
         "Tesco", "Carrefour", "Whole Foods", "Trader Joe's", "Safeway",
         "ICA", "Rewe", "Edeka", "Albert Heijn", "Costco", "Sam's Club"
     ]
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
 
     item_ids = generate_data(
         dbh=dbh,
@@ -491,8 +475,7 @@ def generate_groceries_data(dbh, users):
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=2.5,
@@ -507,8 +490,7 @@ def generate_groceries_data(dbh, users):
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=1.5,
@@ -524,8 +506,7 @@ def generate_groceries_data(dbh, users):
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=2.1,
@@ -540,8 +521,7 @@ def generate_groceries_data(dbh, users):
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.5,
@@ -578,6 +558,7 @@ def generate_books_data(dbh, users):
         "Book Depository", "Audible", "Kindle Store",
         "Akademibokhandeln", "WHSmith", "Hugendubel", "Fnac"
     ]
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
 
     item_ids = generate_data(
         dbh=dbh,
@@ -585,8 +566,7 @@ def generate_books_data(dbh, users):
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=1.5,
@@ -594,15 +574,14 @@ def generate_books_data(dbh, users):
         max_weekly_spend=15.0
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
-
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_sm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.5,
@@ -612,14 +591,14 @@ def generate_books_data(dbh, users):
 
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
     #
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_sm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.5,
@@ -628,14 +607,14 @@ def generate_books_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_bm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
+        labels=llb,
         start_date_str="2024-11-01",
         currency="USD",
         poisson_exp=0.5,
@@ -667,6 +646,8 @@ def generate_income_data(dbh, users):
     label_id_revenue = dbh.op_label_get_by_name("revenue", p_info["project_id"])
     label_id_fixed = dbh.op_label_get_by_name("fixed", p_info["project_id"])
 
+    label_id_person = dbh.op_label_get_by_name("Wages", p_info["project_id"])
+
     label_id_income_bm1 = dbh.op_label_get_by_name("Wayne Enterprises", p_info["project_id"])
     label_id_income_bm2 = dbh.op_label_get_by_name("Inheritance", p_info["project_id"])
     label_id_income_sm1 = dbh.op_label_get_by_name("Daily Planet Income", p_info["project_id"])
@@ -689,6 +670,7 @@ def generate_income_data(dbh, users):
         # Batman: Wayne Enterprises income on the 25th
         income_date_bm1 = datetime(year, month, 25, 9, 0, 0)  # 9 AM
         if income_date_bm1 <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_bm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Wayne Enterprises Monthly Income",
@@ -704,8 +686,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_bm1.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_bm1, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -717,6 +698,7 @@ def generate_income_data(dbh, users):
         # Batman: Inheritance income on the 26th
         income_date_bm2 = datetime(year, month, 26, 10, 0, 0)  # 10 AM
         if income_date_bm2 <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_bm2}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Inheritance Monthly Distribution",
@@ -732,8 +714,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_bm2.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_bm2, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -745,6 +726,7 @@ def generate_income_data(dbh, users):
         # Superman: Daily Planet income on the 26th
         income_date_sm = datetime(year, month, 26, 15, 0, 0)  # 3 PM
         if income_date_sm <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_sm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Daily Planet Monthly Salary",
@@ -760,8 +742,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_sm.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_sm1, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
