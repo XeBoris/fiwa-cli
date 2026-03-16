@@ -173,11 +173,13 @@ class ProjectExpenseTracker(ProjectComposer):
             ret[i_group["type"]] = i_group["group"]
         return ret
 
-    def get(self):
-        return {
-            "balance_labels": self.balance_labels,
-            "transaction_labels": self.transaction_labels
-        }
+    def get(self, items=[]):
+        return items
+
+        # return {
+        #     "balance_labels": self.balance_labels,
+        #     "transaction_labels": self.transaction_labels
+        # }
 
     def parse_tags_from_string(self, tag_str: str, label_map: dict) -> dict:
         """

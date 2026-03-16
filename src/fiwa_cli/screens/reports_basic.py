@@ -222,6 +222,15 @@ class BasicReportForm(Vertical):
 
         # Get main currency for column header
         currency_main = self.app.app_state.get("current_project_currency_main", "USD")
+        project_style = self.app.app_state.get("project_style", "default")
+
+        pc = ProjectComposer.create(
+            compose_type=project_style,
+            dbh=dbh,
+            project_id=project_id,
+            users=[]
+        )
+
 
         # Wrap in ScrollableContainer for scrolling
         with ScrollableContainer(id="report-content"):
@@ -253,7 +262,8 @@ class BasicReportForm(Vertical):
 
                         # Fetch items for this user
                         items = self._get_user_items(user['user_id'], project_id)
-
+                        k = pc.get(items)
+                        print(str(k))
                         # Calculate totals with breakdown: who bought what for whom
                         total_final = 0.0
                         bought_by_self = 0.0  # I bought for myself
