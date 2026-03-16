@@ -127,9 +127,9 @@ class ProjectExpenseTracker(ProjectComposer):
             "type": 1,
             "group": "Transaction",
             "definition": {
-                "fixed": 1,
-                "variable": -1,
-                "daily": -1
+                "fixed": "t0",
+                "variable": "t1",
+                "daily": "t2"
             }
         }
 

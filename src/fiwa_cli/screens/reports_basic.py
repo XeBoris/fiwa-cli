@@ -228,6 +228,14 @@ class BasicReportForm(Vertical):
             # Create tabbed content with one tab per user
             with TabbedContent():
                 for user in project_users:
+                    # Check if user has at least Read permission (first character must be '1')
+                    user_permission = user.get("project_perm_model", "000000")
+
+                    if user_permission[0] != '1' or len(user_permission) < 6:
+                        # User doesn't have Read permission, skip
+                        self.app.log(f"Skipping user {user['username']} - no Read permission ({user_permission})")
+                        continue
+
                     with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
                         # Create DataTable for this user's items
                         table = DataTable(id=f"items-table-{user['user_id']}")
@@ -506,6 +514,14 @@ class BasicReportForm(Vertical):
 
             # Update each user's DataTable
             for user in project_users:
+                # Check if user has at least Read permission (first character must be '1')
+                user_permission = user.get("project_perm_model", "000000")
+
+                if user_permission[0] != '1' or len(user_permission) < 6:
+                    # User doesn't have Read permission, skip
+                    self.app.log(f"Skipping user {user['username']} in refresh - no Read permission ({user_permission})")
+                    continue
+
                 table_id = f"items-table-{user['user_id']}"
                 try:
                     table = self.query_one(f"#{table_id}", DataTable)
