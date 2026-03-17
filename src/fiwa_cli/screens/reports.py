@@ -49,23 +49,34 @@ class ReportsScreen(ReactiveScreen):
         with Horizontal(id="reports-body"):
             # Left sidebar with navigation
             with ScrollableContainer(id="reports-sidebar"):
-                # Date range picker at the top of sidebar
-                yield Static("Select Period:", classes="menu-section")
-                yield WeekMonthWidget(id="reports-date-picker")
-                # Report type selection buttons
-                yield Static("Report:", classes="menu-section")
-                yield Button("📊 Cost Overview", id="cost-overview-button")
-                yield Button("📈 Monthly Summary", id="monthly-summary-button")
-                # yield Button("🏷️ Category Breakdown", id="category-breakdown-button")
-                # yield Button("📉 Spending Trends", id="spending-trends-button")
-                # yield Button("👥 User Comparison", id="user-comparison-button")
-                # yield Button("📄 Export Report", id="export-report-button")
-                # Back button at bottom
-                yield Static("", classes="menu-section")  # Spacer
+                if self.app.app_state["is_logged_in"] is True:
+                    # Date range picker at the top of sidebar
+                    yield Static("Select Period:", classes="menu-section")
+                    yield WeekMonthWidget(id="reports-date-picker")
+                    # Report type selection buttons
+                    yield Static("Report:", classes="menu-section")
+                    yield Button("📊 Cost Overview", id="cost-overview-button")
+                    yield Button("📈 Monthly Summary", id="monthly-summary-button")
+                    # yield Button("🏷️ Category Breakdown", id="category-breakdown-button")
+                    # yield Button("📉 Spending Trends", id="spending-trends-button")
+                    # yield Button("👥 User Comparison", id="user-comparison-button")
+                    # yield Button("📄 Export Report", id="export-report-button")
+                    # Back button at bottom
+                    yield Static("", classes="menu-section")  # Spacer
                 yield Button("← Back to Main", id="menu-back-button", variant="default")
             # Main content area
             with ScrollableContainer(id="reports-content-area"):
-                yield Static("Select a report type from the sidebar", classes="reports-placeholder")
+                yield Static("Select a report type from the sidebar",
+                             #classes="reports-placeholder"
+                             )
+                m = """
+ ____                       _       
+|  _ \ ___ _ __   ___  _ __| |_ ___ 
+| |_) / _ \ '_ \ / _ \| '__| __/ __|
+|  _ <  __/ |_) | (_) | |  | |_\__ \\
+|_| \_\___| .__/ \___/|_|   \__|___/
+          |_|  """
+                yield Static(m)
 
     def on_mount(self) -> None:
         """Called when screen is mounted. Set up watchers and load CSS."""

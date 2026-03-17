@@ -173,13 +173,71 @@ class ProjectExpenseTracker(ProjectComposer):
             ret[i_group["type"]] = i_group["group"]
         return ret
 
-    def get(self, items=[]):
+    def get(self):
+        pass
+
+    # def get_split(self, items=[], keys=[]):
+    #
+    #     bl = self.balance_labels["definition"]  # fetch definition
+    #     tl = self.transaction_labels["definition"]  # fetch definition
+    #     al = self.bank_labels["definition"]
+    #     ml = self.labels_main["definition"]
+    #     sl = self.labels_secondary["definition"]
+
+
+    def get_transaction_split(self, items=[], keys=[]):
+        """
+        Filter items by transaction type (fixed, variable, daily).
+
+        Args:
+            items: List of items with parsed_tags
+            keys: List of transaction types to include (e.g., ["fixed", "variable"])
+
+        Returns:
+            Filtered list of items matching the specified transaction types
+        """
+        # we use the given definition to define the structure of the tags and how to split them
+        # given on what users have defined not on what we can actually hard-code here.
+        tl = self.transaction_labels["definition"] #fetch definition
+
+        items_split = []                           #build empty dict with keys from definition
+
+        #build the transactions:
+        for item in items:
+            i_p = item.get("parsed_tags", {}).get("t", None)
+
+            # Debug logging for first few items
+            if len(items_split) < 3:
+                print(f"DEBUG get_transaction_split: item_name={item.get('name')}, parsed_tags.t={i_p}, keys={keys}")
+
+            if i_p is None or i_p == '':
+                continue
+            if len(keys) > 0 and i_p not in keys:
+                if len(items_split) < 3:
+                    print(f"  → SKIPPED: '{i_p}' not in {keys}")
+                continue
+
+            if len(items_split) < 3:
+                print(f"  → INCLUDED")
+            items_split.append(item)
+
+        print(f"get_transaction_split: keys={keys}, total_items={len(items)}, filtered={len(items_split)}")
+        #return
+        return items_split
+
+    def get_balance_split(self, items=[]):
+        bl = self.balance_labels["definition"] # fetch definition
+
+        #build the transactions:
+        for item in items:
+            i_p = item.get("parsed_tags", {}).get("c", None)
+            if i_p == "expenses":
+                item["multiplier"] = -1
+            elif i_p == "revenue":
+                item["multiplier"] = 1
+        #return
         return items
 
-        # return {
-        #     "balance_labels": self.balance_labels,
-        #     "transaction_labels": self.transaction_labels
-        # }
 
     def parse_tags_from_string(self, tag_str: str, label_map: dict) -> dict:
         """

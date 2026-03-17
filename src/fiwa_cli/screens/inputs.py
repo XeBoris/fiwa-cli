@@ -39,20 +39,21 @@ class InputsScreen(ReactiveScreen):
 
         with Container(id="container-body"):
             with ScrollableContainer(id="container-sidebar"):
-                yield Static("Quick Actions", classes="menu-section")
-                yield Button("New",
-                             id="new-item-button",
-                             classes="sidebar-menu-button",
-                             compact=True, flat=True)
-                yield Button("Edit",
-                             id="edit-item-button",
-                             classes="sidebar-menu-button",
-                             compact=True, flat=True)
+                if self.app.app_state["is_logged_in"] is True:
+                    yield Static("Quick Actions", classes="menu-section")
+                    yield Button("New",
+                                 id="new-item-button",
+                                 classes="sidebar-menu-button",
+                                 compact=True, flat=True)
+                    yield Button("Edit",
+                                 id="edit-item-button",
+                                 classes="sidebar-menu-button",
+                                 compact=True, flat=True)
 
-                yield Static("Period", classes="menu-section")
+                    yield Static("Period", classes="menu-section")
 
-                # Week/Month picker widget (includes dropdown and navigation)
-                yield WeekMonthWidget(id="reports-date-picker")
+                    # Week/Month picker widget (includes dropdown and navigation)
+                    yield WeekMonthWidget(id="reports-date-picker")
 
                 # Always show Back button
                 yield Button("Back", id="back-button", variant="primary")

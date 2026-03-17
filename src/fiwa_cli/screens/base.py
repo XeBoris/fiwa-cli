@@ -180,6 +180,8 @@ class LoginScreen(ModalScreen):
             project_names = []
             project_ids = []
             primary_project_id = 0
+            primary_project_name = "No Project"
+            primary_project_style = "default"
 
             if project_info and len(project_info) > 0:
                 for project in project_info:
@@ -187,15 +189,35 @@ class LoginScreen(ModalScreen):
                     project_names.append(project["project_name"])
                     if project.get("project_primary", False):
                         primary_project_id = project["project_id"]
+                        primary_project_name = project["project_name"]
+                        primary_project_style = project.get("project_style", "default")
 
                 # If no primary project is set, use the first one
                 if primary_project_id == 0 and len(project_ids) > 0:
                     primary_project_id = project_ids[0]
+                    primary_project_name = project_names[0]
+                    # Get style for first project
+                    first_project = project_info[0]
+                    primary_project_style = first_project.get("project_style", "default")
             else:
                 # No projects found
                 project_names = ["No Projects"]
                 project_ids = [0]
                 primary_project_id = 0
+
+            # Load currency information for the primary project
+            primary_project = next((p for p in project_info if p.get("project_primary", False)), None) if project_info else None
+            if primary_project:
+                import json
+                currency_main = primary_project.get("currency_main", "USD")
+                currency_list_str = primary_project.get("currency_list", "[]")
+                try:
+                    currency_list = json.loads(currency_list_str) if currency_list_str else []
+                except:
+                    currency_list = []
+            else:
+                currency_main = "USD"
+                currency_list = []
 
             # IMPORTANT: Preserve application-level configuration during login
             # These are set at app startup and should not be overwritten
@@ -214,6 +236,10 @@ class LoginScreen(ModalScreen):
                 "project_names": project_names,
                 "project_ids": project_ids,
                 "project_id": primary_project_id,
+                "project_name": primary_project_name,
+                "project_style": primary_project_style,
+                "current_project_currency_main": currency_main,
+                "current_project_currency_list": currency_list,
                 # Restore application-level configuration
                 "abs_path": abs_path,
                 "css_form": css_form,
@@ -288,4 +314,3 @@ class LoginScreen(ModalScreen):
                 self.app.pop_screen()
         except Exception as e:
             self.app.log(f"Error returning to main screen: {e}")
-

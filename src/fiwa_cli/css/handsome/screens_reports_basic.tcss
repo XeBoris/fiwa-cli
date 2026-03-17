@@ -29,11 +29,32 @@ BasicReportForm TabbedContent {
 BasicReportForm TabPane {
     padding: 1;
 }
+
 BasicReportForm DataTable {
-    height: 15;
-    max-height: 20;
+    height: auto;
+    min-height: 5;
+    max-height: 25;
     border: solid $accent;
+    margin: 0 0 1 0;
 }
+
+BasicReportForm .table-section-title {
+    text-style: bold;
+    padding: 1 0 0 0;
+    margin: 1 0 0 0;
+    color: $accent;
+    text-align: left;
+}
+
+BasicReportForm .subtotal {
+    text-align: right;
+    padding: 0 1;
+    margin: 0 0 1 0;
+    color: $warning;
+    text-style: italic;
+    background: $surface;
+}
+
 BasicReportForm .user-total {
     text-align: right;
     padding: 1;

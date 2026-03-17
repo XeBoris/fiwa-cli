@@ -120,8 +120,8 @@ ReportsScreen #reports-content-area {
     padding: 2;
 }
 ReportsScreen .reports-placeholder {
-    text-align: center;
-    padding: 4;
+    text-align: left;
+    padding: 2;
     color: $text-muted;
     text-style: italic;
 }
