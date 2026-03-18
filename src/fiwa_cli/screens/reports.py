@@ -53,6 +53,7 @@ class ReportsScreen(ReactiveScreen):
                     # Date range picker at the top of sidebar
                     yield Static("Select Period:", classes="menu-section")
                     yield WeekMonthWidget(id="reports-date-picker")
+                    yield Button("↻ Reset to Today", id="reset-period-button", variant="default")
                     # Report type selection buttons
                     yield Static("Report:", classes="menu-section")
                     yield Button("📊 Cost Overview", id="cost-overview-button")
@@ -106,6 +107,8 @@ class ReportsScreen(ReactiveScreen):
         """Handle sidebar button clicks to load different reports."""
         if event.button.id == "menu-back-button":
             self._return_to_main_screen()
+        elif event.button.id == "reset-period-button":
+            self._reset_to_current_period()
         elif event.button.id == "cost-overview-button":
             self.show_cost_overview()
         elif event.button.id == "monthly-summary-button":
@@ -182,6 +185,39 @@ class ReportsScreen(ReactiveScreen):
         except Exception as e:
             self.app.log(f"Error returning to main screen: {e}")
 
+    def _reset_to_current_period(self) -> None:
+        """Reset the WeekMonthWidget to current week or month based on period type."""
+        try:
+            import datetime
+            today = datetime.date.today()
+
+            # Reset internal state to current date
+            self._current_year = today.year
+            self._current_week = today.isocalendar()[1]
+            self._current_month = today.month
+
+            # Update WeekMonthWidget
+            week_month_widget = self.query_one("#reports-date-picker", WeekMonthWidget)
+            week_month_widget.current_year = self._current_year
+            week_month_widget.current_week = self._current_week
+            week_month_widget.current_month = self._current_month
+            # Keep the current period_type (week or month)
+            week_month_widget.update_display()
+
+            # Update app_state with current period
+            self._update_app_state_period()
+
+            # Refresh the current report with new date range
+            self._refresh_current_report()
+
+            period_type_name = "week" if self._current_period_type == "week" else "month"
+            self.app.notify(f"Reset to current {period_type_name}", severity="information")
+            self.app.log(f"Reset period to current {period_type_name}: Year {self._current_year}, Week {self._current_week}, Month {self._current_month}")
+
+        except Exception as e:
+            self.app.log(f"Error resetting period: {e}")
+            self.app.notify(f"Error resetting period: {str(e)}", severity="error")
+
     def _update_app_state_period(self) -> None:
         """Update app_state with current period selection."""
         try:
@@ -198,11 +234,15 @@ class ReportsScreen(ReactiveScreen):
             else:  # month
                 # Calculate month boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
-                tc = TimeClass()
-                month_info = tc.cmp_month_by_number(self._current_year, self._current_month)
+                tc = TimeClass(country_code="DE")
+                month_info = tc.cmp_month_by_number(self._current_year,
+                                                    self._current_month,
+                                                    25
+                                                    )
 
                 period_start = month_info['month_beg']
                 period_end = month_info['month_end']
+                #self.app.notify(f"{period_start} / {period_end} / {json.loads(self.app.app_state.get('project_store', {})).get('month_start', 'N/A')}")
                 period_label = f"{self._current_year} {month_info['month_name']}"
 
             # Update app_state with period information

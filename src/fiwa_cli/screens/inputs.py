@@ -176,7 +176,11 @@ class InputsScreen(ReactiveScreen):
                 # Calculate month boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
                 tc = TimeClass()
-                month_info = tc.cmp_month_by_number(self._current_year, self._current_month)
+
+                month_info = tc.cmp_month_by_number(self._current_year,
+                                                    self._current_month,
+                                                    25
+                                                    )
 
                 period_start = month_info['month_beg']
                 period_end = month_info['month_end']

@@ -351,7 +351,7 @@ def generate_data(
     return created_items
 
 
-def generate_personal_supplies_data(dbh, users):
+def generate_personal_supplies_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
@@ -377,9 +377,8 @@ def generate_personal_supplies_data(dbh, users):
         "DM", "Rossmann", "Müller", "Boots", "CVS", "Walgreens", "Superdrug",
         "DVD"
     ]
+
     llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
-
-
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -387,7 +386,7 @@ def generate_personal_supplies_data(dbh, users):
         bought_for_id=users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2,
         avg_weekly_spend=10.0,
@@ -395,6 +394,7 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
 
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_sm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -402,15 +402,16 @@ def generate_personal_supplies_data(dbh, users):
         bought_for_id=users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.4,
         avg_weekly_spend=3.0,
         max_weekly_spend=5.0
     )
-
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
+
     #
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -418,7 +419,7 @@ def generate_personal_supplies_data(dbh, users):
         bought_for_id = users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.7,
         avg_weekly_spend=9.0,
@@ -426,6 +427,7 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_bm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -433,7 +435,7 @@ def generate_personal_supplies_data(dbh, users):
         bought_for_id = users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -441,14 +443,14 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
-def generate_groceries_data(dbh, users):
+def generate_groceries_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
     print(p_info)
 
     # Generate grocery shopping data with realistic patterns
-    label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
+    label_id_person = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
 
     label_id_daily = dbh.op_label_get_by_name("daily", p_info["project_id"])
     label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
@@ -476,7 +478,7 @@ def generate_groceries_data(dbh, users):
         bought_for_id=users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2.5,
         avg_weekly_spend=10.0,
@@ -484,6 +486,7 @@ def generate_groceries_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
 
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_sm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -491,7 +494,7 @@ def generate_groceries_data(dbh, users):
         bought_for_id=users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.5,
         avg_weekly_spend=3.0,
@@ -500,6 +503,7 @@ def generate_groceries_data(dbh, users):
 
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
     #
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -507,7 +511,7 @@ def generate_groceries_data(dbh, users):
         bought_for_id = users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2.1,
         avg_weekly_spend=9.0,
@@ -515,6 +519,7 @@ def generate_groceries_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_bm}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -522,7 +527,7 @@ def generate_groceries_data(dbh, users):
         bought_for_id = users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -531,14 +536,14 @@ def generate_groceries_data(dbh, users):
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
 
-def generate_books_data(dbh, users):
+def generate_books_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
     print(p_info)
 
     # Generate grocery shopping data with realistic patterns
-    label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
+    label_id_person = dbh.op_label_get_by_name("Books", p_info["project_id"])
 
     label_id_daily = dbh.op_label_get_by_name("daily", p_info["project_id"])
     label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
@@ -567,7 +572,7 @@ def generate_books_data(dbh, users):
         bought_for_id=users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.5,
         avg_weekly_spend=10.0,
@@ -582,7 +587,7 @@ def generate_books_data(dbh, users):
         bought_for_id=users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=3.0,
@@ -591,7 +596,7 @@ def generate_books_data(dbh, users):
 
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
     #
-    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_liability_sm}_{label_id_person}_[]"
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
@@ -599,7 +604,7 @@ def generate_books_data(dbh, users):
         bought_for_id = users["superman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=9.0,
@@ -615,7 +620,7 @@ def generate_books_data(dbh, users):
         bought_for_id = users["batman"],
         names=grocery_store_names,
         labels=llb,
-        start_date_str="2024-11-01",
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -624,7 +629,7 @@ def generate_books_data(dbh, users):
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
 
-def generate_income_data(dbh, users):
+def generate_income_data(dbh, users, start_date_str="2024-11-01"):
     """
     Generate monthly income streams for Batman and Superman.
 
@@ -656,7 +661,7 @@ def generate_income_data(dbh, users):
     label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
 
     # Define start and end dates
-    start_date = datetime(2024, 11, 1)
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.now()
 
     # Generate list of months to process

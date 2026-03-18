@@ -23,6 +23,7 @@ class MyApp(App):
     CSS_PATH = str(Path(__file__).parent / "main.tcss")
     BINDINGS = [
         Binding("ctrl+c", "quit_app", "Quit", show=False),
+        ("q", "quit_app", "Quit"),
         ("d", "toggle_dark", "Toggle dark mode"),
         ("m", "open_menu", "Menu"),
         ("s", "open_settings", "Settings"),
@@ -86,12 +87,14 @@ class MyApp(App):
             primary_project_id = primary_project["project_id"] if primary_project else (project_ids[0] if project_ids else 0)
             primary_project_name = primary_project["project_name"] if primary_project else (project_names[0] if project_names else "No Projects")
             primary_project_style = primary_project["project_style"] if primary_project else "default"
+            primary_project_store = primary_project.get("project_store", {}) if primary_project else {}
 
             self.app_state["project_ids"] = project_ids
             self.app_state["project_names"] = project_names
             self.app_state["project_id"] = primary_project_id
             self.app_state["project_name"] = primary_project_name
             self.app_state["project_style"] = primary_project_style
+            self.app_state["project_store"] = primary_project_store
 
             # Load currency information for the primary project
             if primary_project:
@@ -132,8 +135,21 @@ class MyApp(App):
         )
         c_user = self.app_state.get("user_name", "Guest")
         c_project = self.app_state.get("project_name", "No Project")
-        yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}", id="main_body")
-        yield Static()
+        yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
+                     id="main_body")
+        m = """
+     _____ _                                
+    |  ___(_)_ __   __ _ _ __   ___ ___    
+    | |_  | | '_ \ / _` | '_ \ / __/ _ \\
+    |  _| | | | | | (_| | | | | (_|  __/
+    |_|   |_|_|_|_|\__,_|_| |_|\___\___|
+    
+                     \ \      / /_ _| |_ ___| |__   ___ _ __ 
+                      \ \ /\ / / _` | __/ __| '_ \ / _ \ '__|
+                       \ V  V / (_| | || (__| | | |  __/ |   
+                        \_/\_/ \__,_|\__\___|_| |_|\___|_|           
+"""
+        yield Static(m)
         #yield Static(str(self.app_state), id="app_state_display_1")
         #yield Static(str(self.app.app_state), id="app_state_display_2")
 
@@ -172,9 +188,13 @@ class MyApp(App):
 
     def update_session_display(self) -> None:
         """Update the session display with current reactive values."""
+
         try:
-            session_widget = self.query_one("#user_session_info", Static)
-            session_widget.update(f"{self.app_state['user_name']} - {self.app_state['session_uuid']}")
+            # session_widget = self.query_one("#user_session_info", Static)
+            # session_widget.update(f"{self.app_state['user_name']} - {self.app_state['session_uuid']}")
+            c_project = self.app_state.get("project_name", "No Project")
+            main_body = self.query_one("#main_body", Static)
+            main_body.update(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}")
         except Exception:
             # Widget might not be ready yet
             pass
@@ -265,32 +285,6 @@ def main():
         app = MyApp(config=config)
         app.run()
         exit(0)
-
-    # if args.config is not None:
-    #     abs_path = args.config
-    #     abs_path = os.path.abspath(abs_path)
-
-
-    #     config = setup_fiwa(abs_path=abs_path,
-    #                         config=config)  # Initialize FiWa with the loaded config
-    #     print("Your FiWa environment has been initialized with the following configuration:")
-    #     print(config)
-    #     exit()
-
-    # elif args.mode == "run":
-    #     config = load_yaml_config(os.path.join(args.config, "config.yml"))
-    #     config = setup_fiwa(abs_path=abs_path,
-    #                         config=config)  # Initialize FiWa with the loaded config
-    #     app = MyApp(config=config)
-    #     app.run()
-
-    # exit()
-
-    # config_path = "./config.yml"  # for testing purposes
-    # config = load_yaml_config(config_path)
-
-    # config = setup_fiwa(abs_path=abs_path,
-    #                     config=config)  # Initialize FiWa with the loaded config
 
     exit()
     # app = MyApp(config=config)

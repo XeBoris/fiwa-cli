@@ -391,13 +391,14 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
     opp_model = configyml.get("configuration", {}).get("model", "terminal")
 
     dev_config = configyml.get("development", {})
+
     # opp_mode = config.get("configuration", {}).get("host", "terminal")
     # opp_path = config.get("configuration", {}).get("path", "<local>")
     # opp_model = config.get("configuration", {}).get("model", "terminal")
 
     if opp_model == "local" and dev_config.get("stage", None) == "prod":
-        print(f"Running in local mode with path: {os_home_dir}")
-
+        print(f"Running in local mode with path: {os_home_dir} - prod")
+        print(sqlite_path)
         h = Handler(method="sqlite")
         dbh = h.load()
         dbh.set_path(sqlite_path)
@@ -410,6 +411,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         # Store in config for later use
         configyml["_data_directory"] = os_home_dir
         configyml["dbh"] = dbh
+        configyml["_abs_path"] = abs_path
         return configyml
 
     elif opp_model == "api":
@@ -446,13 +448,14 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         shp.generate_superhero_labels(dbh, users=sph_user_ids)
 
-        shp.generate_personal_supplies_data(dbh, users=sph_user_ids)
+        start_date = "2024-01-01"
+        shp.generate_personal_supplies_data(dbh, users=sph_user_ids, start_date_str=start_date)
 
-        shp.generate_groceries_data(dbh, users=sph_user_ids)
+        shp.generate_groceries_data(dbh, users=sph_user_ids, start_date_str=start_date)
 
-        shp.generate_books_data(dbh, users=sph_user_ids)
+        shp.generate_books_data(dbh, users=sph_user_ids, start_date_str=start_date)
         #
-        shp.generate_income_data(dbh, users=sph_user_ids)
+        shp.generate_income_data(dbh, users=sph_user_ids, start_date_str=start_date)
         #
         # shp.generate_savings_data(dbh, users=sph_user_ids)
 

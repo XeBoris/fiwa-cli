@@ -205,23 +205,12 @@ class ProjectExpenseTracker(ProjectComposer):
         #build the transactions:
         for item in items:
             i_p = item.get("parsed_tags", {}).get("t", None)
-
-            # Debug logging for first few items
-            if len(items_split) < 3:
-                print(f"DEBUG get_transaction_split: item_name={item.get('name')}, parsed_tags.t={i_p}, keys={keys}")
-
             if i_p is None or i_p == '':
                 continue
             if len(keys) > 0 and i_p not in keys:
-                if len(items_split) < 3:
-                    print(f"  → SKIPPED: '{i_p}' not in {keys}")
                 continue
-
-            if len(items_split) < 3:
-                print(f"  → INCLUDED")
             items_split.append(item)
 
-        print(f"get_transaction_split: keys={keys}, total_items={len(items)}, filtered={len(items_split)}")
         #return
         return items_split
 
