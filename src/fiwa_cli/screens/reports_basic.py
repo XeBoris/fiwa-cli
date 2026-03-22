@@ -502,7 +502,8 @@ class BasicReportForm(Vertical):
                 LEFT JOIN p{dbh._db_salt}_users u ON i.bought_by_id = u.user_id
                 WHERE i.bought_for_id = ? 
                     AND i.project_id = ?
-                    AND i.bought_date BETWEEN ? AND ?
+                    AND i.bought_date >= ?
+                    AND i.bought_date < ?
                 ORDER BY i.bought_date DESC
             """
 

@@ -162,8 +162,9 @@ class CreateProjectForm(ScrollableContainer):
             "currency_main": currency_main,
             "currency_list": currency_list,
             "project_hash": project_hash,
+            "project_style": project_style,  # Add as separate field for database column
             "project_store": {"month_start": int(project_start_date),
-                              "style": project_style}
+                              "style": project_style}  # Also keep in store for backward compatibility
 
         }
 

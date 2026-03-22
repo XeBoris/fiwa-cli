@@ -143,17 +143,15 @@ class MyApp(App):
     | |_  | | '_ \ / _` | '_ \ / __/ _ \\
     |  _| | | | | | (_| | | | | (_|  __/
     |_|   |_|_|_|_|\__,_|_| |_|\___\___|
-    
+                     __        __    _       _               
                      \ \      / /_ _| |_ ___| |__   ___ _ __ 
                       \ \ /\ / / _` | __/ __| '_ \ / _ \ '__|
                        \ V  V / (_| | || (__| | | |  __/ |   
                         \_/\_/ \__,_|\__\___|_| |_|\___|_|           
 """
         yield Static(m)
-        #yield Static(str(self.app_state), id="app_state_display_1")
-        #yield Static(str(self.app.app_state), id="app_state_display_2")
-
         yield Static(id="user_session_info")  # Will be updated reactively
+
         yield Footer()
 
     def watch_app_state(self, new_state: dict) -> None:
@@ -223,7 +221,21 @@ class MyApp(App):
         pass
 
     def action_quit_app(self) -> None:
-        """An action to quit the app."""
+        """An action to quit the app - performs logout before exiting."""
+        # Check if user is logged in
+        is_logged_in = self.app_state.get("is_logged_in", False)
+
+        if is_logged_in:
+            # Perform logout using shared utility
+            from fiwa_cli.functions.logout_util import perform_logout
+            logout_success = perform_logout(self)
+
+            if logout_success:
+                self.log("User logged out before exit")
+            else:
+                self.log("Logout failed during exit, but continuing to close app")
+
+        # Exit the application
         self.exit(0)
 
     def action_toggle_dark(self) -> None:

@@ -999,7 +999,8 @@ class SQLLiteHandler:
 
     def op_label_get_all(self, project_id: int, *,
                          use_cache: bool = True,
-                         force_refresh: bool = False) -> list:
+                         force_refresh: bool = False,
+                         user_id: int = None) -> list:
         """
         Get all labels for a specific project.
 
@@ -1007,9 +1008,10 @@ class SQLLiteHandler:
             project_id: The ID of the project
             use_cache: Return cached data when available
             force_refresh: Bypass cache and query the database
+            user_id: If provided, includes user-specific default label info
 
         Returns:
-            List of label dictionaries
+            List of label dictionaries with optional 'is_user_default' field
         """
         if use_cache and not force_refresh:
             cached = self._label_cache.get(project_id)
@@ -1045,6 +1047,26 @@ class SQLLiteHandler:
             }
             for row in result
         ]
+
+        # If user_id provided, fetch user's default labels
+        if user_id:
+            self.load()
+            defaults_query = f"""
+                SELECT label_id, label_type 
+                FROM p{self._db_salt}_user_label_defaults
+                WHERE user_id = ? AND project_id = ?
+            """
+            user_defaults = self.execute_query(defaults_query, [user_id, project_id])
+            self.close()
+
+            # Create a map of label_type -> label_id for this user's defaults
+            user_default_map = {row[1]: row[0] for row in user_defaults}
+
+            # Add is_user_default flag to each label
+            for label in labels:
+                label['is_user_default'] = (
+                    user_default_map.get(label['label_type']) == label['label_id']
+                )
 
         if use_cache:
             self._label_cache[project_id] = copy.deepcopy(labels)
@@ -1169,6 +1191,7 @@ class SQLLiteHandler:
                 - label_status (optional): Updated status
                 - label_type (optional): Updated type
                 - label_owner (optional): Updated label owner
+                - label_default (optional): Updated default status
 
         Returns:
             True if successful, raises exception otherwise
@@ -1217,6 +1240,7 @@ class SQLLiteHandler:
             update_fields.append("label_owner = ?")
             params.append(label_dict['label_owner'])
 
+
         if not update_fields:
             self.close()
             raise ValueError("No fields to update")
@@ -1234,7 +1258,7 @@ class SQLLiteHandler:
         try:
             self.execute_query(query, params)
 
-            # Invalidate the cache for this project so that next fetch gets fresh data
+            # Invalidate cache after successful update
             if project_id in self._label_cache:
                 del self._label_cache[project_id]
 
@@ -1249,33 +1273,103 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to update label: {str(e)}")
 
-    def op_label_delete(self, label_id: int, hard_delete: bool = False) -> bool:
+    def op_label_set_default(self, label_id: int, project_id: int, label_type: int, user_id: int) -> bool:
         """
-        Delete a label (soft or hard delete).
+        Set a label as default for a specific user and label type.
+        Ensures only one default label per user per label_type within a project.
 
         Args:
-            label_id: The ID of the label to delete
-            hard_delete: If True, permanently delete. If False, mark as deleted (status=0)
+            label_id: The ID of the label to set as default
+            project_id: The project ID
+            label_type: The label type (to clear other defaults in same category)
+            user_id: The user ID for whom to set the default
 
         Returns:
             True if successful, raises exception otherwise
         """
         self.load()
 
-        if hard_delete:
-            # Permanently delete the label
-            query = f"""DELETE FROM p{self._db_salt}_labels WHERE label_id = ?"""
-        else:
-            # Soft delete - mark as deleted (status = 0)
-            query = f"""UPDATE p{self._db_salt}_labels SET label_status = 0 WHERE label_id = ?"""
+        # First, delete any existing default for this user, project, and label_type
+        delete_query = f"""
+            DELETE FROM p{self._db_salt}_user_label_defaults
+            WHERE user_id = ? AND project_id = ? AND label_type = ?
+        """
+        self.execute_query(delete_query, [user_id, project_id, label_type])
 
-        try:
-            self.execute_query(query, [label_id])
-            self.close()
-            return True
-        except Exception as e:
-            self.close()
-            raise Exception(f"Failed to delete label: {str(e)}")
+        # Then, insert the new default
+        insert_query = f"""
+            INSERT INTO p{self._db_salt}_user_label_defaults
+            (user_id, project_id, label_id, label_type, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        self.execute_query(insert_query, [
+            user_id, project_id, label_id, label_type,
+            datetime.utcnow().isoformat()
+        ])
+
+        # Invalidate cache
+        if project_id in self._label_cache:
+            del self._label_cache[project_id]
+
+        self.close()
+        return True
+
+    def op_label_unset_default(self, project_id: int, label_type: int, user_id: int) -> bool:
+        """
+        Remove default label for a specific user and label type.
+
+        Args:
+            project_id: The project ID
+            label_type: The label type
+            user_id: The user ID
+
+        Returns:
+            True if successful, raises exception otherwise
+        """
+        self.load()
+
+        delete_query = f"""
+            DELETE FROM p{self._db_salt}_user_label_defaults
+            WHERE user_id = ? AND project_id = ? AND label_type = ?
+        """
+        self.execute_query(delete_query, [user_id, project_id, label_type])
+
+        # Invalidate cache
+        if project_id in self._label_cache:
+            del self._label_cache[project_id]
+
+        self.close()
+        return True
+
+    def op_label_get_user_defaults(self, user_id: int, project_id: int) -> dict:
+        """
+        Get all default labels for a specific user in a project.
+
+        Args:
+            user_id: The user ID
+            project_id: The project ID
+
+        Returns:
+            Dictionary mapping label_type -> label_id for user's defaults
+            Example: {0: 5, 1: 2, 2: 8, 3: 12} means:
+                - Type 0 (Balance): label_id 5 is default
+                - Type 1 (Transaction): label_id 2 is default
+                - Type 2 (Account): label_id 8 is default
+                - Type 3 (Main Labels): label_id 12 is default
+        """
+        self.load()
+
+        query = f"""
+            SELECT label_type, label_id
+            FROM p{self._db_salt}_user_label_defaults
+            WHERE user_id = ? AND project_id = ?
+        """
+        results = self.execute_query(query, [user_id, project_id])
+        self.close()
+
+        # Build map of label_type -> label_id
+        defaults_map = {row[0]: row[1] for row in results}
+        return defaults_map
 
     def op_item_create(self, item_dict: Dict) -> Optional[int]:
         """

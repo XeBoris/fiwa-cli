@@ -573,6 +573,58 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error fetching project users: {e}")
             return []
 
+    def _get_default_labels(self, project_id: int) -> list:
+        """Get default labels for each label type for the current user.
+
+        Returns a list of label IDs for default labels, ordered by type.
+        If a type has no default, returns 0 for that position.
+
+        Returns:
+            List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
+        """
+        try:
+            dbh = self.app._config.get("dbh")
+            user_id = self.app.app_state.get("user_id", -1)
+
+            if not dbh or user_id <= 0:
+                return []
+
+            # Get user's default labels as a map: {label_type: label_id}
+            defaults_map = dbh.op_label_get_user_defaults(user_id, project_id)
+
+            # Get ProjectComposer to know which types exist and their order
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+
+            if project_style != "default":
+                try:
+                    pc = ProjectComposer.create(
+                        compose_type=project_style,
+                        dbh=dbh,
+                        project_id=project_id,
+                        users=[]
+                    )
+                    label_map = pc.get_label_map()
+
+                    # Build list of default label IDs in type order
+                    default_labels = []
+                    for type_id in sorted(label_map.keys()):
+                        # Get default for this type, or 0 if none set
+                        default_labels.append(defaults_map.get(type_id, 0))
+
+                    self.app.log(f"Default labels for user {user_id} in project {project_id}: {default_labels}")
+                    return default_labels
+
+                except Exception as e:
+                    self.app.log(f"Error getting default labels from ProjectComposer: {e}")
+
+            # Fallback: no defaults
+            return []
+
+        except Exception as e:
+            self.app.log(f"Error fetching default labels: {e}")
+            return []
+
     def _get_project_labels(self, project_id: int) -> list:
         """Get all labels for the current project."""
         try:
@@ -911,11 +963,65 @@ class ItemInputForm(ModalScreen):
             # Use exchange date from input field, default to bought_date if not provided
             exchange_rate_date = exchange_date_input if exchange_date_input else bought_date
 
+            # Get project users EARLY - needed for default label logic and cost sharing
+            project_users = self._get_project_users(project_id)
+            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
+            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
+
             # Get selected labels from the modal
             selected_labels = self._selected_label_ids
 
-            # Get label names for display
+            # Get project labels for display
             project_labels = self._get_project_labels(project_id)
+
+            # AUTO-APPLY DEFAULT LABELS:
+            # If user is buying for themselves ONLY and hasn't selected labels, use defaults
+            if not selected_labels or len(selected_labels) == 0:
+                # Check if buying for themselves (100% for bought_by user, 0% for others)
+                is_buying_for_self = False
+
+                if not self._edit_mode:
+                    # In create mode, check cost_shares
+                    # Will be populated below, so we need to check if only bought_by has 100%
+                    # For now, do a quick check: if all shares except bought_by are 0
+                    buying_for_self_only = True
+                    for user in project_users:
+                        try:
+                            share_input = self.query_one(f"#share-{user['user_id']}", Input)
+                            share_value = share_input.value.strip()
+                            share_percent = float(share_value) if share_value else 0.0
+
+                            if user['user_id'] == bought_by_id:
+                                # bought_by user should have 100%
+                                if abs(share_percent - 100.0) >= 0.01:
+                                    buying_for_self_only = False
+                                    break
+                            else:
+                                # Other users should have 0%
+                                if share_percent > 0.0001:
+                                    buying_for_self_only = False
+                                    break
+                        except:
+                            pass
+
+                    is_buying_for_self = buying_for_self_only
+                else:
+                    # In edit mode, always buying for self (single item)
+                    is_buying_for_self = True
+
+                # If buying for self and no labels selected, use defaults
+                if is_buying_for_self:
+                    default_labels = self._get_default_labels(project_id)
+                    if default_labels and any(label_id > 0 for label_id in default_labels):
+                        selected_labels = default_labels
+                        self._selected_label_ids = selected_labels
+
+                        self.app.log(f"Auto-applied default labels: {selected_labels}")
+                        self.app.notify("ℹ No labels selected - using default labels", severity="info")
+                    else:
+                        self.app.log("No default labels found or all are 0")
+
+            # Get label names for display
             label_names = [label['name'] for label in project_labels if label['label_id'] in selected_labels]
             labels_text = ", ".join(label_names) if label_names else "None"
 
@@ -936,14 +1042,9 @@ class ItemInputForm(ModalScreen):
             # Convert price
             price_float = float(price)
 
-
             price_final = price_float * exchange_rate_float
             currency_final = currency_main
 
-            # Get project users for name lookup
-            project_users = self._get_project_users(project_id)
-            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
-            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
 
             # Collect cost-sharing data from bought-for section (only in create mode)
             cost_shares = []
@@ -959,6 +1060,8 @@ class ItemInputForm(ModalScreen):
 
                         if share_value:
                             share_percent = float(share_value)
+                            if share_percent <= 0.0001:
+                                continue
                             share_amount = (price_final * share_percent) / 100.0
                             cost_shares.append({
                                 'user_id': user['user_id'],

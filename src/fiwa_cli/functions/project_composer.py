@@ -412,7 +412,7 @@ class ProjectExpenseTracker(ProjectComposer):
             user_name = i_user["user_name"]
             user_id = i_user["user_id"]
             i_label = {
-                "name": f"[L] Account {user_name}",
+                "name": f"L-Account {user_name}",
                 "description": f"Liability account for {user_name}",
                 "composite": None,
                 "label_owner": user_id,

@@ -98,8 +98,9 @@ class ModifyProjectForm(Vertical):
         current_currency_list = ""
 
         if project_info:
-            current_description = project_info.get("description", "")
-            current_currency_main = project_info.get("currency_main", "")
+            # Ensure None values become empty strings for widgets
+            current_description = project_info.get("description") or ""
+            current_currency_main = project_info.get("currency_main") or ""
 
             # Parse currency_list (stored as JSON string)
             currency_list_raw = project_info.get("currency_list", "[]")

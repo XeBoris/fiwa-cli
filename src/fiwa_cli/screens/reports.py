@@ -11,6 +11,7 @@ from fiwa_cli.functions.loader import load_dynamic_css
 
 from .base import ReactiveScreen
 import datetime
+import json
 #from datetime import datetime, timedelta
 
 
@@ -27,7 +28,11 @@ class ReportsScreen(ReactiveScreen):
         self._current_year = datetime.date.today().year
         self._current_week = datetime.date.today().isocalendar()[1]
         self._current_month = datetime.date.today().month
-
+        try:
+            self._month_start = json.loads(self.app.app_state["project_store"])
+        except:
+            self._month_start = {}
+        self._month_start = int(self._month_start.get("month_start", "1"))
         # # Initialize date range (default: current month)
         # today = datetime.now()
         # self.period_start = today.replace(day=1)
@@ -90,18 +95,6 @@ class ReportsScreen(ReactiveScreen):
 
         # Initialize app_state with current period
         self._update_app_state_period()
-
-        # Initialize WeekMonthWidget with current values
-        # try:
-        #     week_month_widget = self.query_one(WeekMonthWidget)
-        #     week_month_widget.period_type = self._current_period_type
-        #     week_month_widget.current_year = self._current_year
-        #     week_month_widget.current_week = self._current_week
-        #     week_month_widget.current_month = self._current_month
-        #     week_month_widget.update_display()
-        #     self.app.log("WeekMonthWidget initialized")
-        # except Exception as e:
-        #     self.app.log(f"Could not initialize WeekMonthWidget: {e}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle sidebar button clicks to load different reports."""
@@ -211,7 +204,7 @@ class ReportsScreen(ReactiveScreen):
             self._refresh_current_report()
 
             period_type_name = "week" if self._current_period_type == "week" else "month"
-            self.app.notify(f"Reset to current {period_type_name}", severity="information")
+            #self.app.notify(f"Reset to current {period_type_name}", severity="information")
             self.app.log(f"Reset period to current {period_type_name}: Year {self._current_year}, Week {self._current_week}, Month {self._current_month}")
 
         except Exception as e:
@@ -225,7 +218,7 @@ class ReportsScreen(ReactiveScreen):
             if self._current_period_type == "week":
                 # Calculate week boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
-                tc = TimeClass()
+                tc = TimeClass(country_code="DE")
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
                 period_start = week_info['week_beg']
@@ -237,7 +230,7 @@ class ReportsScreen(ReactiveScreen):
                 tc = TimeClass(country_code="DE")
                 month_info = tc.cmp_month_by_number(self._current_year,
                                                     self._current_month,
-                                                    25
+                                                    self._month_start #from class init
                                                     )
 
                 period_start = month_info['month_beg']

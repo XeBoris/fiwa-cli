@@ -210,7 +210,7 @@ class SettingsScreen(ReactiveScreen):
             # extract the project style from the message: we need it
             # to finish the project build phase and set up the minimum required structure
             # of the project.
-            project_style = message.project_data.get("project_store", {}).get("style", "ExpenseTracker")
+            project_style = message.project_data.get("project_style", "ExpenseTracker")
 
             # Create project in database
             project_id = dbh.op_project_create(message.project_data, user_id)
@@ -232,7 +232,7 @@ class SettingsScreen(ReactiveScreen):
                                         project_id=project_id,
                                         users=compose_users)
             pc.build()
-
+            pc.compose_accounts()
             # Extract project data for app_state
             project_names = []
             project_ids = []
