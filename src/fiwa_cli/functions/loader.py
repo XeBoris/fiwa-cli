@@ -422,7 +422,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         # config["api_client"] = api_client
         return config
 
-    elif opp_model == "local" and dev_config.get("stage", None) == "stage-1":
+    elif opp_model == "local" and dev_config.get("stage", None) == "superheros":
         print(f"Running in local mode with path: {os_home_dir}")
         print(f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data")
 
@@ -447,7 +447,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         shp.generate_superhero_projects(dbh, users=sph_user_ids)
 
         shp.generate_superhero_labels(dbh, users=sph_user_ids)
-
+        #
         start_date = "2024-01-01"
         shp.generate_personal_supplies_data(dbh, users=sph_user_ids, start_date_str=start_date)
 

@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS pstand_labels
     composite TEXT NOT NULL,  -- Store as JSON string
     label_owner INTEGER DEFAULT -1,  -- -1 for project wide labels, user_id for user-created labels
     label_status INTEGER DEFAULT 2,
-    label_type INTEGER DEFAULT 2,    -- 0: action, 1: bank account, 2: label
+    label_type INTEGER DEFAULT 2,
+    label_sub_type INTEGER DEFAULT -2,
     UNIQUE (name, project_id)
 );
 

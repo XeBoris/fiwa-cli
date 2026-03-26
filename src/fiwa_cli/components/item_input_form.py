@@ -322,22 +322,35 @@ class ItemConfirmationModal(ModalScreen):
                     # Calculate total percentage for validation
                     total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
 
+                    # Show each user with their amount and labels
                     for share in cost_shares:
                         username = share.get('username', 'Unknown')
                         percentage = share.get('percentage', 0)
                         amount = share.get('amount', 0)
                         currency_final = self.item_data.get('currency_final', 'USD')
 
+                        # Get label information for this user
+                        label_text = share.get('labels_text', 'None')
+
                         if percentage > 0:
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
                                 classes="cost-share-row"
+                            )
+                            # Show labels for this user
+                            yield Static(
+                                f"    Labels: {label_text}",
+                                classes="cost-share-labels"
                             )
                         elif share.get('user_id') == self.item_data.get('bought_by_id'):
                             # Show bought_by user even if they pay 0% (others pay 100%)
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
                                 classes="cost-share-row"
+                            )
+                            yield Static(
+                                f"    Labels: {label_text}",
+                                classes="cost-share-labels"
                             )
 
                     # Show total
@@ -637,6 +650,92 @@ class ItemInputForm(ModalScreen):
         except Exception as e:
             self.app.log(f"Error fetching project labels: {e}")
             return []
+
+    def _prepare_user_labels(self, cost_shares: list, bought_by_id: int, selected_labels: list,
+                             project_id: int, project_labels: list) -> list:
+        """
+        Prepare label information for each user in cost_shares.
+
+        Key logic:
+        - If bought_by == bought_for (buying for self): Use selected/default labels
+        - If bought_by != bought_for (buying for another): Replace account label with LIABILITY account
+
+        The Liability account is defined as: label_type=2 (Account), label_sub_type=0
+
+        Args:
+            cost_shares: List of cost share dicts with user_id, username, percentage, amount
+            bought_by_id: User ID of the person buying
+            selected_labels: List of selected label IDs (or defaults if none selected)
+            project_id: Current project ID
+            project_labels: List of all project labels
+
+        Returns:
+            Updated cost_shares list with 'labels' and 'labels_text' added to each share
+        """
+        try:
+            # Get the liability account label for this project
+            liability_label = None
+            for label in project_labels:
+                if label.get('label_type') == 2 and label.get('label_sub_type') == 0:
+                    liability_label = label
+                    break
+
+            if not liability_label:
+                self.app.log("WARNING: No liability account label found (type=2, sub_type=0)")
+
+            # Process each cost share
+            updated_shares = []
+            for share in cost_shares:
+                user_id = share['user_id']
+
+                # Skip users with 0% share
+                if share.get('percentage', 0) <= 0.0001:
+                    updated_shares.append(share)
+                    continue
+
+                # Determine which labels to use for this user
+                if user_id == bought_by_id:
+                    # Buying for self - use the selected/default labels as-is
+                    user_labels = selected_labels.copy()
+                else:
+                    # Buying for another user - modify the account label
+                    user_labels = selected_labels.copy()
+
+                    # Find and replace the account label (position 2, label_type=2)
+                    # The label structure is: [balance, transaction, account, main, secondary...]
+                    if liability_label and len(user_labels) >= 3:
+                        # Replace position 2 (account) with liability account
+                        user_labels[2] = liability_label['label_id']
+                        self.app.log(f"Replaced account label for user {share['username']} with liability account")
+                    elif liability_label:
+                        # Labels list is too short, need to extend it
+                        while len(user_labels) < 3:
+                            user_labels.append(0)
+                        user_labels[2] = liability_label['label_id']
+                        self.app.log(f"Added liability account for user {share['username']}")
+
+                # Get label names for display
+                label_names = [label['name'] for label in project_labels if label['label_id'] in user_labels]
+                labels_text = ", ".join(label_names) if label_names else "None"
+
+                # Add label information to share
+                share['labels'] = user_labels
+                share['labels_text'] = labels_text
+                updated_shares.append(share)
+
+                self.app.log(f"User {share['username']}: labels={user_labels}, text='{labels_text}'")
+
+            return updated_shares
+
+        except Exception as e:
+            self.app.log(f"Error in _prepare_user_labels: {e}")
+            import traceback
+            self.app.log(f"Traceback: {traceback.format_exc()}")
+            # Return original cost_shares with default labels
+            for share in cost_shares:
+                share['labels'] = selected_labels
+                share['labels_text'] = "Error preparing labels"
+            return cost_shares
 
     def compose(self) -> ComposeResult:
         # Get project data from app_state
@@ -1095,13 +1194,22 @@ class ItemInputForm(ModalScreen):
                     else:
                         self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - must be 100%! Please adjust.", severity="error")
                     return
+
+                # Now prepare labels for each user in cost_shares
+                # Key logic:
+                # - If bought_by == bought_for (buying for self), use selected/default labels
+                # - If bought_by != bought_for (buying for another), use LIABILITY account for the account label
+                cost_shares = self._prepare_user_labels(cost_shares, bought_by_id, selected_labels, project_id, project_labels)
+
             else:
                 # In edit mode, just update the single item - no cost sharing
                 cost_shares.append({
                     'user_id': bought_by_id,
                     'username': bought_by_name,
                     'percentage': 100.0,
-                    'amount': price_final
+                    'amount': price_final,
+                    'labels': selected_labels,
+                    'labels_text': labels_text
                 })
 
             # Build complete item data dictionary
@@ -1234,6 +1342,7 @@ class ItemInputForm(ModalScreen):
                 share_amount = share.get('amount')  # Final price share
                 share_percentage = share.get('percentage', 100.0)
                 username = share.get('username')
+                user_labels = share.get('labels', [])  # Get user-specific labels
 
                 # Calculate proportional original price (in original currency)
                 original_price_share = (item_data['price'] * share_percentage) / 100.0
@@ -1254,28 +1363,28 @@ class ItemInputForm(ModalScreen):
                     'project_id': item_data['project_id'],
                     'exchange_rate': item_data['exchange_rate'],
                     'exchange_rate_date': item_data['exchange_rate_date'],
-                    'tags': item_data['tags'],  # Will be converted to string below
+                    'tags': user_labels,  # Use user-specific labels, will be converted to string below
                 }
 
                 # Convert tags to proper string format using ProjectComposer
-                # item_data['tags'] is a list of selected label IDs
+                # user_labels is a list of selected label IDs for this specific user
                 # We need to build a tags_dict and then convert to string
-                if pc and item_data['tags']:
-                    # For now, store the main label in position 'm' (position 3)
-                    # In future, user can select which position each label goes to
+                if pc and user_labels:
+                    # For now, store the labels in their respective positions
+                    # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
                     tags_dict = {
-                        'c': item_data['tags'][0] if len(item_data['tags']) > 0 else 0,
-                        't': item_data['tags'][1] if len(item_data['tags']) > 1 else 0,
-                        'b': item_data['tags'][2] if len(item_data['tags']) > 2 else 0,
-                        'm': item_data['tags'][3] if len(item_data['tags']) > 3 else 0,
-                        's': item_data['tags'][4:] if len(item_data['tags']) > 4 else []
+                        'c': user_labels[0] if len(user_labels) > 0 else 0,
+                        't': user_labels[1] if len(user_labels) > 1 else 0,
+                        'b': user_labels[2] if len(user_labels) > 2 else 0,
+                        'm': user_labels[3] if len(user_labels) > 3 else 0,
+                        's': user_labels[4:] if len(user_labels) > 4 else []
                     }
                     db_item_data['tags'] = pc.build_tags_string(tags_dict)
-                    self.app.log(f"Built tag string: {db_item_data['tags']} from dict: {tags_dict}")
+                    self.app.log(f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}")
                 else:
                     # Fallback: empty tag string
                     db_item_data['tags'] = "0_0_0_0_[]"
-                    self.app.log("Using fallback empty tag string")
+                    self.app.log(f"Using fallback empty tag string for {username}")
 
                 # Log the data being saved with both prices
                 self.app.log(f"Saving item share for {username}: "

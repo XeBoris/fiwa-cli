@@ -215,6 +215,7 @@ class CreateLabelForm(Vertical):
             'label_owner': self._selected_label_owner,
             'label_status': label_status,
             'label_type': self._selected_label_type,
+            'label_sub_type': -1,  # Default sub-type (user cannot choose for now)
             'composite': []
         }
 

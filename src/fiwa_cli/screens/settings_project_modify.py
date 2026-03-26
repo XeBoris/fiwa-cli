@@ -574,6 +574,8 @@ class UserAddDialog(ModalScreen):
 
     def _add_selected_users(self) -> None:
         """Add selected users to the project with Read-only permissions."""
+        from fiwa_cli.functions.project_composer import ProjectComposer
+
         # Collect selected checkboxes
         selected_users = []
         for user in self.available_users:
@@ -595,8 +597,11 @@ class UserAddDialog(ModalScreen):
             dbh.load()
 
             added_count = 0
+            added_user_list = []  # Track successfully added users for L-Account creation
+
             for user in selected_users:
                 user_id = user['user_id']
+                username = user['username']
 
                 # Check if user already exists (safety check)
                 check_query = f"""
@@ -617,9 +622,37 @@ class UserAddDialog(ModalScreen):
                 """
                 dbh.execute_query(insert_query, [user_id, self.project_id, "100000", 0])
                 added_count += 1
+                added_user_list.append({"user_id": user_id, "username": username})
                 self.app.log(f"Added user {user_id} to project {self.project_id} with Read permissions")
 
             dbh.close()
+
+            # Create L-Accounts for newly added users
+            if added_user_list:
+                try:
+                    # Get project style to use correct composer
+                    project_style = self.app.app_state.get("project_style", "ExpenseTracker")
+
+                    # Create ProjectComposer instance with the newly added users
+                    pc = ProjectComposer.create(
+                        compose_type=project_style,
+                        dbh=dbh,
+                        project_id=self.project_id,
+                        users=added_user_list
+                    )
+
+                    # Create L-Accounts for the new users
+                    pc.compose_accounts()
+
+                    self.app.log(f"Created L-Accounts for {len(added_user_list)} new user(s)")
+
+                except Exception as e:
+                    self.app.log(f"Warning: Failed to create L-Accounts for new users: {e}")
+                    # Don't fail the entire operation, just log the warning
+                    self.app.notify(
+                        f"Users added but L-Account creation failed: {str(e)}",
+                        severity="warning"
+                    )
 
             if added_count > 0:
                 self.app.notify(

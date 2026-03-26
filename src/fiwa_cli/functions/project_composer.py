@@ -114,63 +114,56 @@ class ProjectExpenseTracker(ProjectComposer):
         super().__init__(dbh=dbh, project_id=project_id, users=users)
         self.name = "ExpenseTracker"
 
-        self.balance_labels = {
-            "type": 0,
-            "group": "Balance",
-            "definition": {
-                "expenses": -1,
-                "revenue": -1
-            }
-        }
-
-        self.transaction_labels = {
-            "type": 1,
-            "group": "Transaction",
-            "definition": {
-                "fixed": "t0",
-                "variable": "t1",
-                "daily": "t2"
-            }
-        }
-
-        self.bank_labels = {
-            "type": 2,
-            "group": "Account",
-            "definition": {
-
-            }
-        }
-
-        self.labels_main = {
-            "type": 3,
-            "group": "Main Labels",
-            "definition": {
-                "Groceries": 1,
-                "Dinner": 2,
-                "Books": 3,
-                "Personal Supplies": 4,
-            }
-        }
-
-        self.labels_secondary = {
-            "type": 4,
-            "group": "Secondary Labels",
-            "definition": {
-                "work": 1,
-                "travel": 2,
-                "going-out": 3,
-            }
-        }
+        self.label_ = [
+            {"type": 0, "sub_type": 0, "group": "Balance", "name": "expenses",
+             "description": "Expenses label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 0, "sub_type": 1, "group": "Balance", "name": "revenue",
+             "description": "Revenue label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 1, "sub_type": 0, "group": "Transaction", "name": "fixed",
+             "description": "Fixed transaction label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 1, "sub_type": 1, "group": "Transaction", "name": "variable",
+             "description": "Variable transaction label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 1, "sub_type": 2, "group": "Transaction", "name": "daily",
+             "description": "Daily transaction label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 2, "sub_type": 0, "group": "Account", "name": "Liability Account",
+             "description": "Liability account label", "composite": [],
+             "label_owner": -2, "label_status": 2},
+            {"type": 3, "sub_type": -1, "group": "Main Labels", "name": "Groceries",
+             "description": "Groceries main label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 3, "sub_type": -1, "group": "Main Labels", "name": "Dinner",
+             "description": "Dinner main label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 3, "sub_type": -1, "group": "Main Labels", "name": "Books",
+             "description": "Books main label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 3, "sub_type": -1, "group": "Main Labels", "name": "Personal Supplies",
+             "description": "Personal Supplies main label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 4, "sub_type": -1, "group": "Secondary Labels", "name": "work",
+             "description": "Work secondary label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 4, "sub_type": -1, "group": "Secondary Labels", "name": "travel",
+             "description": "Travel secondary label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 4, "sub_type": -1, "group": "Secondary Labels", "name": "going-out",
+             "description": "Going out secondary label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+            {"type": 4, "sub_type": -1, "group": "Secondary Labels", "name": "take-away",
+             "description": "Take-away secondary label", "composite": [],
+             "label_owner": -1, "label_status": 2},
+        ]
 
     def get_label_map(self):
         ret = {}
-        for i_group in [self.balance_labels,
-                        self.transaction_labels,
-                        self.bank_labels,
-                        self.labels_main,
-                        self.labels_secondary]:
-            #ret.append({"type": i_group["type"], "group": i_group["group"]})
-            ret[i_group["type"]] = i_group["group"]
+        for i_group in self.label_:
+            if i_group["type"] not in ret:
+                ret[i_group["type"]] = i_group["group"]
         return ret
 
     def get(self):
@@ -188,6 +181,7 @@ class ProjectExpenseTracker(ProjectComposer):
     def get_transaction_split(self, items=[], keys=[]):
         """
         Filter items by transaction type (fixed, variable, daily).
+        Uses self.label_ to identify transaction type labels.
 
         Args:
             items: List of items with parsed_tags
@@ -196,13 +190,16 @@ class ProjectExpenseTracker(ProjectComposer):
         Returns:
             Filtered list of items matching the specified transaction types
         """
-        # we use the given definition to define the structure of the tags and how to split them
-        # given on what users have defined not on what we can actually hard-code here.
-        tl = self.transaction_labels["definition"] #fetch definition
+        # Build transaction label name map from self.label_
+        # Transaction labels have type=1
+        transaction_map = {}
+        for i_entry in self.label_:
+            if i_entry["type"] == 1:  # Transaction type
+                transaction_map[i_entry["name"]] = i_entry
 
-        items_split = []                           #build empty dict with keys from definition
+        items_split = []
 
-        #build the transactions:
+        # Filter items by transaction type
         for item in items:
             i_p = item.get("parsed_tags", {}).get("t", None)
             if i_p is None or i_p == '':
@@ -211,20 +208,34 @@ class ProjectExpenseTracker(ProjectComposer):
                 continue
             items_split.append(item)
 
-        #return
         return items_split
 
     def get_balance_split(self, items=[]):
-        bl = self.balance_labels["definition"] # fetch definition
+        """
+        Add multiplier to items based on balance type (expenses=-1, revenue=1).
+        Uses self.label_ to identify balance type labels.
 
-        #build the transactions:
+        Args:
+            items: List of items with parsed_tags
+
+        Returns:
+            Modified items list with 'multiplier' field added
+        """
+        # Build balance label map from self.label_
+        # Balance labels have type=0
+        balance_map = {}
+        for i_entry in self.label_:
+            if i_entry["type"] == 0:  # Balance type
+                balance_map[i_entry["name"]] = i_entry
+
+        # Add multiplier based on balance type
         for item in items:
             i_p = item.get("parsed_tags", {}).get("c", None)
             if i_p == "expenses":
                 item["multiplier"] = -1
             elif i_p == "revenue":
                 item["multiplier"] = 1
-        #return
+
         return items
 
 
@@ -348,80 +359,77 @@ class ProjectExpenseTracker(ProjectComposer):
 
     def compose_labels(self):
         """
-        Create action labels for expense tracking.
-        These include expenses, revenue, and frequency categories (fixed, variable, daily).
+        Based on a hard coded list of labels, we compose the labels here:
+        a) label type (ID) is a reference to the grouping of the label (e.g., balance, transaction, account, main labels, secondary labels)
+        b) label sub-type (ID) is a reference to the specific label. This is mostly important when label_types are having
+           different meanings: e.g. Account: "Savings (label_type=Account)" vs "Liability (label_type=Account)" or Transaction: "Fixed (label_type=Transaction)" vs "Variable (label_type=Transaction)"
+        c) The compose labels methods works without any user information.
         """
 
-        # Balance Labels first:
-        _type = self.balance_labels["type"]
+        for i_entry in self.label_:
+            i_label_owner = i_entry["label_owner"]
 
-        for _name, label_id in self.balance_labels["definition"].items():
+            if i_label_owner == -2:
+                continue
+
             i_label = {
-                "name": _name,
-                "description": f"{_name.capitalize()} label",
-                "composite": None,
-                "label_status": 2,
-                "label_type": _type
-            }
-            self.dbh.op_label_create(label_dict=i_label,
-            project_id=self.project_id)
-
-        _type = self.transaction_labels["type"]
-        for _name, label_id in self.transaction_labels["definition"].items():
-            i_label = {
-                "name": _name,
-                "description": f"{_name.capitalize()} transaction label",
-                "composite": None,
-                "label_status": 2,
-                "label_type": _type
-            }
-            self.dbh.op_label_create(label_dict=i_label,
-            project_id=self.project_id)
-
-        _type = self.labels_main["type"]
-        for _name, label_id in self.labels_main["definition"].items():
-            i_label = {
-                "name": _name,
-                "description": f"{_name} main label",
-                "composite": None,
-                "label_status": 2,
-                "label_type": _type
-            }
-            self.dbh.op_label_create(label_dict=i_label,
-            project_id=self.project_id)
-
-        _type = self.labels_secondary["type"]
-        for _name, label_id in self.labels_secondary["definition"].items():
-            i_label = {
-                "name": _name,
-                "description": f"{_name} secondary label",
-                "composite": None,
-                "label_status": 2,
-                "label_type": _type
-            }
-            self.dbh.op_label_create(label_dict=i_label,
-            project_id=self.project_id)
-
-    def compose_accounts(self):
-        """
-        Create liability account labels for each user in the project.
-        """
-
-        _type = self.bank_labels["type"]
-        for i_user in self.users:
-            user_name = i_user["user_name"]
-            user_id = i_user["user_id"]
-            i_label = {
-                "name": f"L-Account {user_name}",
-                "description": f"Liability account for {user_name}",
-                "composite": None,
-                "label_owner": user_id,
-                "label_status": 2,
-                "label_type": _type
+                "name": i_entry["name"],
+                "description": i_entry["description"],
+                "composite": i_entry["composite"],
+                "label_owner": i_entry["label_owner"],  # Project-wide label or user-specific
+                "label_status": i_entry["label_status"],
+                "label_type": i_entry["type"],
+                "label_sub_type": i_entry["sub_type"]
             }
             self.dbh.op_label_create(label_dict=i_label,
                                      project_id=self.project_id)
 
+    def compose_accounts(self):
+        """
+        Create liability account labels for each user in the project.
+        Uses self.label_ structure to find the account template with label_owner=-2,
+        then creates a personalized liability account for each user.
+        """
+        if not self.users or len(self.users) == 0:
+            # No users provided, skip account creation
+            return
+
+        # Find the liability account template from self.label_
+        account_template = []
+        for i_entry in self.label_:
+            if i_entry.get("label_owner") == -2:
+                account_template.append(i_entry)
+
+        if account_template is None:
+            # No account template found, skip
+            return
+
+        # Create a liability account for each user
+        for i_user in self.users:
+            try:
+                user_name = i_user.get("username", "Unknown")
+                user_id = i_user.get("user_id", -1)
+
+                if user_id <= 0:
+                    # Skip invalid user IDs
+                    continue
+                for i_entry in account_template:
+                    # Create personalized account label for this user
+                    i_label = {
+                        "name": i_entry["name"] + f" - {user_name}",
+                        "description": i_entry["description"],
+                        "composite": i_entry["composite"],
+                        "label_owner": user_id,  # User-specific account
+                        "label_status": i_entry["label_status"],
+                        "label_type": i_entry["type"],
+                        "label_sub_type": i_entry["sub_type"]
+                    }
+                    self.dbh.op_label_create(label_dict=i_label,
+                                             project_id=self.project_id)
+            except Exception as e:
+                if hasattr(self.dbh, 'log'):
+                    self.dbh.log(f"Error preparing account label for user {i_user}: {e}")
+                raise Exception(f"Failed to prepare account for user {i_user.get('username', 'unknown')}: {str(e)}")
 
 class ProjectVacation(ProjectComposer):
     """
@@ -441,7 +449,7 @@ class ProjectVacation(ProjectComposer):
             "shopping": -1
         }
 
-    def compose_action_labels(self):
+    def compose_labels(self):
         """
         Create action labels for vacation planning.
         These include categories like accommodation, transportation, food, activities, and shopping.
@@ -453,6 +461,7 @@ class ProjectVacation(ProjectComposer):
             "name": "accommodation",
             "description": "Hotels, hostels, rentals, and lodging",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -461,6 +470,7 @@ class ProjectVacation(ProjectComposer):
             "name": "transportation",
             "description": "Flights, trains, buses, taxis, car rentals",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -469,6 +479,7 @@ class ProjectVacation(ProjectComposer):
             "name": "food",
             "description": "Restaurants, groceries, snacks",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -477,6 +488,7 @@ class ProjectVacation(ProjectComposer):
             "name": "activities",
             "description": "Tours, attractions, entertainment",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -485,6 +497,7 @@ class ProjectVacation(ProjectComposer):
             "name": "shopping",
             "description": "Souvenirs, gifts, personal items",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -493,6 +506,7 @@ class ProjectVacation(ProjectComposer):
             "name": "miscellaneous",
             "description": "Other vacation-related expenses",
             "composite": None,
+            "label_owner": -1,  # Project-wide label
             "label_status": 2,
             "label_type": 0
         })
@@ -505,30 +519,52 @@ class ProjectVacation(ProjectComposer):
         """
         Create shared expense account labels for vacation participants.
         """
+        if not self.users or len(self.users) == 0:
+            # No users provided, skip account creation
+            return
+
         account_labels = []
 
         for user in self.users:
-            user_name = user["username"]
-            account_labels.append({
-                "name": f"[V] Travel Account",
-                "description": f"Vacation expense account for {user_name}",
-                "composite": None,
-                "label_status": 2,
-                "label_type": 1
-            })
+            try:
+                user_name = user.get("username", "Unknown")
+                user_id = user.get("user_id", -1)
+
+                if user_id <= 0:
+                    # Skip invalid user IDs
+                    continue
+
+                account_labels.append({
+                    "name": f"[V] Travel Account - {user_name}",
+                    "description": f"Vacation expense account for {user_name}",
+                    "composite": None,
+                    "label_owner": user_id,
+                    "label_status": 2,
+                    "label_type": 1
+                })
+            except Exception as e:
+                if hasattr(self.dbh, 'log'):
+                    self.dbh.log(f"Error preparing account label for user {user}: {e}")
+                raise Exception(f"Failed to prepare account for user {user.get('username', 'unknown')}: {str(e)}")
 
         # Add a shared account for group expenses
         account_labels.append({
             "name": "[V] Shared Expenses",
             "description": "Shared vacation expenses for all travelers",
             "composite": None,
+            "label_owner": -1,  # Project-wide shared account
             "label_status": 2,
             "label_type": 1
         })
 
         # Create all account labels in database
         for label in account_labels:
-            self.dbh.op_label_create(label_dict=label, project_id=self.project_id)
+            try:
+                self.dbh.op_label_create(label_dict=label, project_id=self.project_id)
+            except Exception as e:
+                if hasattr(self.dbh, 'log'):
+                    self.dbh.log(f"Error creating account label {label.get('name')}: {e}")
+                raise Exception(f"Failed to create account label {label.get('name', 'unknown')}: {str(e)}")
 
     def get_label_map(self):
         """Return a dictionary mapping label type IDs to their group names."""

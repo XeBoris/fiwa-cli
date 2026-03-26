@@ -1021,7 +1021,7 @@ class SQLLiteHandler:
         self.load()
         result = self.execute_query(
             f"""SELECT label_id, name, description, created_at, composite, 
-                label_status, label_type, label_owner
+                label_status, label_type, label_sub_type, label_owner
                 FROM p{self._db_salt}_labels 
                 WHERE project_id = ?
                 ORDER BY name""",
@@ -1043,7 +1043,8 @@ class SQLLiteHandler:
                 "composite": row[4],
                 "label_status": row[5],
                 "label_type": row[6],
-                "label_owner": row[7],
+                "label_sub_type": row[7],
+                "label_owner": row[8],
             }
             for row in result
         ]
@@ -1115,6 +1116,7 @@ class SQLLiteHandler:
                 - composite (optional): List of composite elements
                 - label_status (optional): Status (0=deleted, 1=deactivated, 2=active)
                 - label_type (optional): Type (default: 1)
+                - label_sub_type (optional): Sub-type (default: -2)
                 - label_owner (optional): User ID who owns the label, or -1 for project-wide (default: -1)
             project_id: The ID of the project
 
@@ -1134,6 +1136,7 @@ class SQLLiteHandler:
         composite_str = json.dumps(composite)
         label_status = label_dict.get('label_status', 2)  # Default: active
         label_type = label_dict.get('label_type', 1)
+        label_sub_type = label_dict.get('label_sub_type', -2)  # Default: -2
         label_owner = label_dict.get('label_owner', -1)  # Default: -1 (project-wide/common)
         created_at = datetime.utcnow().isoformat()
 
@@ -1150,14 +1153,14 @@ class SQLLiteHandler:
             self.close()
             raise ValueError(f"Label '{name}' already exists in this project")
 
-        # Insert label with label_owner
+        # Insert label with label_owner and label_sub_type
         query = f"""
             INSERT INTO p{self._db_salt}_labels 
-            (name, description, created_at, project_id, composite, label_owner, label_status, label_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (name, description, created_at, project_id, composite, label_owner, label_status, label_type, label_sub_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
-        params = [name, description, created_at, project_id, composite_str, label_owner, label_status, label_type]
+        params = [name, description, created_at, project_id, composite_str, label_owner, label_status, label_type, label_sub_type]
 
         try:
             self.execute_query(query, params)
@@ -1190,6 +1193,7 @@ class SQLLiteHandler:
                 - composite (optional): Updated composite list
                 - label_status (optional): Updated status
                 - label_type (optional): Updated type
+                - label_sub_type (optional): Updated sub-type
                 - label_owner (optional): Updated label owner
                 - label_default (optional): Updated default status
 
@@ -1235,6 +1239,10 @@ class SQLLiteHandler:
         if 'label_type' in label_dict:
             update_fields.append("label_type = ?")
             params.append(label_dict['label_type'])
+
+        if 'label_sub_type' in label_dict:
+            update_fields.append("label_sub_type = ?")
+            params.append(label_dict['label_sub_type'])
 
         if 'label_owner' in label_dict:
             update_fields.append("label_owner = ?")

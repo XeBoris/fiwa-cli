@@ -227,12 +227,15 @@ class SettingsScreen(ReactiveScreen):
                 {"user_id": user_id,
                  "username": self.app.app_state.get("user_name", "Unknown")}
             ]
+
             pc = ProjectComposer.create(compose_type=project_style,
                                         dbh=dbh,
                                         project_id=project_id,
                                         users=compose_users)
-            pc.build()
-            pc.compose_accounts()
+
+            pc.build()            # prepare the project
+            pc.compose_accounts() # prepare the default accounts
+
             # Extract project data for app_state
             project_names = []
             project_ids = []
