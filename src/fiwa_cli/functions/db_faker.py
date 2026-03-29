@@ -1,7 +1,114 @@
+"""Test data generation utilities for FiWa CLI.
+
+This module provides functions for populating the database with realistic
+test data. It uses the Faker library to generate random but plausible
+users, projects, and transactions for testing and demonstration purposes.
+
+The faker module:
+    - Generates realistic user profiles
+    - Creates sample projects
+    - Populates expenses across multiple categories
+    - Generates income streams
+    - Creates savings transactions
+    - Uses Poisson distributions for realistic patterns
+
+Key Functions:
+    - **faker_users()**: Create random users
+    - **faker_user_login()**: Test user authentication
+    - **faker_projects()**: Create sample projects
+    - **faker_labels()**: Create label structures
+    - **create_groceries()**: Generate grocery expenses
+    - **create_personal_supplies()**: Generate personal supply purchases
+    - **create_books()**: Generate book purchases
+    - **generate_income_data()**: Generate income streams
+    - **generate_savings_data()**: Generate savings transactions
+
+Data Generation Patterns:
+    **Expenses**:
+        - Poisson distribution for frequency (1-8 times per week)
+        - Clipped normal distribution for amounts
+        - Realistic date distribution
+        - Category-appropriate vendors
+
+    **Income**:
+        - Monthly recurring on specific dates
+        - Consistent amounts
+        - Proper date sequences
+
+    **Savings**:
+        - Monthly after income received
+        - Consistent savings behavior
+
+Example:
+    Generate complete test environment::
+
+        >>> from fiwa_cli.functions.db_faker import *
+        >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
+        >>>
+        >>> dbh = SQLLiteHandler(db_path="./test.db")
+        >>>
+        >>> # Create users
+        >>> faker_users(dbh, num_users=5)
+        >>>
+        >>> # Create projects
+        >>> faker_projects(dbh)
+        >>>
+        >>> # Create labels
+        >>> faker_labels(dbh, project_id=1)
+        >>>
+        >>> # Generate expenses
+        >>> create_groceries(dbh, project_id=1, user_id=1, bought_by_id=1)
+        >>> create_personal_supplies(dbh, project_id=1, user_id=1, bought_by_id=1)
+        >>>
+        >>> # Generate income
+        >>> generate_income_data(dbh, project_id=1, user_id=1)
+
+See Also:
+    faker_superhero_project: Pre-configured Batman/Superman project
+    handler_sqllite.SQLLiteHandler: Database operations
+    faker: Python Faker library for random data
+"""
 
 
 def faker_users(dbh, num_users=10):
-    """Populate the database with fake users for testing purposes."""
+    """Populate the database with fake users for testing purposes.
+
+    Generates random user profiles using the Faker library and creates
+    them in the database. The first user is automatically designated
+    as a superuser.
+
+    Args:
+        dbh: Database handler instance (SQLLiteHandler)
+        num_users (int): Number of users to create, default 10
+
+    Generated User Fields:
+        - first_name: Random first name
+        - last_name: Random last name
+        - username: "user0", "user1", etc.
+        - email: "user0@fiwa.com", etc.
+        - password: "u0", "u1", etc. (simple for testing)
+        - birthday: Random date (18-80 years ago)
+        - max_projects: 3 for all users
+        - is_superuser: True for first user only
+        - scope: "user:write"
+        - activated: True
+
+    Side Effects:
+        - Creates num_users records in database
+        - Prints user data for each created user
+        - Prints summary message
+
+    Example:
+        >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
+        >>> dbh = SQLLiteHandler(db_path="./test.db")
+        >>> faker_users(dbh, num_users=5)
+        >>> # Creates users: user0, user1, user2, user3, user4
+        >>> # user0 is superuser
+
+    Note:
+        The simple passwords (u0, u1, etc.) are only for testing.
+        Production databases should use secure passwords.
+    """
     from faker import Faker
     fake = Faker()
 
@@ -30,7 +137,25 @@ def faker_users(dbh, num_users=10):
     print(f"Created {num_users} fake users.")
 
 def faker_user_login(user, password, dbh):
-    """Test login for a fake user."""
+    """Test user authentication with fake credentials.
+
+    Attempts to log in a test user and prints the result. Useful for
+    verifying user creation and authentication flow.
+
+    Args:
+        user (str): Username to test
+        password (str): Password to test
+        dbh: Database handler instance
+
+    Side Effects:
+        - Prints login success with session info
+        - Prints login failure message
+        - Prints any errors encountered
+
+    Example:
+        >>> faker_user_login("user0", "u0", dbh)
+        >>> # Login successful for user0! Session info: {...}
+    """
     try:
         user_session = dbh.op_user_login(username=user, password=password)
         if user_session:
@@ -41,13 +166,38 @@ def faker_user_login(user, password, dbh):
         print(f"Error during login for {user}: {str(e)}")
 
 def faker_projects(dbh):
-    """Populate the database with fake projects for testing purposes.
-    Creates one project for each user in the database.
-    Additionally:
-    - User 1 gets 2 more projects (to reach their max)
-    - User 2 gets 1 more project
-    - User 2 is added to user 1's second project
-    - User 3 is added to user 1's first project
+    """Populate the database with fake projects for testing.
+
+    Creates one project for each user in the database. Additionally:
+        - User 1 gets 2 additional projects (to reach their max)
+        - User 2 gets 1 additional project
+        - User 2 is added to user 1's second project
+        - User 3 is added to user 1's first project
+
+    This creates a realistic multi-user, multi-project scenario for testing
+    shared projects and permissions.
+
+    Args:
+        dbh: Database handler instance (SQLLiteHandler)
+
+    Generated Project Fields:
+        - project_name: Random company name
+        - description: Random company catchphrase
+        - currency_main: "USD"
+        - currency_list: ["EUR", "GBP", "JPY"]
+        - project_store: {"month_start": 1}
+        - project_style: "ExpenseTracker"
+
+    Side Effects:
+        - Creates multiple projects in database
+        - Creates user-project mappings
+        - Sets first user's first project as primary
+        - Prints project creation info
+
+    Example:
+        >>> faker_projects(dbh)
+        >>> # Creates projects for all users
+        >>> # Sets up shared project relationships
     """
     from faker import Faker
     import random
@@ -183,8 +333,23 @@ def faker_projects(dbh):
     return all_project_ids
 
 def faker_labels(dbh, project_ids=[]):
-    """Populate the database with fake labels for testing purposes.
-    Creates 3 labels for each project in the database.
+    """Create label structures for projects.
+
+    Generates labels/categories for the specified projects. If no project
+    IDs are provided, creates labels for all projects in the database.
+
+    Args:
+        dbh: Database handler instance
+        project_ids (list): List of project IDs to create labels for
+            Default: [] (creates for all projects)
+
+    Side Effects:
+        - Creates label records in database
+        - Prints label creation info
+
+    Example:
+        >>> faker_labels(dbh, project_ids=[1, 2])
+        >>> # Creates labels for projects 1 and 2
     """
     from faker import Faker
     import random
@@ -220,13 +385,25 @@ def faker_labels(dbh, project_ids=[]):
     print(f"\nCreated {label_count} fake labels across {len(project_ids)} projects.")
 
 def faker_items(dbh, project_ids=[], items_per_project=10):
-    """Populate the database with fake grocery items for testing purposes.
-    Creates grocery items for each project in the database.
+    """Generate fake transaction items for projects.
+
+    Creates random transaction items (expenses/income) for the specified
+    projects using realistic patterns and distributions.
 
     Args:
-        dbh: Database handler
-        project_ids: List of project IDs to create items for
-        items_per_project: Number of items to create per project (default: 10)
+        dbh: Database handler instance
+        project_ids (list): List of project IDs to create items for
+            Default: [] (creates for all projects)
+        items_per_project (int): Number of items to create per project
+            Default: 10
+
+    Side Effects:
+        - Creates transaction records in database
+        - Prints item creation info
+
+    Example:
+        >>> faker_items(dbh, project_ids=[1], items_per_project=50)
+        >>> # Creates 50 transactions for project 1
     """
     from faker import Faker
     import random
@@ -372,4 +549,3 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
     print(f"\n=== Summary ===")
     print(f"Total items created: {item_count} across {len(project_ids)} projects")
     print(f"Average items per project: {item_count / len(project_ids) if project_ids else 0:.1f}")
-

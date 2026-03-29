@@ -39,6 +39,17 @@ help:
 	@echo ""
 	@echo "Alternative without installation:"
 	@echo "  make dev-run ARGS='run --path /path/to/data --user username'"
+	@echo ""
+	@echo "Documentation Commands:"
+	@echo "======================="
+	@echo "make docs-install - Install Sphinx and documentation dependencies"
+	@echo "make docs-init    - Initialize Sphinx documentation structure"
+	@echo "make docs-build   - Build HTML documentation"
+	@echo "make docs-view    - Open documentation in browser"
+	@echo "make docs-serve   - Serve documentation on http://localhost:8000"
+	@echo "make docs-clean   - Remove documentation build files"
+	@echo "make docs-rebuild - Clean and rebuild documentation"
+
 
 # Install the package in production mode
 install: clean
@@ -108,3 +119,60 @@ reinstall: uninstall install
 
 # Reinstall in dev mode
 reinstall-dev: uninstall install-dev
+
+
+
+
+
+docs-install:
+	@echo "Installing documentation dependencies..."
+	pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+	@echo "Documentation dependencies installed!"
+
+docs-init:
+	@echo "Initializing Sphinx documentation..."
+	@if [ ! -d "docs" ]; then \
+		mkdir -p docs; \
+		cd docs && sphinx-quickstart -q -p "FiWa CLI" -a "Your Name" -v "0.1.0" --sep --ext-autodoc --ext-viewcode; \
+		echo "Sphinx initialized in docs/"; \
+	else \
+		echo "docs/ directory already exists. Skipping initialization."; \
+	fi
+
+docs-apidoc:
+	@echo "Generating API documentation..."
+	sphinx-apidoc -f -o docs/source/api src/fiwa_cli
+	@echo "API documentation generated!"
+
+docs-build: docs-apidoc
+	@echo "Building HTML documentation..."
+	cd docs && make html
+	@echo "Documentation built successfully!"
+	@echo "Open docs/build/html/index.html in your browser."
+
+docs-view:
+	@echo "Opening documentation in browser..."
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open docs/build/html/index.html; \
+	elif command -v firefox > /dev/null; then \
+		firefox docs/build/html/index.html; \
+	elif command -v google-chrome > /dev/null; then \
+		google-chrome docs/build/html/index.html; \
+	else \
+		echo "Please open docs/build/html/index.html manually"; \
+	fi
+
+docs-clean:
+	@echo "Cleaning documentation build files..."
+	@if [ -d "docs/build" ]; then \
+		rm -rf docs/build; \
+		echo "Documentation build files removed!"; \
+	else \
+		echo "No documentation build files to clean."; \
+	fi
+
+docs-serve:
+	@echo "Starting local documentation server..."
+	@cd docs/build/html && python -m http.server 8000
+
+docs-rebuild: docs-clean docs-build

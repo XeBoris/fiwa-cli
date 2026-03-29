@@ -1,23 +1,119 @@
-"""Main application entry point for FiWa CLI."""
+"""Main application entry point for FiWa CLI.
+
+This module contains the main Textual application class and entry point
+for the FiWa (Finance Watcher) CLI application. It manages the application
+lifecycle, user sessions, project state, and provides the main UI framework.
+
+The application uses Textual for terminal-based UI and supports:
+- User authentication and session management
+- Multi-project management with project switching
+- Reactive state management across all screens
+- Custom file logging with rotation
+- Keyboard shortcuts for quick navigation
+- Dark/light theme toggling
+
+Key Components:
+    MyApp: Main Textual application class
+    main(): Entry point function handling command-line arguments
+
+Typical Usage:
+    Command line::
+
+        $ fiwa run --path /path/to/data --user username
+        $ fiwa init --path /path/to/data
+
+    Programmatic::
+
+        >>> from fiwa_cli.main import MyApp, main
+        >>> config = setup_fiwa(abs_path="/data", config={})
+        >>> app = MyApp(config=config)
+        >>> app.run()
+
+See Also:
+    fiwa_cli.functions.loader: Configuration loading functions
+    fiwa_cli.screens: Application screen modules
+    fiwa_cli.components: Reusable UI components
+"""
 from typing import Any, Dict
-import os
 from pathlib import Path
 
 from textual.app import App, ComposeResult, Binding
-from textual.containers import Horizontal
 from textual.widgets import Button, Footer, Static
 from textual.reactive import reactive
-from textual import log
 
-from fiwa_cli.functions.loader import load_yaml_config
 from fiwa_cli.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handle_args
 from fiwa_cli.components.header import FiwaHeader
 
 import datetime
-import argparse
 
 class MyApp(App):
-    """A Textual app for FiWa financial tracking."""
+    """Main Textual application for FiWa financial tracking.
+
+    This is the core application class that manages the entire FiWa CLI
+    application lifecycle, including user sessions, project state, navigation,
+    and screen management.
+
+    The application uses a reactive state pattern where ``app_state`` is a
+    reactive dictionary that automatically updates all screens and widgets
+    when values change. This ensures UI consistency across the application.
+
+    Attributes:
+        CSS_PATH (str): Path to the main CSS stylesheet
+        BINDINGS (list): Keyboard shortcuts for quick navigation:
+            - Ctrl+C/Q: Quit application (with logout)
+            - D: Toggle dark/light theme
+            - M: Open menu
+            - S: Open settings
+            - E: Open expenses/inputs
+            - R: Open reports
+            - P: Select project
+        app_state (reactive dict): Shared application state containing:
+            - user_name: Current username
+            - user_id: Current user ID
+            - session_uuid: Session identifier
+            - is_logged_in: Login status
+            - project_names: List of project names
+            - project_ids: List of project IDs
+            - project_id: Current project ID
+            - project_name: Current project name
+            - project_style: Project type (e.g., "ExpenseTracker")
+            - project_store: Project-specific metadata (JSON)
+            - current_project_currency_main: Primary currency
+            - current_project_currency_list: Available currencies
+            - abs_path: Application data directory path
+            - css_form: Form style name (e.g., "handsome")
+            - css_theme: Theme name (e.g., "textual-light")
+        file_log (logging.Logger): Custom file logger for persistent logs
+        is_mounted (bool): Flag indicating if app is fully mounted
+
+    Class Variables:
+        CSS_PATH: Path to main.tcss stylesheet
+        BINDINGS: Keyboard bindings for application-wide shortcuts
+
+    Example:
+        Basic usage::
+
+            >>> config = {"dbh": database_handler, "_abs_path": "/data"}
+            >>> app = MyApp(config=config)
+            >>> app.run()
+
+        Accessing state from a screen::
+
+            >>> class MyScreen(Screen):
+            >>>     def on_mount(self):
+            >>>         user = self.app.app_state["user_name"]
+            >>>         project = self.app.app_state["project_name"]
+            >>>         self.app.file_log.info(f"Screen opened by {user}")
+
+    Note:
+        The app_state is reactive - any changes trigger automatic UI updates
+        across all mounted screens and widgets that watch these values.
+
+    See Also:
+        fiwa_cli.screens.base.LoginScreen: User authentication
+        fiwa_cli.screens.settings.SettingsScreen: Application settings
+        fiwa_cli.components.header.FiwaHeader: Main application header
+    """
 
     # Use Path(__file__) to get the directory where main.py is installed
     print(str(Path(__file__).parent))
@@ -52,11 +148,57 @@ class MyApp(App):
     })
 
     def __init__(self, config: Dict[str, Any] | None = None, mode: str = "terminal") -> None:
+        """Initialize the FiWa application.
+
+        Sets up the application with configuration, initializes the reactive
+        state from the database, and prepares the logging system.
+
+        The initialization process:
+        1. Sets up configuration and mode
+        2. Creates log file directory and path
+        3. Loads user session data from database
+        4. Populates app_state with user and project information
+        5. Loads currency settings for the primary project
+
+        Args:
+            config: Configuration dictionary containing:
+                - dbh: Database handler instance (SQLLiteHandler)
+                - _abs_path: Absolute path to data directory
+                - style: Dictionary with 'form' and 'theme' settings
+                Defaults to empty dict if not provided.
+            mode: Application mode, either "terminal" or "web".
+                Defaults to "terminal".
+
+        Raises:
+            KeyError: If required config keys (dbh) are missing
+
+        Side Effects:
+            - Creates data directory if it doesn't exist
+            - Creates fiwa.log file in data directory
+            - Populates self.app_state with database values
+            - Sets up self._log_file_path for custom logging
+
+        Example:
+            >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
+            >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
+            >>> config = {
+            >>>     "dbh": dbh,
+            >>>     "_abs_path": "/home/user/fiwa-data",
+            >>>     "style": {"form": "handsome", "theme": "textual-light"}
+            >>> }
+            >>> app = MyApp(config=config, mode="terminal")
+            >>> app.run()
+
+        Note:
+            The app_state reactive dictionary is updated from the database
+            during initialization. Changes to app_state automatically trigger
+            UI updates in all mounted screens and widgets.
+        """
         super().__init__()
         self._config = config or {}
         self._mode = mode  # "terminal" or "web"
         self.count = 0
-        
+
         # Setup log file path for textual run command
         data_path = self._config.get("_data_directory", ".")
         log_dir = Path(data_path)
@@ -68,15 +210,31 @@ class MyApp(App):
         u = self.app._config["dbh"].op_get_user_sessions()
 
         # ...existing code...
-        self.app_state["user_name"] = u.get("user_info", {}).get("username", "Guest")
+        self.app_state["user_name"] = u.get("user_info", {}).get(
+            "username", "Guest"
+        )
         self.app_state["user_id"] = u.get("user_info", {}).get("user_id", -1)
-        self.app_state["user_scope"] = u.get("user_info", {}).get("scope", "user:write")
-        self.app_state["session_uuid"] = u.get("session_info", {}).get("session_uuid", "No session")
-        self.app_state["session_start"] = u.get("session_info", {}).get("session_start", None)
-        self.app_state["is_logged_in"] = u.get("session_info", {}).get("is_logged_in", False)
+        self.app_state["user_scope"] = u.get("user_info", {}).get(
+            "scope", "user:write"
+        )
+        self.app_state["session_uuid"] = u.get("session_info", {}).get(
+            "session_uuid", "No session"
+        )
+        self.app_state["session_start"] = u.get("session_info", {}).get(
+            "session_start", None
+        )
+        self.app_state["is_logged_in"] = u.get("session_info", {}).get(
+            "is_logged_in", False
+        )
+        self.app_state["home_path"] = self._config.get("_data_directory", "")
         self.app_state["abs_path"] = self._config.get("_abs_path", "")
-        self.app_state["css_form"] = self._config.get("style", {}).get("form", "handsome")
-        self.app_state["css_theme"] = self._config.get("style", {}).get("theme", "textual-light") #todo: not implemented
+        self.app_state["css_form"] = self._config.get("style", {}).get(
+            "form", "handsome"
+        )
+        # todo: theme switching not fully implemented
+        self.app_state["css_theme"] = self._config.get("style", {}).get(
+            "theme", "textual-light"
+        )
 
 
         # Process project information
@@ -87,11 +245,26 @@ class MyApp(App):
             project_names = [p["project_name"] for p in project_info]
 
             # Find the primary project ID
-            primary_project = next((p for p in project_info if p.get("project_primary", False)), None)
-            primary_project_id = primary_project["project_id"] if primary_project else (project_ids[0] if project_ids else 0)
-            primary_project_name = primary_project["project_name"] if primary_project else (project_names[0] if project_names else "No Projects")
-            primary_project_style = primary_project["project_style"] if primary_project else "default"
-            primary_project_store = primary_project.get("project_store", {}) if primary_project else {}
+            primary_project = next(
+                (p for p in project_info if p.get("project_primary", False)),
+                None
+            )
+            primary_project_id = (
+                primary_project["project_id"] if primary_project
+                else (project_ids[0] if project_ids else 0)
+            )
+            primary_project_name = (
+                primary_project["project_name"] if primary_project
+                else (project_names[0] if project_names else "No Projects")
+            )
+            primary_project_style = (
+                primary_project["project_style"] if primary_project
+                else "default"
+            )
+            primary_project_store = (
+                primary_project.get("project_store", {}) if primary_project
+                else {}
+            )
 
             self.app_state["project_ids"] = project_ids
             self.app_state["project_names"] = project_names
@@ -125,7 +298,32 @@ class MyApp(App):
             self.app_state["current_project_currency_list"] = []
 
     def on_mount(self) -> None:
-        """Called when app is mounted."""
+        """Called when the application is mounted and ready.
+
+        This lifecycle hook runs after the app is composed but before it's
+        displayed to the user. It performs final setup tasks including:
+        - Initializing custom file logging
+        - Logging startup information
+        - Setting initial theme
+        - Updating session displays
+
+        The method is called automatically by Textual's lifecycle system.
+
+        Side Effects:
+            - Creates and configures self.file_log (RotatingFileHandler)
+            - Writes startup messages to fiwa.log
+            - Sets self.theme to "textual-dark"
+            - Calls update_session_display()
+            - Sets self.is_mounted = True
+
+        Note:
+            This is the appropriate place for setup code that requires
+            the app to be fully initialized and have access to all widgets.
+
+        See Also:
+            _setup_file_logging(): Custom file logger configuration
+            update_session_display(): Updates UI with session info
+        """
         # Setup custom file logging
         self._setup_file_logging()
 
@@ -142,14 +340,55 @@ class MyApp(App):
         self.is_mounted = True  # Flag to indicate the app is fully mounted and ready for updates
 
     def _setup_file_logging(self) -> None:
-        """
-        Setup custom file logging that doesn't interfere with Textual's logging.
+        """Setup custom file logging with automatic rotation.
 
-        Creates self.file_log that can be used from any component:
-        - From App: self.file_log.info("message")
-        - From Screen/Widget: self.app.file_log.info("message")
+        Creates a custom logger accessible via ``self.file_log`` that writes
+        to a rotating log file. This logger can be used from any component
+        in the application without interfering with Textual's built-in logging.
 
-        Log levels available: debug(), info(), warning(), error(), critical()
+        Log Configuration:
+            - File location: {data_path}/fiwa.log
+            - Max file size: 10 MB
+            - Backup count: 5 files (fiwa.log, fiwa.log.1, ..., fiwa.log.5)
+            - Encoding: UTF-8
+            - Format: "YYYY-MM-DD HH:MM:SS - LEVEL - message"
+
+        Logger Access:
+            - From App: ``self.file_log.info("message")``
+            - From Screen: ``self.app.file_log.info("message")``
+            - From Widget: ``self.app.file_log.info("message")``
+
+        Log Levels:
+            - debug(): Detailed debugging information
+            - info(): General informational messages
+            - warning(): Warning messages
+            - error(): Error messages
+            - critical(): Critical error messages
+
+        Example:
+            From any screen or widget::
+
+                >>> self.app.file_log.info("User logged in")
+                >>> self.app.file_log.error("Database connection failed")
+                >>> self.app.file_log.debug(f"State: {self.app.app_state}")
+
+        Side Effects:
+            - Creates self.file_log (logging.Logger instance)
+            - Creates fiwa.log in data directory
+            - Writes initial startup marker to log
+            - Prints confirmation message to console
+
+        Raises:
+            Exception: If logging setup fails, creates a dummy logger
+                to prevent application crashes. Error is printed to console.
+
+        Note:
+            The RotatingFileHandler ensures the log file never grows
+            beyond 50 MB total (10 MB × 5 files). Old logs are automatically
+            archived as .log.1, .log.2, etc.
+
+        See Also:
+            logging.handlers.RotatingFileHandler: Python's rotating file handler
         """
         try:
             import logging
@@ -202,7 +441,32 @@ class MyApp(App):
 
 
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
+        """Create the main application layout and child widgets.
+
+        Constructs the initial UI hierarchy including the header, welcome
+        message, and footer. This method is called once during application
+        startup by Textual's lifecycle system.
+
+        Layout Structure:
+            - FiwaHeader: Top bar with user info, project selector, menu
+            - Static: ASCII art logo and welcome message
+            - Static: User session information display (updated reactively)
+            - Footer: Keyboard shortcuts display
+
+        Yields:
+            FiwaHeader: Application header with user and project info
+            Static: ASCII art logo
+            Static: Session info widget (id="user_session_info")
+            Footer: Keyboard shortcut display
+
+        Note:
+            The compose method only runs once. For dynamic updates,
+            use reactive attributes or watch methods.
+
+        See Also:
+            FiwaHeader: Main header component documentation
+            update_session_display(): Updates the session info widget
+        """
         yield FiwaHeader(
             user=self.app_state["user_name"],
             projects=self.app_state["project_names"],
@@ -231,19 +495,60 @@ class MyApp(App):
         yield Footer()
 
     def watch_app_state(self, new_state: dict) -> None:
-        """Called automatically when app_state changes."""
+        """Called automatically when app_state reactive dictionary changes.
+
+        This is a Textual reactive watch method that's triggered whenever
+        any value in the app_state dictionary is modified. It ensures the
+        UI stays in sync with the application state.
+
+        Args:
+            new_state: The updated app_state dictionary
+
+        Side Effects:
+            - Calls update_session_display() to refresh session info
+            - Calls update_main_body() to refresh main content
+
+        Note:
+            This method only runs if self.is_mounted is True to avoid
+            errors during initialization before widgets are available.
+
+        See Also:
+            update_session_display(): Updates session-related widgets
+            update_main_body(): Updates main content widgets
+        """
         if self.is_mounted:
             self.update_session_display()
             self.update_main_body()
 
     def update_main_body(self) -> None:
-        """Update the main body widgets with current app_state."""
-        
-        # Update the welcome message
-        # main_body = self.query_one("main_body", Static)
-        # c_user = self.app_state.get("user_name", "Guest")
-        # c_project = self.app_state.get("project_name", "No Project")
-        # main_body.update(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}")
+        """Update the main body widgets with current app_state.
+
+        Attempts to update various display widgets that show app_state
+        information. Uses try/except blocks to handle widgets that may
+        not exist or may not be mounted yet.
+
+        Widgets Updated:
+            - #app_state_display_1: Raw app_state display (if exists)
+            - #app_state_display_2: Alternative app_state display (if exists)
+
+        Side Effects:
+            Updates widget content via widget.update() method
+
+        Note:
+            All widget queries are wrapped in try/except to gracefully
+            handle cases where widgets don't exist. This is common during
+            screen transitions or when certain screens are active.
+        """
+
+        # Update the welcome message (widget may not exist, so skip)
+        # try:
+        #     main_body = self.query_one("main_body", Static)
+        #     c_user = self.app_state.get("user_name", "Guest")
+        #     c_project = self.app_state.get("project_name", "No Project")
+        #     main_body.update(
+        #         f"Welcome {c_user} to the FiWa CLI Application!\n"
+        #         f"Current Project: {c_project}"
+        #     )
         # except Exception:
         #     pass
 
@@ -261,7 +566,30 @@ class MyApp(App):
             pass
 
     def update_session_display(self) -> None:
-        """Update the session display with current reactive values."""
+        """Update the session display with current reactive values.
+
+        Refreshes UI widgets that display user session information and
+        the application header. This method is called automatically when
+        app_state changes and can also be called manually.
+
+        Widgets Updated:
+            - FiwaHeader: Updates user, projects, and project_id
+
+        Side Effects:
+            - Updates header.user with current username
+            - Updates header.projects with project list
+            - Updates header.project_id with current project
+            - Calls header.refresh() to re-render
+
+        Note:
+            Uses try/except to handle cases where widgets aren't ready.
+            This is safe to call at any time - it will silently skip
+            updates if widgets aren't available.
+
+        See Also:
+            FiwaHeader: Header component that displays this information
+            watch_app_state(): Calls this method on state changes
+        """
 
         try:
             # session_widget = self.query_one("#user_session_info", Static)
@@ -285,7 +613,18 @@ class MyApp(App):
             pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Event handler called when a button is pressed."""
+        """Handle button press events in the main screen.
+
+        Currently a placeholder for future button handlers on the main screen.
+        Most navigation is handled through keyboard shortcuts (see BINDINGS).
+
+        Args:
+            event: Button.Pressed event containing the pressed button
+
+        Note:
+            This method is currently not used as the main screen has no buttons.
+            Navigation is handled via keyboard shortcuts and the menu.
+        """
         # from screens.base import LoginScreen
 
 
@@ -297,7 +636,29 @@ class MyApp(App):
         pass
 
     def action_quit_app(self) -> None:
-        """An action to quit the app - performs logout before exiting."""
+        """Quit the application with proper logout handling.
+
+        This action is bound to 'q' and Ctrl+C keys. It performs a clean
+        shutdown by logging out the user (if logged in) before exiting.
+
+        Process:
+            1. Check if user is currently logged in
+            2. If logged in, perform logout (clear session, update database)
+            3. Exit application with code 0
+
+        Side Effects:
+            - Calls perform_logout() if user is logged in
+            - Logs logout status to file_log
+            - Exits application via self.exit(0)
+
+        Note:
+            The logout process clears the user session from the database
+            and resets app_state to guest mode. This ensures clean session
+            management and prevents orphaned sessions.
+
+        See Also:
+            fiwa_cli.functions.logout_util.perform_logout: Shared logout utility
+        """
         # Check if user is logged in
         is_logged_in = self.app_state.get("is_logged_in", False)
 
@@ -315,50 +676,179 @@ class MyApp(App):
         self.exit(0)
 
     def action_toggle_dark(self) -> None:
-        """An action to toggle between dark and light themes."""
+        """Toggle between dark and light themes.
+
+        This action is bound to the 'd' key. It switches the application
+        theme between "textual-dark" and "textual-light".
+
+        Side Effects:
+            - Changes self.theme attribute
+            - Triggers automatic re-render with new theme
+
+        Note:
+            The theme change affects all screens and widgets immediately.
+        """
         self.theme = "textual-light" if self.theme == "textual-dark" else "textual-dark"
 
     def action_open_menu(self) -> None:
-        """An action to open the menu."""
+        """Open the main application menu.
+
+        This action is bound to the 'm' key. It opens a modal menu screen
+        with navigation options for all major application sections.
+
+        Side Effects:
+            - Pushes MenuScreen onto the screen stack
+            - Displays modal menu overlay
+
+        See Also:
+            fiwa_cli.screens.menu.MenuScreen: Menu screen implementation
+        """
         from fiwa_cli.screens.menu import MenuScreen
         self.push_screen(MenuScreen())
 
     def action_open_settings(self) -> None:
-        """An action to open the settings screen."""
+        """Open the settings screen.
+
+        This action is bound to the 's' key. Opens the settings screen
+        where users can manage projects, users, labels, and preferences.
+
+        Side Effects:
+            - Pushes SettingsScreen onto the screen stack
+
+        See Also:
+            fiwa_cli.screens.settings.SettingsScreen: Settings screen implementation
+        """
         from fiwa_cli.screens.settings import SettingsScreen
         self.push_screen(SettingsScreen())
 
     def action_open_expenses(self) -> None:
-        """An action to open the expenses/inputs screen."""
+        """Open the expenses/inputs screen.
+
+        This action is bound to the 'e' key. Opens the screen where users
+        can add, edit, and view expense transactions.
+
+        Side Effects:
+            - Pushes InputsScreen onto the screen stack
+
+        See Also:
+            fiwa_cli.screens.inputs.InputsScreen: Inputs screen implementation
+        """
         from fiwa_cli.screens.inputs import InputsScreen
         self.push_screen(InputsScreen())
 
     def action_open_reports(self) -> None:
-        """An action to open the reports screen."""
+        """Open the reports screen.
+
+        This action is bound to the 'r' key. Opens the reporting interface
+        where users can view expense summaries, charts, and analytics.
+
+        Side Effects:
+            - Pushes ReportsScreen onto the screen stack
+
+        See Also:
+            fiwa_cli.screens.reports.ReportsScreen: Reports screen implementation
+        """
         from fiwa_cli.screens.reports import ReportsScreen
         self.push_screen(ReportsScreen())
 
     def action_select_project(self) -> None:
-        """An action to open the project selector screen."""
+        """Open the project selector screen.
+
+        This action is bound to the 'p' key. Opens a modal screen where
+        users can switch between their available projects.
+
+        Side Effects:
+            - Pushes ProjectSelectorScreen onto the screen stack
+            - When user selects a project, app_state is updated
+
+        See Also:
+            fiwa_cli.screens.project_selector.ProjectSelectorScreen: Project selector
+        """
         from fiwa_cli.screens.project_selector import ProjectSelectorScreen
         self.push_screen(ProjectSelectorScreen())
 
 
 
-
-
-
 def main():
+    """Main entry point for the FiWa CLI application.
+
+    This function serves as the command-line entry point for the application.
+    It handles argument parsing, initialization, user authentication, and
+    application startup.
+
+    Command-line modes supported:
+        - **init**: Initialize a new FiWa data directory with schema and defaults
+        - **run**: Run the FiWa application (requires existing data directory)
+
+    Process Flow:
+        1. Parse command-line arguments (mode, path, user, etc.)
+        2. Get absolute path to package installation
+        3. If mode is "init":
+           - Create data directory and database schema
+           - Initialize default data
+           - Exit
+        4. If mode is "run":
+           - Prompt for password if --user specified
+           - Setup FiWa configuration and database
+           - Create and run MyApp instance
+
+    Command-line Arguments:
+        Handled by handle_args() which supports:
+            - run: Start the application
+              ``fiwa run --path /data/dir --user username``
+            - init: Initialize new data directory
+              ``fiwa init --path /data/dir``
+
+    Example:
+        Initialize new FiWa installation::
+
+            $ fiwa init --path /home/user/fiwa-data
+
+        Run with specific user::
+
+            $ fiwa run --path /home/user/fiwa-data --user batman
+            Enter password for user batman: ****
+
+        Run without user (login via UI)::
+
+            $ fiwa run --path /home/user/fiwa-data
+
+    Environment:
+        The function uses:
+            - stdin: For password input via getpass
+            - stdout: For status messages
+            - exit codes: 0 for success
+
+    Side Effects:
+        - May create directories and files in the specified --path
+        - Prompts for password if --user is specified
+        - Writes to fiwa.log in the data directory
+        - May modify database in the data directory
+
+    Raises:
+        SystemExit: Always exits with code 0 on success
+
+    Note:
+        This function should only be called from the command line entry point.
+        For programmatic usage, instantiate MyApp directly.
+
+    See Also:
+        handle_args(): Command-line argument parsing
+        setup_fiwa(): Application configuration and initialization
+        prep_fiwa(): Data directory initialization for 'init' mode
+        MyApp: Main application class
+    """
     import os
     import getpass
 
     _mode, _conf = handle_args()
 
 
-    abs_path = get_abs_path() #the abs path to your package installation!
+    abs_path = get_abs_path()  # the abs path to your package installation!
 
     if _mode == "init":
-        prep_fiwa(mode=_mode, config=_conf) #prepares the FiWa environment based on the mode (e.g., init or run)
+        # prepares the FiWa environment based on the mode (e.g., init or run)
+        prep_fiwa(mode=_mode, config=_conf)
         exit(0)
 
     elif _mode == "run":
@@ -389,8 +879,7 @@ def main():
         exit(0)
 
     exit()
-    # app = MyApp(config=config)
-    # app.run()
+
 
 
 if __name__ == "__main__":

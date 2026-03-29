@@ -1,4 +1,49 @@
-# settings_label_new.py
+"""Label creation interface for FiWa CLI.
+
+This module provides the form for creating new labels (categories/tags) within
+a project. Labels are used to categorize transactions and can be owned by
+individual users or shared as common project-wide labels.
+
+The label system supports different label types based on project style:
+    - Balance labels: For balance categorization
+    - Transaction labels: For transaction categorization
+    - Account labels: For account/bank categorization
+    - Main category labels: Primary expense categories
+    - Secondary labels: Sub-categories or tags
+
+Key Features:
+    - Dynamic label type selection based on project style
+    - User ownership vs. common (project-wide) labels
+    - Label status management (draft, active, archived)
+    - Default label designation per category per user
+    - Integration with ProjectComposer for style-specific labels
+
+Classes:
+    CreateLabelForm: Form widget for creating new labels
+
+Label Ownership:
+    - **Common labels (owner_id = -1)**: Shared by all project users
+    - **User labels (owner_id > 0)**: Owned by specific user, private to them
+
+Example:
+    Mounting the form::
+
+        >>> from fiwa_cli.screens.settings_label_new import CreateLabelForm
+        >>> form = CreateLabelForm()
+        >>> content_area.mount(form)
+
+    Handling label creation::
+
+        >>> @on(CreateLabelForm.LabelCreated)
+        >>> def on_label_created(self, message):
+        >>>     label_data = message.label_data
+        >>>     self.app.file_log.info(f"New label: {label_data['name']}")
+
+See Also:
+    settings_label_page: Manage existing labels
+    functions.project_composer: Project-specific label structures
+    settings: Main settings screen
+"""
 from textual.widgets import Static, Button, Input, Switch, Placeholder, Select
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid
 from textual.app import ComposeResult
@@ -8,15 +53,119 @@ from textual import on
 from fiwa_cli.functions.loader import load_dynamic_css
 
 class CreateLabelForm(Vertical):
-    """Widget for creating a new label."""
+    """Form widget for creating new labels/categories.
+
+    This widget provides a form for creating labels with support for:
+        - Dynamic label type selection based on project style
+        - User ownership or common (project-wide) designation
+        - Status selection (draft, active, archived)
+        - Default label marking for quick selection
+
+    The form integrates with ProjectComposer to get available label types
+    for the current project style (e.g., ExpenseTracker shows different
+    types than Vacation projects).
+
+    Attributes:
+        _selected_label_type (int | None): Currently selected label type ID
+        _selected_label_owner (int): Selected owner ID (-1 for common)
+        _default_label_type (int | None): Cached default type for reset
+
+    Messages:
+        LabelCreated: Emitted when label is successfully created
+            - Attributes:
+                - label_data (dict): Complete label information
+
+    Form Fields:
+        - **Label Name** (required): Descriptive name, max 50 characters
+        - **Label Type** (required): Dropdown of available types
+        - **Label Sub-Type**: For hierarchical categorization
+        - **Label Owner**: User or "common" designation
+        - **Label Status**: Draft (0), Active (2), or Archived (1)
+        - **Set as Default**: Checkbox to mark as default for this type
+
+    Label Types (ExpenseTracker example):
+        - Type 0: Balance (sub_types: Asset, Liability, Equity)
+        - Type 1: Transaction (sub_types: Revenue, Expense)
+        - Type 2: Account (sub_types: Bank, Credit Card, Cash)
+        - Type 3: Main Category (sub_types: Groceries, Entertainment, etc.)
+        - Type 4: Secondary Tags (sub_types: Urgent, Recurring, etc.)
+
+    Validation:
+        - Label name is required
+        - Label type must be selected
+        - Only one default label per type per user
+        - Label owner must be valid user ID or -1
+
+    Example:
+        Creating a common label::
+
+            >>> # User fills form:
+            >>> #   Name: "Groceries"
+            >>> #   Type: "Main Category"
+            >>> #   Owner: "common"
+            >>> #   Status: "Active"
+            >>> #   Default: True
+            >>> # Clicks "Create"
+            >>> # → Label created with owner_id=-1
+
+        Creating a user-specific label::
+
+            >>> # User fills form:
+            >>> #   Name: "Wayne Credit Card"
+            >>> #   Type: "Account"
+            >>> #   Owner: "batman"
+            >>> #   Status: "Active"
+            >>> # → Label created with owner_id=batman's ID
+
+    Note:
+        Default labels are used for quick expense entry - when a user
+        doesn't explicitly select labels, the system uses their default
+        labels for each category.
+
+        The label sub_type system allows hierarchical categorization
+        (e.g., Account → Credit Card → specific card name).
+
+    See Also:
+        settings_label_page.LabelManagementForm: Manage existing labels
+        functions.project_composer.ProjectComposer: Project-specific label types
+        functions.handler_sqllite.SQLLiteHandler.op_label_create: Database operation
+    """
 
     # DEFAULT_CSS = """
     #
     # """
 
     class LabelCreated(Message):
-        """Message sent when a label is created."""
+        """Message sent when a label is successfully created.
+
+        Posted to parent screen after validation, for database insertion.
+
+        Attributes:
+            label_data (dict): Dictionary containing:
+                - name (str): Label name
+                - description (str): Optional description
+                - label_type (int): Type ID from ProjectComposer
+                - label_sub_type (int): Sub-type ID (-1 for default)
+                - label_status (int): Status (0=draft, 1=archived, 2=active)
+                - label_owner (int): Owner user ID (-1 for common)
+                - label_default (bool): Whether this is a default label
+                - composite (str | None): For future composite labels
+
+        Example:
+            Receiving the message::
+
+                >>> def on_create_label_form_label_created(self, message):
+                >>>     label_id = dbh.op_label_create(
+                >>>         message.label_data,
+                >>>         project_id
+                >>>     )
+        """
         def __init__(self, label_data: dict) -> None:
+            """Initialize the LabelCreated message.
+
+            Args:
+                label_data: Complete label information dictionary
+            """
             self.label_data = label_data
             super().__init__()
 

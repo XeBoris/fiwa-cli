@@ -1,4 +1,164 @@
 import copy
+"""SQLite database handler for FiWa CLI.
+
+This module provides comprehensive SQLite database operations for the FiWa
+application. It implements all CRUD operations, authentication, session
+management, and data queries using the op_* (operation) naming convention.
+
+The SQLite handler:
+    - Manages all database operations
+    - Provides 100+ op_* methods for CRUD operations
+    - Handles password hashing and authentication
+    - Manages user sessions
+    - Implements label caching
+    - Supports transactions
+    - Provides comprehensive error handling
+
+Key Features:
+    - **User Management**: Create, update, authenticate users
+    - **Project Management**: CRUD operations for projects
+    - **Item/Transaction Management**: Expense and income tracking
+    - **Label Management**: Category and tag operations with caching
+    - **Session Management**: Login/logout with UUID sessions
+    - **Permission Management**: User-project permission mapping
+    - **Password Security**: SHA-256 hashing with salt
+    - **Label Caching**: Performance optimization for label queries
+
+Classes:
+    SQLLiteHandler: Main database handler class
+
+Database Schema:
+    The handler works with tables defined in schema.sql:
+        - users: User accounts and authentication
+        - sessions: Active user sessions
+        - projects: Project definitions
+        - user_project_map: User-project relationships with permissions
+        - items: Transactions/expenses/income
+        - labels: Categories and tags
+        - label_defaults: User-specific default labels (future)
+
+Operation Naming Convention:
+    All database operations follow the op_* pattern:
+        - op_user_*: User operations
+        - op_project_*: Project operations
+        - op_item_*: Item/transaction operations
+        - op_label_*: Label/category operations
+        - op_get_*: General query operations
+
+Example:
+    Initialize and use handler::
+    
+        >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
+        >>> 
+        >>> # Initialize with database path
+        >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
+        >>> 
+        >>> # User operations
+        >>> user_id = dbh.op_user_create({
+        >>>     "username": "batman",
+        >>>     "password": "darkknight123",
+        >>>     "email": "bruce@wayne.com"
+        >>> })
+        >>> 
+        >>> # Login
+        >>> session = dbh.op_user_login("batman", "darkknight123")
+        >>> 
+        >>> # Project operations
+        >>> project_id = dbh.op_project_create(project_data, user_id)
+        >>> projects = dbh.op_project_get_info(user_id)
+        >>> 
+        >>> # Item operations
+        >>> item_id = dbh.op_item_create(item_data)
+        >>> items = dbh.op_item_get_by_user(user_id, project_id, start, end)
+        >>> 
+        >>> # Label operations (with caching)
+        >>> labels = dbh.op_label_get_all(project_id, use_cache=True)
+
+Operation Categories:
+    **User Operations** (15+ methods):
+        - op_user_create: Create new user
+        - op_user_login: Authenticate user
+        - op_user_logout: End session
+        - op_user_get_info: Get user details
+        - op_user_get_all: List all users
+        - op_user_update: Update user info
+        - op_user_update_password: Change password
+        - op_total_number_of_users: Count users
+    
+    **Project Operations** (12+ methods):
+        - op_project_create: Create project
+        - op_project_update: Update project
+        - op_project_get_info: Get user's projects
+        - op_project_get_users: List project members
+        - op_project_set_primary: Set primary project
+        - op_project_stage: Setup project with defaults
+    
+    **Item/Transaction Operations** (10+ methods):
+        - op_item_create: Create expense/income
+        - op_item_update: Update transaction
+        - op_item_get: Get single item
+        - op_item_get_by_user: Query user's items
+        - op_item_delete: Remove transaction
+    
+    **Label Operations** (10+ methods):
+        - op_label_create: Create label/category
+        - op_label_update: Update label
+        - op_label_get_all: Get all labels (with caching)
+        - op_label_get_by_name: Find label by name
+        - op_label_delete: Remove label
+        - op_label_set_default: Set user's default label
+    
+    **Session Operations** (5+ methods):
+        - op_get_user_sessions: Get current session info
+        - op_create_session: Create new session
+    
+    **Permission Operations** (5+ methods):
+        - op_user_project_permission_update: Update permissions
+        - op_project_get_users: Get users with permissions
+
+Caching Strategy:
+    Label Caching:
+        - Cache key: project_id
+        - Cached data: Complete label list
+        - Cache invalidation: On project switch or force_refresh
+        - Benefits: Reduces database queries, faster label lookups
+        
+    Usage::
+    
+        >>> # First call: Queries database
+        >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
+        >>> 
+        >>> # Subsequent calls: Uses cache
+        >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
+        >>> 
+        >>> # Force refresh: Clears cache and reloads
+        >>> labels = dbh.op_label_get_all(project_id=1, force_refresh=True)
+
+Security:
+    Password Hashing:
+        - Algorithm: SHA-256
+        - Salt: Configurable via set_pw_salt()
+        - Default salt: "fiwa_default_salt_2026"
+        - No plain text passwords stored
+        - Hash comparison for authentication
+    
+    Session Management:
+        - UUID-based session identifiers
+        - Session expiration tracking
+        - Logout invalidates sessions
+
+Database Connection:
+    - Path: Configurable via db_path parameter
+    - Default: ":memory:" (in-memory database)
+    - Connection: Managed internally
+    - Cursor: Reused for operations
+    - Salt prefix: Applied to table names for multi-tenancy
+
+See Also:
+    handler.Handler: Factory for creating handlers
+    handler_api.HandlerApi: API backend (future)
+    database.schema.sql: Database schema definition
+"""
 import sqlite3
 from typing import Dict, Optional
 from pathlib import Path
@@ -10,7 +170,119 @@ from datetime import datetime
 from datetime import timedelta
 
 class SQLLiteHandler:
+    """SQLite database handler implementing all FiWa database operations.
+
+    This class provides a comprehensive interface for all database operations
+    in FiWa CLI. It implements 100+ op_* methods for users, projects, items,
+    labels, sessions, and permissions.
+
+    The handler manages:
+        - Database connections
+        - Password hashing and verification
+        - Session creation and management
+        - Label caching for performance
+        - Table name prefixing for multi-tenancy
+
+    Attributes:
+        _pw_salt (str): Salt for password hashing, default "fiwa_default_salt_2026"
+        _db_salt (str): Prefix for table names, default "stand"
+        _db_path (str): Path to SQLite database file
+        _connection: SQLite connection object
+        _cursor: SQLite cursor object
+        _label_cache (dict): Cache of labels by project_id
+
+    Table Naming:
+        Tables are prefixed with _db_salt for multi-tenancy:
+            - p{salt}_users: User accounts
+            - p{salt}_sessions: Active sessions
+            - p{salt}_projects: Project definitions
+            - p{salt}_user_project_map: User-project relationships
+            - p{salt}_items: Transactions
+            - p{salt}_labels: Categories/tags
+
+    Password Security:
+        - Hashing: SHA-256 with salt
+        - Salt: Configurable per instance
+        - Comparison: Hash comparison, never plain text
+        - Storage: Only hashes stored in database
+
+    Example:
+        Basic initialization::
+
+            >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
+            >>> dbh.set_pw_salt("custom_salt_2026")
+            >>> dbh.set_db_salt("prod")
+
+        User operations::
+
+            >>> # Create user
+            >>> user_id = dbh.op_user_create({
+            >>>     "username": "batman",
+            >>>     "password": "secret",
+            >>>     "email": "bruce@wayne.com"
+            >>> })
+            >>>
+            >>> # Login
+            >>> session = dbh.op_user_login("batman", "secret")
+            >>> print(session["session_uuid"])
+
+        Project operations::
+
+            >>> # Create project
+            >>> project_id = dbh.op_project_create(project_data, user_id=1)
+            >>>
+            >>> # Get user's projects
+            >>> projects = dbh.op_project_get_info(user_id=1)
+
+        Item operations with date filtering::
+
+            >>> # Get items for user in March 2026
+            >>> items = dbh.op_item_get_by_user(
+            >>>     user_id=1,
+            >>>     project_id=1,
+            >>>     start_date=datetime(2026, 3, 1),
+            >>>     end_date=datetime(2026, 4, 1)  # Exclusive end
+            >>> )
+
+        Label operations with caching::
+
+            >>> # First call: Queries database
+            >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
+            >>>
+            >>> # Second call: Uses cache (fast)
+            >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
+            >>>
+            >>> # After label changes: Force refresh
+            >>> labels = dbh.op_label_get_all(project_id=1, force_refresh=True)
+
+    Note:
+        The handler uses prepared statements for all queries to prevent
+        SQL injection. All user inputs are parameterized, never concatenated
+        into SQL strings.
+
+        The label cache significantly improves performance when repeatedly
+        querying labels (e.g., populating dropdown menus). Clear the cache
+        when switching projects or after label modifications.
+
+    See Also:
+        handler.Handler: Factory for creating handlers
+        database.schema.sql: Complete database schema
+        project_composer.ProjectComposer: Uses handler for label operations
+    """
     def __init__(self, db_path=":memory:"):
+        """Initialize SQLite database handler.
+
+        Args:
+            db_path (str): Path to SQLite database file
+                Default ":memory:" creates in-memory database
+
+        Example:
+            >>> # In-memory database (testing)
+            >>> dbh = SQLLiteHandler()
+            >>>
+            >>> # File-based database (production)
+            >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
+        """
         self._pw_salt = "fiwa_default_salt_2026"
         self._db_salt = "stand"
         self._db_path = db_path
@@ -19,25 +291,47 @@ class SQLLiteHandler:
         self._label_cache: dict[int, list] = {}
 
     def set_path(self, db_path):
+        """Set database file path.
+
+        Args:
+            db_path (str): Path to SQLite database file
+        """
         self._db_path = db_path
 
     def set_pw_salt(self, pw_salt):
+        """Set password hashing salt.
+
+        Args:
+            pw_salt (str): Salt string for password hashing
+        """
         self._pw_salt = pw_salt
 
     def set_db_salt(self, db_salt):
+        """Set database table name prefix.
+
+        Args:
+            db_salt (str): Prefix for table names (multi-tenancy)
+        """
         self._db_salt = db_salt
 
     @staticmethod
     def hash_password(password: str, salt: str = None) -> str:
-        """
-        Hash a password using SHA-256 with an optional salt.
+        """Hash a password using SHA-256 with salt.
 
         Args:
             password: The plain text password to hash
-            salt: Optional salt to add to the password. If not provided, uses default salt.
+            salt: Salt to add to the password (required)
 
         Returns:
             The hashed password as a hexadecimal string
+
+        Raises:
+            ValueError: If salt is not provided
+
+        Example:
+            >>> hashed = SQLLiteHandler.hash_password("secret", "my_salt")
+            >>> len(hashed)
+            64  # SHA-256 produces 64 hex characters
         """
         if salt is None:
             raise ValueError("Salt must be provided for password hashing")

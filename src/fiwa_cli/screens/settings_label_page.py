@@ -1,4 +1,57 @@
-# settings_label_page.py
+"""Label management interface for FiWa CLI.
+
+This module provides a comprehensive interface for managing labels (categories/tags)
+within a project. It includes a DataTable view of all labels with inline editing
+capabilities, status management, and default label designation.
+
+The interface allows users to:
+    - View all labels in a sortable, interactive table
+    - Edit label names and descriptions via modal dialog
+    - Change label status (draft, active, archived)
+    - Set default labels per category per user
+    - Create new labels via integration with CreateLabelForm
+
+Key Features:
+    - DataTable with clickable rows for editing
+    - Modal editor for label details
+    - Status dropdown with visual indicators
+    - Default label marking (star icon)
+    - Permission-based controls (only managers can set defaults)
+    - Integration with ProjectComposer for type mapping
+
+Classes:
+    LabelEditorModal: Modal screen for editing label details
+    LabelManagementForm: Main form with DataTable and controls
+
+Label Status Values:
+    - 0: Draft (work in progress, not shown in selectors)
+    - 1: Archived (historical, not shown in active selectors)
+    - 2: Active (currently usable)
+
+Default Label System:
+    Each user can have one default label per label type. Default labels
+    are used when creating expenses without explicit label selection.
+    Only users with Manage permissions can modify defaults.
+
+Example:
+    Mounting the form::
+
+        >>> from fiwa_cli.screens.settings_label_page import LabelManagementForm
+        >>> form = LabelManagementForm()
+        >>> content_area.mount(form)
+
+    Editing a label::
+
+        >>> # User clicks on label row in table
+        >>> # Modal opens with current values
+        >>> # User edits and clicks OK
+        >>> # Label updated in database and table refreshed
+
+See Also:
+    settings_label_new: Create new labels
+    functions.project_composer: Project-specific label types
+    settings: Main settings screen
+"""
 from textual.widgets import Static, Button, Input, DataTable
 from textual.containers import Vertical, Horizontal, Container, Grid, ScrollableContainer
 from textual.app import ComposeResult
@@ -10,7 +63,52 @@ from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.functions.project_composer import ProjectComposer
 
 class LabelEditorModal(ModalScreen):
-    """Modal screen for editing label name, description, and status."""
+    """Modal screen for editing label name, description, and status.
+
+    This modal dialog appears when a user clicks on a label row in the
+    LabelManagementForm table. It provides fields for editing the label's
+    basic properties and status.
+
+    The modal is centered on screen with a focused input area and action
+    buttons for saving or canceling changes.
+
+    Attributes:
+        label_id (int): ID of the label being edited
+        label_name (str): Current label name
+        label_description (str): Current label description
+        current_status (int): Current status value (0, 1, or 2)
+        selected_status (int): User-selected status (may differ from current)
+
+    BINDINGS:
+        - Escape: Close modal without saving (dismiss_modal)
+
+    Example:
+        Opening the modal::
+
+            >>> modal = LabelEditorModal(
+            >>>     label_id=42,
+            >>>     label_name="Groceries",
+            >>>     label_description="Food shopping",
+            >>>     current_status=2
+            >>> )
+            >>> self.app.push_screen(modal)
+
+        Handling modal result (in async context)::
+
+            >>> async def edit_label(self):
+            >>>     result = await self.app.push_screen_wait(modal)
+            >>>     if result:  # User clicked OK
+            >>>         label_id, new_name, new_desc, new_status = result
+            >>>         dbh.op_label_update(label_id, new_name, new_desc, new_status)
+
+    Note:
+        The modal validates input before dismissing - label name cannot
+        be empty. If validation fails, the modal stays open with an
+        error notification.
+
+    See Also:
+        LabelManagementForm: Parent form that opens this modal
+    """
 
     BINDINGS = [
         ("escape", "dismiss_modal", "Close"),
@@ -21,6 +119,16 @@ class LabelEditorModal(ModalScreen):
     # """
 
     def __init__(self, label_id: int, label_name: str, label_description: str, current_status: int, *args, **kwargs):
+        """Initialize the label editor modal.
+
+        Args:
+            label_id: Database ID of the label being edited
+            label_name: Current name of the label
+            label_description: Current description
+            current_status: Current status value (0=draft, 1=archived, 2=active)
+            *args: Additional positional arguments for ModalScreen
+            **kwargs: Additional keyword arguments for ModalScreen
+        """
         super().__init__(*args, **kwargs)
         self.label_id = label_id
         self.label_name = label_name
@@ -106,19 +214,125 @@ class LabelEditorModal(ModalScreen):
         self.dismiss(result)
 
 class LabelManagementForm(Vertical):
-    """Widget for managing labels in a project."""
+    """Form widget for managing all labels in a project.
+
+    This comprehensive form displays all project labels in an interactive
+    DataTable with capabilities for editing, status management, and default
+    label designation. Users with appropriate permissions can modify labels
+    and set defaults for their categories.
+
+    The form provides:
+        - Interactive DataTable showing all labels
+        - Row-click editing via LabelEditorModal
+        - Status management with visual indicators
+        - Default label designation per type per user
+        - Permission-based controls
+        - Integration with ProjectComposer for type mapping
+
+    Attributes:
+        _labels (list): Cached list of label dictionaries from database
+        _modified_labels (dict): Tracks pending changes {label_id: updated_data}
+        _new_labels (list): Track new labels to be created (currently unused)
+        _deleted_labels (set): Track labels marked for deletion (currently unused)
+        _selected_label_type (int): Currently selected label type filter
+
+    Messages:
+        LabelsModified: Emitted when labels are successfully saved
+            - Attributes:
+                - changes_summary (dict): Summary with counts
+
+        NewLabelRequested: Emitted when user clicks "Create New Label"
+
+    DataTable Columns:
+        - ID: Label identifier
+        - Name: Label name (editable)
+        - Description: Label description (editable)
+        - Type: Label type name from ProjectComposer
+        - Owner: Username or "Common"
+        - Status: Draft/Active/Archived (editable)
+        - Default: Star icon for default labels (clickable)
+
+    Permission Requirements:
+        - Read (100000): View labels
+        - Manage (xxxx11 or xxxx10): Set default labels
+
+    Editing Workflow:
+        1. User clicks on label row
+        2. LabelEditorModal opens with current values
+        3. User edits name, description, status
+        4. User clicks OK
+        5. Changes saved to database immediately
+        6. Table refreshes to show updated values
+
+    Default Label Workflow:
+        1. User clicks star column for a label
+        2. System checks only one default per type per user
+        3. Previous default unmarked (if exists)
+        4. New default marked and saved
+        5. Table updates to show new default
+
+    Example:
+        Basic usage::
+
+            >>> form = LabelManagementForm()
+            >>> form.on_mount()
+            >>> content_area.mount(form)
+
+        Handling label modifications::
+
+            >>> def on_label_management_form_labels_modified(self, message):
+            >>>     summary = message.changes_summary
+            >>>     self.app.file_log.info(f"Labels updated: {summary}")
+
+    Note:
+        Label changes are saved immediately when the user clicks OK in
+        the LabelEditorModal. There is no separate "Save All" button.
+
+        Default labels are user-specific - each user can have their own
+        set of defaults for quick expense entry.
+
+    See Also:
+        LabelEditorModal: Modal for editing label details
+        settings_label_new.CreateLabelForm: Create new labels
+        functions.project_composer.ProjectComposer: Label type definitions
+    """
 
     # DEFAULT_CSS = """
     # }
 
     class LabelsModified(Message):
-        """Message sent when labels are modified."""
+        """Message sent when labels are modified and saved.
+
+        Posted after successful database update to notify parent screen.
+
+        Attributes:
+            changes_summary (dict): Dictionary with:
+                - new_labels (int): Count of new labels created
+                - modified_labels (int): Count of labels modified
+                - deleted_labels (int): Count of labels deleted
+
+        Example:
+            >>> summary = {
+            >>>     'new_labels': 0,
+            >>>     'modified_labels': 3,
+            >>>     'deleted_labels': 0
+            >>> }
+        """
         def __init__(self, changes_summary: dict) -> None:
+            """Initialize LabelsModified message.
+
+            Args:
+                changes_summary: Dictionary with modification counts
+            """
             self.changes_summary = changes_summary
             super().__init__()
 
     class NewLabelRequested(Message):
-        """Message sent when user wants to create a new label."""
+        """Message sent when user requests to create a new label.
+
+        Posted when user clicks "Create New Label" button.
+        Parent screen typically switches to CreateLabelForm.
+        """
         pass
 
     def __init__(self, *args, **kwargs):

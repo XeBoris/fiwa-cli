@@ -1,4 +1,124 @@
-"""Edit Expense View - Tabbed interface showing items per user."""
+"""Expense editing interface for FiWa CLI.
+
+This module provides a comprehensive tabbed interface for viewing and editing
+existing expenses. It displays all expenses for the selected period in
+per-user tabs with interactive DataTables.
+
+The editing interface features:
+    - Period-filtered expense display (week or month)
+    - Tabbed view with one tab per project user
+    - Sortable DataTables (click column headers)
+    - Row-click editing via ItemInputForm modal
+    - Real-time period updates from WeekMonthWidget
+    - Label display with transaction categorization
+
+Key Features:
+    - Per-user expense organization in tabs
+    - Period-based filtering from app_state
+    - Interactive row selection for editing
+    - Inline editing via ItemInputForm modal
+    - Automatic refresh on period changes
+    - Sortable columns
+    - Label information display
+
+Classes:
+    EditExpenseView: Main editing interface with tabbed DataTables
+
+Data Display:
+    Each user tab shows a DataTable with columns:
+        - Name: Expense/transaction name (15 char width)
+        - Price: Original price in original currency
+        - Curr: Original currency code
+        - Final: Converted price in main currency
+        - [MAIN]: Main currency code (e.g., USD, EUR)
+        - Date: Transaction date
+        - Label: Main category label name
+        - Account: Bank/account label name
+
+    All expenses where bought_for_id matches the user are shown,
+    regardless of who purchased them (bought_by_id).
+
+Period Filtering:
+    Expenses are filtered by:
+        - project_id: Current project
+        - bought_for_id: Each user sees their own expenses
+        - bought_date: Between period_start and period_end
+
+    The period is controlled by WeekMonthWidget in the InputsScreen
+    sidebar and automatically updates when changed.
+
+Editing Workflow:
+    1. User selects their tab
+    2. User clicks on expense row
+    3. ItemInputForm modal opens with pre-filled data
+    4. User modifies fields (price, date, labels, etc.)
+    5. User clicks Save
+    6. Confirmation modal shows updated details
+    7. User confirms
+    8. Database updated
+    9. Table refreshes to show changes
+
+Example:
+    Mounting the view::
+
+        >>> from fiwa_cli.screens.inputs_edit_expense import EditExpenseView
+        >>> view = EditExpenseView()
+        >>> content_area.mount(view)
+
+    Typical usage::
+
+        >>> # User in InputsScreen
+        >>> # Clicks "Edit" button
+        >>> # EditExpenseView appears
+        >>> # Tabs shown: [Batman] [Superman]
+        >>> # Batman tab selected (default)
+        >>> # Table shows:
+        >>> #   Groceries  $85  USD  $85  [USD]  2026-03-15  Food  Chase
+        >>> #   Coffee     $5   USD  $5   [USD]  2026-03-15  Food  Cash
+        >>> # User clicks "Groceries" row
+        >>> # ItemInputForm modal opens with:
+        >>> #   Name: Groceries
+        >>> #   Price: 85.00
+        >>> #   Currency: USD
+        >>> #   Date: 2026-03-15
+        >>> #   Labels: Food (main), Chase (account)
+        >>> # User changes price to $90
+        >>> # User clicks Save
+        >>> # Confirmation modal shows updated price
+        >>> # User confirms
+        >>> # Database updated
+        >>> # Table refreshes, now shows $90
+
+    Period change integration::
+
+        >>> # User viewing March expenses
+        >>> # User changes WeekMonthWidget to April
+        >>> # on_week_month_widget_period_changed fires in InputsScreen
+        >>> # InputsScreen calls view.refresh_tables()
+        >>> # All tabs reload with April expenses
+        >>> # Batman tab now shows different data
+
+Performance:
+    - Lazy tab loading: Only active tab's data is visible
+    - Efficient queries: Single query per user
+    - Minimal re-renders: Only refreshes on period change or edit
+    - Sorted by default: Date descending (newest first)
+
+Note:
+    The view is tightly integrated with the period selection in InputsScreen.
+    When the user changes the week/month in the sidebar, this view automatically
+    refreshes to show expenses for the new period.
+
+    Editing is done via ItemInputForm modal in "edit mode", which pre-fills
+    all fields with existing expense data. The same ItemInputForm is used
+    for both creating and editing expenses.
+
+See Also:
+    inputs.InputsScreen: Parent screen with period picker
+    inputs_insert_expense: Creating new expenses
+    components.item_input_form.ItemInputForm: Core input/edit widget
+    reports_basic.BasicReportForm: Similar tabbed expense display
+"""
 from textual.containers import VerticalScroll, Vertical
 from textual.widgets import Static, TabbedContent, TabPane, DataTable
 from textual.app import ComposeResult
@@ -9,13 +129,128 @@ from fiwa_cli.functions.loader import load_dynamic_css
 import json
 
 class EditExpenseView(VerticalScroll):
-    """View for editing expenses with tabs per user showing their items."""
+    """Tabbed expense editing interface with per-user DataTables.
+
+    This widget displays all expenses for the selected period organized
+    by user in tabs. Each tab contains a DataTable with all expenses for
+    that user, allowing easy viewing and editing.
+
+    The view provides:
+        - Period-filtered expense display
+        - One tab per project user
+        - Sortable DataTables
+        - Row-click editing
+        - Automatic refresh on period changes
+        - Label information display
+
+    Attributes:
+        None (stateless widget, reads from app_state)
+
+    Tab Structure:
+        For each project user:
+            Tab: {First Name} {Last Name}
+                └── DataTable: All expenses bought for this user
+
+    DataTable Columns:
+        - Name (15 char): Transaction name
+        - Price: Original price amount
+        - Curr: Original currency code
+        - Final: Converted price in main currency
+        - [MAIN]: Main currency column header
+        - Date: Transaction date (YYYY-MM-DD)
+        - Label: Main category label
+        - Account: Bank/account label
+
+    Row Keys:
+        Each row has key format: "{item_id}" (e.g., "42")
+        This allows efficient row lookup for editing.
+
+    Sorting:
+        - Click any column header to sort
+        - Default: Sorted by Date descending
+        - Toggle: Click again for reverse order
+        - Visual indicator shows current sort
+
+    Editing:
+        Row click → ItemInputForm modal:
+            1. User clicks row
+            2. on_row_selected() fires
+            3. ItemInputForm modal opens in "edit mode"
+            4. Form pre-filled with expense data
+            5. User modifies and saves
+            6. Database updated
+            7. refresh_tables() called
+            8. Table shows updated data
+
+    Period Integration:
+        Uses app_state for filtering:
+            - current_period_start: Inclusive start date
+            - current_period_end: Exclusive end date
+            - current_period_label: Display label (e.g., "2026 Week 10")
+
+        When period changes in InputsScreen:
+            - InputsScreen._refresh_data_tables() called
+            - Calls this view's refresh_tables()
+            - All tabs reload with new period data
+
+    Example:
+        Basic usage::
+
+            >>> view = EditExpenseView()
+            >>> content_area.mount(view)
+
+        User edits expense::
+
+            >>> # Batman's tab active
+            >>> # Table shows 5 expenses for March
+            >>> # User clicks "Groceries - $85" row
+            >>> # ItemInputForm opens with all fields filled
+            >>> # User changes:
+            >>> #   Price: 85 → 90
+            >>> #   Label: Food → Groceries
+            >>> # User saves
+            >>> # Database updated
+            >>> # Table refreshes, row now shows:
+            >>> #   Groceries  $90  USD  $90  [USD]  2026-03-15  Groceries  Chase
+
+        Period change::
+
+            >>> # Viewing March (Week 11)
+            >>> # User changes to Week 12
+            >>> # refresh_tables() called automatically
+            >>> # All tabs reload with Week 12 data
+
+    Performance:
+        - Lazy loading: Only active tab renders initially
+        - Single query per user
+        - Efficient refresh: Only updates data, preserves UI
+        - Maintains tab selection during refresh
+
+    Note:
+        The view shows expenses "bought for" each user, not necessarily
+        "bought by" them. This is important for cost sharing - if Batman
+        buys groceries for Superman, it appears in Superman's tab.
+
+        The refresh_tables() method is called from the parent InputsScreen
+        when the period changes, ensuring data stays synchronized.
+
+    See Also:
+        inputs.InputsScreen: Parent screen with period picker
+        components.item_input_form.ItemInputForm: Editing modal
+        reports_basic.BasicReportForm: Similar tabbed display with totals
+    """
 
     # DEFAULT_CSS = """
     #
     # """
 
     def __init__(self, *args, **kwargs):
+        """Initialize the edit expense view.
+
+        Args:
+            *args: Positional arguments passed to parent VerticalScroll
+            **kwargs: Keyword arguments passed to parent VerticalScroll
+        """
         super().__init__(*args, **kwargs)
 
     def on_mount(self) -> None:

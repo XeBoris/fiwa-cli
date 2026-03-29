@@ -1,3 +1,57 @@
+"""Configuration, resource, and initialization utilities for FiWa CLI.
+
+This module provides all configuration loading, resource management, and
+application initialization functions. It handles CSS loading, YAML config
+parsing, database setup, and test data generation.
+
+The loader module is responsible for:
+    - Argument parsing (handle_args)
+    - Configuration file loading (load_yaml_config)
+    - CSS resource loading (load_dynamic_css)
+    - OS detection and path resolution (identify_os, get_abs_path)
+    - Environment preparation (prep_fiwa)
+    - Application setup (setup_fiwa)
+
+Key Functions:
+    - **handle_args()**: Parse command-line arguments (init/run modes)
+    - **get_abs_path()**: Get package installation path
+    - **load_yaml_config()**: Parse YAML configuration files
+    - **load_dynamic_css()**: Load theme-specific CSS for widgets
+    - **identify_os()**: Detect OS and determine config paths
+    - **prep_fiwa()**: Initialize data directory (init mode)
+    - **setup_fiwa()**: Setup application and database (run mode)
+
+Workflow:
+    1. **Command-line entry** → handle_args()
+    2. **Get package path** → get_abs_path()
+    3. **Detect OS** → identify_os()
+    4. **Mode: init** → prep_fiwa() → Create directories, copy config
+    5. **Mode: run** → setup_fiwa() → Load config, init database
+    6. **Runtime CSS** → load_dynamic_css() → Load widget styles
+
+Example:
+    Application initialization::
+
+        >>> # From main.py
+        >>> _mode, _conf = handle_args()
+        >>> abs_path = get_abs_path()
+        >>>
+        >>> if _mode == "init":
+        >>>     prep_fiwa(mode=_mode, config=_conf)
+        >>> elif _mode == "run":
+        >>>     config = setup_fiwa(abs_path=abs_path, config=_conf)
+
+    Loading CSS for widget::
+
+        >>> # From widget's on_mount()
+        >>> from fiwa_cli.functions.loader import load_dynamic_css
+        >>> load_dynamic_css(self, "components_calendar_picker.tcss")
+
+See Also:
+    main: Main application entry point
+    handler_sqllite: Database operations
+    project_composer: Project-specific logic
+"""
 from typing import Dict, Any, Optional, List
 import os
 import yaml

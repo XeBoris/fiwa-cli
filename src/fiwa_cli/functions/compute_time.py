@@ -1,26 +1,111 @@
-"""
-Time computation utilities for date, week, month, and holiday calculations.
+"""Time computation utilities for date, week, month, and holiday calculations.
 
 This module provides the TimeClass for comprehensive date and time calculations
 with internationalization support for day names, month names, and holiday names
-across different countries.
+across different countries using the Babel library for localization.
 
-Features:
-    - Day, week, month, and year calculations
-    - ISO week number support
-    - Holiday detection with translations
-    - Multi-language support via Babel
-    - Flexible date range calculations
+The TimeClass handles:
+    - Day name localization (Monday → Montag in German)
+    - ISO week number calculations and boundaries
+    - Month boundaries with custom start days (for accounting periods)
+    - Year boundaries
+    - Holiday detection with country-specific translations
+    - Date shifting and range calculations
+
+Key Features:
+    - **Internationalization**: Babel-based localization for 100+ locales
+    - **ISO Week Support**: Proper ISO 8601 week calculations
+    - **Custom Periods**: Support for non-calendar month boundaries
+    - **Holiday Detection**: Using holidays library with translations
+    - **Flexible Calculations**: Shift weeks/months forward/backward
+    - **Complete Information**: All date attributes in single call
+
+Classes:
+    TimeClass: Main date calculation class with localization
+
+Use Cases in FiWa:
+    - **Week/Month Filtering**: Calculate date ranges for expense queries
+    - **Custom Accounting Periods**: Support month_start != 1st
+    - **Localized Display**: Show dates in user's language
+    - **Holiday Awareness**: Mark special days in reports
+    - **Navigation**: Calculate previous/next periods
+
+Supported Locales:
+    Any locale supported by Babel, including:
+        - US (English), DE (German), FR (French), ES (Spanish)
+        - IT (Italian), PT (Portuguese), NL (Dutch), PL (Polish)
+        - JP (Japanese), CN (Chinese), KR (Korean), RU (Russian)
+        - And 100+ more
 
 Example:
-    >>> from compute_time import TimeClass
-    >>> import datetime
-    >>>
-    >>> # Create instance for German locale
-    >>> tc = TimeClass(day=datetime.date(2024, 12, 25), country_code="DE")
-    >>> result = tc.get_day()
-    >>> print(result['day_name'])  # 'Mittwoch'
-    >>> print(result['holiday_name'])  # 'Weihnachten'
+    German locale with holiday::
+
+        >>> from fiwa_cli.functions.compute_time import TimeClass
+        >>> import datetime
+        >>>
+        >>> tc = TimeClass(
+        >>>     day=datetime.date(2024, 12, 25),
+        >>>     country_code="DE"
+        >>> )
+        >>> result = tc.get_day()
+        >>> print(result['day_name'])      # 'Mittwoch' (Wednesday)
+        >>> print(result['month_name'])    # 'Dezember' (December)
+        >>> print(result['is_holiday'])    # True
+        >>> print(result['holiday_name'])  # 'Weihnachten' (Christmas)
+
+    Custom financial period (15th to 14th)::
+
+        >>> tc = TimeClass(country_code="US")
+        >>>
+        >>> # Standard month (1st to last day)
+        >>> march = tc.cmp_month_by_number(2026, 3, month_start_day=1)
+        >>> print(f"{march['month_beg']} to {march['month_end']}")
+        >>> # 2026-03-01 to 2026-03-31
+        >>>
+        >>> # Custom period (15th to 14th next month)
+        >>> period = tc.cmp_month_by_number(2026, 3, month_start_day=15)
+        >>> print(f"{period['month_beg']} to {period['month_end']}")
+        >>> # 2026-03-15 to 2026-04-14
+
+    ISO week calculations::
+
+        >>> tc = TimeClass()
+        >>> week = tc.cmp_week_by_number(2026, 10)
+        >>> print(f"Week 10: {week['week_beg']} to {week['week_end']}")
+        >>> # Monday to Sunday of week 10
+
+    French locale::
+
+        >>> tc = TimeClass(
+        >>>     day=datetime.date(2024, 7, 14),
+        >>>     country_code="FR"
+        >>> )
+        >>> result = tc.get_day()
+        >>> print(result['day_name'])      # 'dimanche' (Sunday)
+        >>> print(result['holiday_name'])  # 'Fête nationale' (Bastille Day)
+
+Integration with FiWa:
+    **WeekMonthWidget**: Uses TimeClass for period calculations
+        >>> # Calculate current week boundaries
+        >>> tc = TimeClass()
+        >>> week = tc.cmp_week_by_number(2026, 13)
+        >>> start = week['week_beg']
+        >>> end = week['week_end']
+        >>> # Query expenses for this week
+        >>> items = dbh.op_item_get_by_user(user_id, project_id, start, end)
+
+    **Reports**: Custom month periods for project-specific accounting
+        >>> # Project starts months on 15th
+        >>> month_start = project_store.get("month_start", 1)
+        >>> tc = TimeClass()
+        >>> period = tc.cmp_month_by_number(2026, 3, month_start_day=month_start)
+        >>> # Filter expenses for custom period
+        >>> items = dbh.op_item_get_by_user(..., period['month_beg'], period['month_end'])
+
+See Also:
+    babel.dates: Babel date formatting library
+    holidays: Holiday detection library
+    components.week_month_picker: Uses TimeClass for period navigation
 """
 
 import datetime

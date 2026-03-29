@@ -9,21 +9,197 @@ from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.screens.password_update_modal import PasswordUpdateModal
 
 
+"""User modification interface for FiWa CLI.
+
+This module provides a role-based interface for modifying user information.
+The interface adapts based on the logged-in user's scope, showing different
+capabilities for administrators versus regular users.
+
+Key Features:
+    - Role-based access control (admin vs. user)
+    - Admin users: Can view and modify all users
+    - Regular users: Can only modify their own information
+    - Field-level restrictions (unique_identifier, max_projects)
+    - Password update integration
+    - Birthday management (admin-only modification)
+
+User Scopes:
+    - **admin:***: Full access to all users and settings
+    - **user:***: Limited access to own user information only
+
+Editable Fields:
+    - First name (all users)
+    - Last name (all users)
+    - Username (all users)
+    - Email (all users)
+    - Scope (admin only)
+    - Birthday (admin only)
+    - Max projects (admin only)
+
+Immutable Fields:
+    - unique_identifier: Cannot be changed once created
+
+Classes:
+    ModifyUserForm: Main form for user modification
+    PasswordUpdateModal: Modal for password changes (imported)
+
+Example:
+    Mounting the form::
+    
+        >>> from fiwa_cli.screens.settings_user_modify import ModifyUserForm
+        >>> form = ModifyUserForm()
+        >>> content_area.mount(form)
+    
+    Admin viewing all users::
+    
+        >>> # Admin logs in
+        >>> # Form shows dropdown with all users
+        >>> # Admin selects user to modify
+        >>> # Form populates with selected user's data
+    
+    Regular user viewing own data::
+    
+        >>> # Regular user logs in
+        >>> # Form automatically shows only their own data
+        >>> # No user dropdown shown
+
+See Also:
+    settings_user_new: Create new users
+    password_update_modal: Password update interface
+    settings: Main settings screen
+"""
+from textual.widgets import Static, Button, Input, Select
+from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer
+from textual.app import ComposeResult
+from textual.message import Message
+from datetime import datetime
+
+from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.screens.password_update_modal import PasswordUpdateModal
+
+
 class ModifyUserForm(Vertical):
-    """Widget for modifying user information.
+    """Form widget for modifying user information with role-based access.
 
-    Behavior depends on the logged-in user's scope:
-    - admin:* scope: Can see and modify all users
-    - user:* scope: Can only see and modify their own information
+    This widget provides different interfaces based on the logged-in user's
+    scope. Administrators can select and modify any user, while regular users
+    can only modify their own information.
 
-    Restrictions:
-    - unique_identifier: Cannot be changed (immutable)
-    - max_projects: Only admin users can modify this field
+    The form enforces field-level restrictions:
+        - Unique identifier: Immutable (shown as disabled)
+        - Max projects: Admin-only modification
+        - Birthday: Admin-only modification
+        - Password: Special modal for all users
+
+    Behavior by User Scope:
+        **Admin (admin:\*):**
+            - Sees dropdown with all users
+            - Can select any user to modify
+            - Can edit all fields except unique_identifier
+            - Can modify max_projects and birthday
+
+        **Regular User (user:\*):**
+            - No user dropdown shown
+            - Automatically loads own user data
+            - Cannot modify max_projects
+            - Cannot modify birthday (shown as disabled)
+            - Can update other personal information
+
+    Attributes:
+        _is_admin (bool): Whether logged-in user is admin
+        _current_user_id (int): ID of logged-in user
+        _selected_user_id (int | None): ID of user being modified
+        _all_users (list): List of all users (admin only)
+
+    Messages:
+        UserModified: Emitted when user information is updated
+            - Attributes:
+                - user_data (dict): Updated user information
+
+    Form Fields:
+        - **User Selector** (admin only): Dropdown of all users
+        - **First Name**: User's first name
+        - **Last Name**: User's last name
+        - **Username**: Unique username
+        - **Email**: Email address
+        - **Unique Identifier**: Immutable identifier (disabled)
+        - **Scope**: Permission scope (admin only)
+        - **Birthday**: Birth date YYYY-MM-DD (admin only)
+        - **Max Projects**: Maximum allowed projects (admin only)
+        - **Update Password**: Button to open password modal
+
+    Validation:
+        - First name, last name, username, email are required
+        - Scope is required
+        - Email must contain @ and .
+        - Birthday must be YYYY-MM-DD format if provided
+        - Max projects must be a valid number (admin only)
+
+    Example:
+        Admin modifying a user::
+
+            >>> # Admin logs in
+            >>> form = ModifyUserForm()
+            >>> # Form shows dropdown: [batman, superman, wonderwoman]
+            >>> # Admin selects "batman"
+            >>> # Form loads batman's data
+            >>> # Admin edits email: batman@wayneenterprises.com
+            >>> # Admin clicks Update
+            >>> # Database updated, UserModified message posted
+
+        Regular user editing own data::
+
+            >>> # batman logs in (scope: "user:write")
+            >>> form = ModifyUserForm()
+            >>> # No dropdown shown
+            >>> # Form automatically shows batman's data
+            >>> # batman edits first name: "Bruce"
+            >>> # batman clicks Update
+            >>> # Database updated for batman only
+
+    Note:
+        The form automatically detects user scope and adjusts the interface
+        accordingly. Admin users see more fields and have more control.
+
+        Password updates are handled via a separate PasswordUpdateModal
+        for security reasons - passwords are never shown in plain text.
+
+    See Also:
+        PasswordUpdateModal: Password update interface
+        settings_user_new.CreateUserForm: Create new users
+        functions.handler_sqllite.SQLLiteHandler.op_user_update: Database operation
     """
 
+    # DEFAULT_CSS = """
+    # }
+
     class UserModified(Message):
-        """Message sent when user is modified."""
+        """Message sent when user information is successfully modified.
+
+        Posted after database update to notify parent screen.
+
+        Attributes:
+            user_data (dict): Dictionary containing:
+                - user_id: User identifier
+                - first_name: Updated first name
+                - last_name: Updated last name
+                - username: Updated username
+                - email: Updated email
+                - scope: Updated scope (admin only)
+                - birthday: Updated birthday (optional, admin only)
+                - max_projects: Updated limit (optional, admin only)
+
+        Example:
+            >>> def on_modify_user_form_user_modified(self, message):
+            >>>     user = message.user_data
+            >>>     self.notify(f"User {user['username']} updated!")
+        """
         def __init__(self, user_data: dict) -> None:
+            """Initialize UserModified message.
+
+            Args:
+                user_data: Complete user information dictionary
+            """
             self.user_data = user_data
             super().__init__()
 

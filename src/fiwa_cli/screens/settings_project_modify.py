@@ -1,4 +1,53 @@
-# settings_project_modify.py
+"""Project modification interface for FiWa CLI.
+
+This module provides a comprehensive interface for modifying existing projects,
+including project details, user permissions, and project metadata. It supports
+both project administrators and managers in maintaining project configurations.
+
+Key Features:
+    - Edit project name, description, and currencies
+    - Modify month_start day for monthly period calculations
+    - Manage project users and their permissions
+    - Add new users to projects
+    - Update user permission levels
+    - Set primary project status
+    - Real-time permission translation to human-readable format
+
+Components:
+    ModifyProjectForm: Main form for project modification
+    UserPermissionsDialog: Modal for editing user permissions
+    UserAddDialog: Modal for adding users to project
+
+Permission System:
+    Permissions are stored as 6-character binary strings (e.g., "110000"):
+        - Position 0: Read (View expenses and dashboard)
+        - Position 1: Create (Add new expenses)
+        - Position 2: Update (Edit existing expenses)
+        - Position 3: Delete (Remove expenses)
+        - Position 4: Project (Edit project details)
+        - Position 5: Manage (Manage users and permissions)
+
+Example:
+    Mounting the form::
+
+        >>> from fiwa_cli.screens.settings_project_modify import ModifyProjectForm
+        >>> form = ModifyProjectForm()
+        >>> content_area.mount(form)
+
+    Handling permission updates::
+
+        >>> @on(ModifyProjectForm.ProjectModified)
+        >>> def on_project_modified(self, message):
+        >>>     self.app.file_log.info(f"Project updated: {message.project_data}")
+
+Functions:
+    translate_permissions: Convert binary permission string to readable text
+
+See Also:
+    settings_project_new: Create new projects
+    settings: Main settings screen
+    functions.handler_sqllite: Database operations for projects and users
+"""
 from textual.widgets import Static, Button, Input, TextArea, Checkbox, Label, Rule, Switch
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
 from textual.app import ComposeResult
@@ -12,16 +61,36 @@ from fiwa_cli.functions.loader import load_dynamic_css
 def translate_permissions(permission_string: str) -> str:
     """Translate permission string to human-readable format.
 
+    Converts a 6-character binary permission string into a comma-separated
+    list of human-readable permission names.
+
     Args:
-        permission_string: 6-character string like "110000"
+        permission_string: 6-character string like "110000" where each
+            position represents a specific permission:
+            - 0: Read
+            - 1: Create
+            - 2: Update
+            - 3: Delete
+            - 4: Project
+            - 5: Manage
 
     Returns:
-        Human-readable string like "Read, Create" or "No permissions"
+        Human-readable string with enabled permissions, or "No permissions"
+        if all positions are '0'.
 
     Example:
-        "110000" -> "Read, Create"
-        "111111" -> "Read, Create, Update, Delete, Project, Manage"
-        "000000" -> "No permissions"
+        >>> translate_permissions("110000")
+        'Read, Create'
+        >>> translate_permissions("111111")
+        'Read, Create, Update, Delete, Project, Manage'
+        >>> translate_permissions("000000")
+        'No permissions'
+        >>> translate_permissions("100001")
+        'Read, Manage'
+
+    Note:
+        The function pads short strings with zeros to ensure 6 characters.
+        Extra characters beyond position 5 are ignored.
     """
     permission_map = {
         0: "Read",
@@ -49,14 +118,110 @@ def translate_permissions(permission_string: str) -> str:
 
 
 class ModifyProjectForm(Vertical):
-    """Widget for modifying the currently loaded project."""
+    """Form widget for modifying existing project details and users.
+
+    This comprehensive form allows project administrators to modify all
+    aspects of a project including metadata, user memberships, and permissions.
+    The form automatically reloads project data into app_state after successful
+    updates to ensure immediate reflection of changes throughout the application.
+
+    The form is divided into several sections:
+        - **Project Details**: Name, description, currencies
+        - **Month Configuration**: Month start day for period boundaries
+        - **User Management**: List of project users with permission controls
+        - **User Addition**: Add new users to the project
+
+    Attributes:
+        None (uses app_state for project and user information)
+
+    Messages:
+        ProjectModified: Emitted when project details are updated
+            - Attributes:
+                - project_data (dict): Updated project information
+
+    Form Sections:
+        1. **Project Information**:
+           - Project name (editable)
+           - Description (editable textarea)
+
+        2. **Currency Settings**:
+           - Main currency (3-letter code)
+           - Additional currencies (comma-separated)
+
+        3. **Month Configuration**:
+           - Month start day (1-28)
+           - Info text explaining the purpose
+
+        4. **User Management**:
+           - DataTable with current users
+           - Permission edit buttons per user
+           - Add Users button
+
+    Validation:
+        - Project name is required
+        - Main currency must be exactly 3 uppercase letters
+        - Month start must be between 1 and 28
+        - Permission changes require appropriate user rights
+
+    Permission Requirements:
+        To modify project details: User must have "Project" permission (position 4)
+        To manage users: User must have "Manage" permission (position 5)
+
+    Example:
+        Basic usage::
+
+            >>> form = ModifyProjectForm()
+            >>> form.on_mount()
+            >>> content_area.mount(form)
+
+        After successful update::
+
+            >>> def on_modify_project_form_project_modified(self, message):
+            >>>     self.app.file_log.info(f"Updated: {message.project_data['name']}")
+            >>>     # app_state is automatically reloaded with new values
+
+    Note:
+        The form performs a complete project reload after successful updates
+        via ``_reload_project_into_app_state()``, ensuring all project-related
+        data (name, currency, project_store, etc.) is immediately reflected
+        in the app without requiring re-login.
+
+        When a user updates month_start, it immediately affects period
+        calculations in reports and expense views.
+
+    See Also:
+        _reload_project_into_app_state: Reloads project data after updates
+        UserPermissionsDialog: Modal for editing user permissions
+        UserAddDialog: Modal for adding users to project
+        settings_project_new.CreateProjectForm: Create new projects
+    """
 
     # DEFAULT_CSS = """
     #
     # """
 
     class ProjectModified(Message):
-        """Message sent when project is modified."""
+        """Message sent when project details are modified.
+
+        Posted after successful project update to notify parent screen.
+        The parent typically displays a confirmation message.
+
+        Attributes:
+            project_data (dict): Updated project information including:
+                - project_id: Project identifier
+                - name: Updated project name
+                - description: Updated description
+                - currency_main: Main currency code
+                - currency_list: List of additional currencies
+                - project_store: Updated metadata (including month_start)
+
+        Example:
+            Handling the message::
+
+                >>> def on_modify_project_form_project_modified(self, message):
+                >>>     name = message.project_data['name']
+                >>>     self.notify(f"Project '{name}' updated!")
+        """
         def __init__(self, project_data: dict) -> None:
             self.project_data = project_data
             super().__init__()
