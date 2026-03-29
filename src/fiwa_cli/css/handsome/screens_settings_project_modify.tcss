@@ -74,6 +74,40 @@ ModifyProjectForm #form-currency-section-additional {
     width: 2fr;
 }
 
+/* Month start section */
+ModifyProjectForm #form-month-section {
+    height: auto;
+    margin: 1 1 1 0;
+    padding: 0 0 0 0;
+    width: 100%;
+}
+
+ModifyProjectForm #form-month-start-section {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+    width: 1fr;
+}
+
+ModifyProjectForm #form-month-start-section Input {
+    width: 100%;
+    max-width: 20;
+}
+
+ModifyProjectForm #form-month-info-section {
+    height: auto;
+    margin: 0 0 0 0;
+    padding: 0 0 0 1;
+    width: 2fr;
+}
+
+ModifyProjectForm .info-text {
+    color: $text-muted;
+    text-style: italic;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+}
+
 ModifyProjectForm #form-user-section {
     height: 6;
     margin: 0 1 1 0;
@@ -135,17 +169,17 @@ ModifyProjectForm .user-item {
 
 /* Edit permission button */
 ModifyProjectForm .edit-permission-button {
-    width: 5;
-    min-width: 3;
+    width: 6;
+    min-width: 6;
     height: 1;
     padding: 0;
     margin: 0 0 0 1;
-    background: $accent;
+    background: $success;
     border: none;
 }
 
 ModifyProjectForm .edit-permission-button:hover {
-    background: $accent-lighten-1;
+    background: $success-lighten-1;
 }
 
 /* Empty state message */

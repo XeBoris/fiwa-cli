@@ -22,6 +22,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Armin",
                  "last_name": "Admin",
                  "username": "admin",
+                 "birthday": "1980-01-01",
                  "email": "admin@info.com",
                  "password": "admin123",
                  "is_superuser": True,
@@ -33,6 +34,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Clark",
                  "last_name": "Kent",
                  "username": "superman",
+                 "birthday": "1976-05-01",
                  "email": "superman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -44,6 +46,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Bruce",
                  "last_name": "Wayne",
                  "username": "batman",
+                 "birthday": "1979-02-11",
                  "email": "batman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -55,6 +58,7 @@ def generate_superhero_data(dbh):
     user_dict = {"first_name": "Peter",
                  "last_name": "Parker",
                  "username": "spiderman",
+                 "birthday": "2001-09-18",
                  "email": "spiderman@info.com",
                  "password": "abc",
                  "is_superuser": False,
@@ -74,22 +78,37 @@ def generate_superhero_projects(dbh, users={}):
         "description": "A common project of super heros",
         "currency_main": "USD",
         "currency_list": ["SEK", "EUR", "GBP"],
+        "project_style": "ExpenseTracker",
+        "project_staged": False,
+        "project_activated": True,
         "project_store" : {"month_start": 25}
     }
-    dbh.op_project_create(project_dict=project_dict,
-                          user_id=users["batman"])
+    p0_id = dbh.op_project_create(project_dict=project_dict,
+                                  user_id=users["batman"])
+
+    dbh.op_project_stage(project_id=p0_id,
+                         users=[{"user_id": users["batman"],
+                                 "username": "batman"}]
+                         )
 
     project_dict = {
         "name": "Sweden Day Job",
         "description": "Being a friendly neighborhood spiderman is expensive",
         "currency_main": "SEK",
         "currency_list": ["USD", "EUR", "GBP"],
+        "project_style": "ExpenseTracker",
+        "project_staged": False,
+        "project_activated": True,
         "project_store": {"month_start": 1}
 
     }
-    dbh.op_project_create(project_dict=project_dict,
-                          user_id=users["spiderman"])
+    p1_id = dbh.op_project_create(project_dict=project_dict,
+                                  user_id=users["spiderman"])
 
+    dbh.op_project_stage(project_id=p1_id,
+                         users=[{"user_id": users["spiderman"],
+                                 "username": "spiderman"}]
+                         )
 
     # bruce adds clark to his project:
     p_info = dbh.op_project_get_info(user_id=users["batman"])
@@ -100,6 +119,12 @@ def generate_superhero_projects(dbh, users={}):
                             project_perm_model='111100',
                             project_primary=False)
 
+    dbh.op_project_stage(project_id=p_info["project_id"],
+                         users=[{"user_id": users["superman"],
+                                 "username": "superman"}]
+                         )
+
+
     # peter adds bruce to his project:
     p_info = dbh.op_project_get_info(user_id=users["spiderman"])
     p_info = [i for i in p_info if i["project_name"] == "Sweden Day Job"][0]
@@ -108,6 +133,10 @@ def generate_superhero_projects(dbh, users={}):
                             user_id=users["batman"],
                             project_perm_model='111100',
                             project_primary=False)
+    dbh.op_project_stage(project_id=p_info["project_id"],
+                         users=[{"user_id": users["batman"],
+                                 "username": "batman"}]
+                         )
 
 def generate_superhero_labels(dbh, users):
 
@@ -115,107 +144,71 @@ def generate_superhero_labels(dbh, users):
     # now we need labels for the bat cave project:
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
-    print(p_info)
 
-    # action labels
-    action_labels = []
-    i_label = {"name": "expenses", "description": "Expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "revenue", "description": "Revenue", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "fixed",
-               "description": "Slow changing revenues or expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "variable",
-               "description": "Fast changing revenues or expenses", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-    i_label = {"name": "daily",
-               "description": "Your day-2-day costs", "composite": None,
-               "label_status": 2, "label_type": 0}
-    action_labels.append(i_label)
-
-    for i_label in action_labels:
-        dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
-
-    print(f"Created {len(action_labels)} action labels for project {p_info['project_name']}")
     #-----------------
+    # Account labels (label_type=2)
+    # Note: Liability accounts are now created automatically by compose_accounts()
+    # We only create the user-specific spending/income accounts here
 
     account_labels = []
-    i_label = {"name": "Liability Account Batman", "description": "", "composite": None,
-               "label_status": 2, "label_type": 1}
-    account_labels.append(i_label)
+
+    # Batman's accounts (all with label_sub_type=1 for regular accounts)
     i_label = {"name": "Wayne Enterprises", "description": "Revenue from Wayne Enterprises", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
-    i_label = {"name": "Inheritance", "description": "Monthly take out of inhertiance money", "composite": None,
-               "label_status": 2, "label_type": 1}
+    i_label = {"name": "Inheritance", "description": "Monthly take out of inheritance money", "composite": None,
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "Wayne Enterprises Creditcard", "description": "Credit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "Joker Card", "description": "Debit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "BM: Savings Account I", "description": "Savings I", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
     i_label = {"name": "BM: Savings Account II", "description": "Savings II", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["batman"]}
     account_labels.append(i_label)
 
-    i_label = {"name": "Liability Account Superman", "description": "", "composite": None,
-               "label_status": 2, "label_type": 1}
-    account_labels.append(i_label)
+    # Superman's accounts (all with label_sub_type=1 for regular accounts)
     i_label = {"name": "Daily Planet Income", "description": "Revenue from day job", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "Daily Planet Company Card", "description": "Credit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "Gotham Bank Card", "description": "Debit Card", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "SM: Savings Account I", "description": "Savings I", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["superman"]}
     account_labels.append(i_label)
     i_label = {"name": "SM: Savings Account II", "description": "Savings II", "composite": None,
-               "label_status": 2, "label_type": 1}
+               "label_status": 2, "label_type": 2, "label_sub_type": 1, "label_owner": users["superman"]}
     account_labels.append(i_label)
 
     for i_label in account_labels:
         dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
 
     print(f"Created {len(account_labels)} account labels for project {p_info['project_name']}")
+    print(f"Note: Liability accounts are created automatically by compose_accounts()")
 
     #-------------------
+    # Main labels (label_type=3, label_sub_type=-1 for default)
     _labels = []
-    i_label = {"name": "Groceries", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
     i_label = {"name": "Concerts/Festivals", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_sub_type": -1, "label_owner": -1}
     _labels.append(i_label)
     i_label = {"name": "Sports", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Personal Supplies", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Books", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_sub_type": -1, "label_owner": -1}
     _labels.append(i_label)
     i_label = {"name": "eLearning", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+               "label_status": 2, "label_type": 3, "label_sub_type": -1, "label_owner": -1}
     _labels.append(i_label)
-    i_label = {"name": "Travel", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
-    _labels.append(i_label)
-    i_label = {"name": "Gifts", "description": "", "composite": None,
-               "label_status": 2, "label_type": 2}
+    i_label = {"name": "Wages", "description": "", "composite": None,
+               "label_status": 2, "label_type": 3, "label_sub_type": -1, "label_owner": -1}
     _labels.append(i_label)
 
     for i_label in _labels:
@@ -229,7 +222,7 @@ def generate_data(
     user_id: int,
     bought_for_id: int,
     names: list = [],
-    labels: list = [],
+    labels: str = '[]',
     start_date_str: str = "2024-11-01",
     end_date: Optional[datetime] = None,
     currency: str = "USD",
@@ -345,7 +338,7 @@ def generate_data(
                 "project_id": project_id,
                 "exchange_rate": 1.0,
                 "exchange_rate_date": shopping_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps(labels)  # Empty tags for now, can be populated with label IDs
+                "tags": labels  # Empty tags for now, can be populated with label IDs
             }
 
             # Create item in database
@@ -366,13 +359,13 @@ def generate_data(
     return created_items
 
 
-def generate_personal_supplies_data(dbh, users):
+def generate_personal_supplies_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
     print(p_info)
 
-    # Generate grocery shopping data with realistic patterns
+    # Generate personal supplies shopping data with realistic patterns
     label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
 
     label_id_daily = dbh.op_label_get_by_name("daily", p_info["project_id"])
@@ -384,8 +377,8 @@ def generate_personal_supplies_data(dbh, users):
     label_id_spending_sm1 = dbh.op_label_get_by_name("Daily Planet Company Card", p_info["project_id"])
     label_id_spending_sm2 = dbh.op_label_get_by_name("Gotham Bank Card", p_info["project_id"])
 
-    label_id_liability_bm = dbh.op_label_get_by_name("Liability Account Batman", p_info["project_id"])
-    label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
+    # NOTE: No need to fetch liability accounts anymore - the system handles them automatically
+    # when bought_by != bought_for
 
     grocery_store_names = [
         "Normal", "Haargummies", "Duschsachen", "Zahncreme", "Rasierklingen", "Deo", "Shampoo",
@@ -393,15 +386,16 @@ def generate_personal_supplies_data(dbh, users):
         "DVD"
     ]
 
+    # Batman buying for himself - uses his own account
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2,
         avg_weekly_spend=10.0,
@@ -409,32 +403,33 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
 
+    # Batman buying for Superman - uses Batman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.4,
         avg_weekly_spend=3.0,
         max_weekly_spend=5.0
     )
-
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
-    #
+
+    # Superman buying for himself - uses his own account
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.7,
         avg_weekly_spend=9.0,
@@ -442,15 +437,16 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    # Superman buying for Batman - uses Superman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -458,14 +454,14 @@ def generate_personal_supplies_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
-def generate_groceries_data(dbh, users):
+def generate_groceries_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
     print(p_info)
 
     # Generate grocery shopping data with realistic patterns
-    label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
+    label_id_person = dbh.op_label_get_by_name("Groceries", p_info["project_id"])
 
     label_id_daily = dbh.op_label_get_by_name("daily", p_info["project_id"])
     label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
@@ -476,8 +472,7 @@ def generate_groceries_data(dbh, users):
     label_id_spending_sm1 = dbh.op_label_get_by_name("Daily Planet Company Card", p_info["project_id"])
     label_id_spending_sm2 = dbh.op_label_get_by_name("Gotham Bank Card", p_info["project_id"])
 
-    label_id_liability_bm = dbh.op_label_get_by_name("Liability Account Batman", p_info["project_id"])
-    label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
+    # NOTE: No need to fetch liability accounts - the system handles them automatically
 
     grocery_store_names = [
         "Lidl", "Aldi", "Coop", "Netto", "Walmart", "Target", "Kroger",
@@ -485,15 +480,16 @@ def generate_groceries_data(dbh, users):
         "ICA", "Rewe", "Edeka", "Albert Heijn", "Costco", "Sam's Club"
     ]
 
+    # Batman buying for himself
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2.5,
         avg_weekly_spend=10.0,
@@ -501,32 +497,33 @@ def generate_groceries_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
 
+    # Batman buying for Superman - uses Batman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.5,
         avg_weekly_spend=3.0,
         max_weekly_spend=5.0
     )
-
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
-    #
+
+    # Superman buying for himself
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=2.1,
         avg_weekly_spend=9.0,
@@ -534,15 +531,16 @@ def generate_groceries_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    # Superman buying for Batman - uses Superman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -551,14 +549,14 @@ def generate_groceries_data(dbh, users):
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
 
-def generate_books_data(dbh, users):
+def generate_books_data(dbh, users, start_date_str="2024-11-01"):
 
     p_info = dbh.op_project_get_info(user_id=users["batman"])
     p_info = [i for i in p_info if i["project_name"] == "Bat Cave Expenses"][0]
     print(p_info)
 
-    # Generate grocery shopping data with realistic patterns
-    label_id_person = dbh.op_label_get_by_name("Personal Supplies", p_info["project_id"])
+    # Generate books shopping data with realistic patterns
+    label_id_person = dbh.op_label_get_by_name("Books", p_info["project_id"])
 
     label_id_daily = dbh.op_label_get_by_name("daily", p_info["project_id"])
     label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
@@ -569,8 +567,7 @@ def generate_books_data(dbh, users):
     label_id_spending_sm1 = dbh.op_label_get_by_name("Daily Planet Company Card", p_info["project_id"])
     label_id_spending_sm2 = dbh.op_label_get_by_name("Gotham Bank Card", p_info["project_id"])
 
-    label_id_liability_bm = dbh.op_label_get_by_name("Liability Account Batman", p_info["project_id"])
-    label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
+    # NOTE: No need to fetch liability accounts - the system handles them automatically
 
     grocery_store_names = [
         "Amazon Books", "Barnes & Noble", "Waterstones", "Thalia",
@@ -579,15 +576,16 @@ def generate_books_data(dbh, users):
         "Akademibokhandeln", "WHSmith", "Hugendubel", "Fnac"
     ]
 
+    # Batman buying for himself
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_bm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=1.5,
         avg_weekly_spend=10.0,
@@ -595,32 +593,33 @@ def generate_books_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data: Batman for Batman: {len(item_ids)}")
 
+    # Batman buying for Superman - uses Batman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_bm1}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id=users["batman"],
         bought_for_id=users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_sm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=3.0,
         max_weekly_spend=5.0
     )
-
     print(f"ID: ({label_id_person}), generating sample data Batman for Clark: {len(item_ids)}")
-    #
+
+    # Superman buying for himself
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["superman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_spending_sm1, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=9.0,
@@ -628,15 +627,16 @@ def generate_books_data(dbh, users):
     )
     print(f"ID: ({label_id_person}), generating sample data Clark for Clark: {len(item_ids)}")
 
+    # Superman buying for Batman - uses Superman's account (liability account added automatically)
+    llb = f"{label_id_expenses}_{label_id_daily}_{label_id_spending_sm2}_{label_id_person}_[]"
     item_ids = generate_data(
         dbh=dbh,
         project_id=p_info["project_id"],
         user_id = users["superman"],
         bought_for_id = users["batman"],
         names=grocery_store_names,
-        labels=[label_id_person, label_id_expenses,
-                label_id_liability_bm, label_id_daily],
-        start_date_str="2024-11-01",
+        labels=llb,
+        start_date_str=start_date_str,
         currency="USD",
         poisson_exp=0.5,
         avg_weekly_spend=2.0,
@@ -645,7 +645,7 @@ def generate_books_data(dbh, users):
     print(f"ID: ({label_id_person}), generating sample data Clark for Batman: {len(item_ids)}")
 
 
-def generate_income_data(dbh, users):
+def generate_income_data(dbh, users, start_date_str="2024-11-01"):
     """
     Generate monthly income streams for Batman and Superman.
 
@@ -667,15 +667,16 @@ def generate_income_data(dbh, users):
     label_id_revenue = dbh.op_label_get_by_name("revenue", p_info["project_id"])
     label_id_fixed = dbh.op_label_get_by_name("fixed", p_info["project_id"])
 
+    label_id_person = dbh.op_label_get_by_name("Wages", p_info["project_id"])
+
     label_id_income_bm1 = dbh.op_label_get_by_name("Wayne Enterprises", p_info["project_id"])
     label_id_income_bm2 = dbh.op_label_get_by_name("Inheritance", p_info["project_id"])
     label_id_income_sm1 = dbh.op_label_get_by_name("Daily Planet Income", p_info["project_id"])
 
-    label_id_liability_bm = dbh.op_label_get_by_name("Liability Account Batman", p_info["project_id"])
-    label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
+    # Note: Income is always for oneself (bought_by == bought_for), so no liability accounts needed
 
     # Define start and end dates
-    start_date = datetime(2024, 11, 1)
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.now()
 
     # Generate list of months to process
@@ -689,6 +690,7 @@ def generate_income_data(dbh, users):
         # Batman: Wayne Enterprises income on the 25th
         income_date_bm1 = datetime(year, month, 25, 9, 0, 0)  # 9 AM
         if income_date_bm1 <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_bm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Wayne Enterprises Monthly Income",
@@ -704,8 +706,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_bm1.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_bm1, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -717,6 +718,7 @@ def generate_income_data(dbh, users):
         # Batman: Inheritance income on the 26th
         income_date_bm2 = datetime(year, month, 26, 10, 0, 0)  # 10 AM
         if income_date_bm2 <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_bm2}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Inheritance Monthly Distribution",
@@ -732,8 +734,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_bm2.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_bm2, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -745,6 +746,7 @@ def generate_income_data(dbh, users):
         # Superman: Daily Planet income on the 26th
         income_date_sm = datetime(year, month, 26, 15, 0, 0)  # 3 PM
         if income_date_sm <= end_date:
+            llb = f"{label_id_revenue}_{label_id_fixed}_{label_id_income_sm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Daily Planet Monthly Salary",
@@ -760,8 +762,7 @@ def generate_income_data(dbh, users):
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": income_date_sm.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_income_sm1, label_id_revenue,
-                                   label_id_fixed])
+                "tags": llb
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -812,8 +813,7 @@ def generate_savings_data(dbh, users):
     label_id_savings_sm1 = dbh.op_label_get_by_name("SM: Savings Account I", p_info["project_id"])
     label_id_savings_sm2 = dbh.op_label_get_by_name("SM: Savings Account II", p_info["project_id"])
 
-    label_id_liability_bm = dbh.op_label_get_by_name("Liability Account Batman", p_info["project_id"])
-    label_id_liability_sm = dbh.op_label_get_by_name("Liability Account Superman", p_info["project_id"])
+    # Note: Savings are always for oneself (bought_by == bought_for), so no liability accounts needed
 
     # Define start and end dates
     start_date = datetime(2024, 11, 1)

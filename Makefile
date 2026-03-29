@@ -11,14 +11,34 @@ help:
 	@echo "make build        - Build the wheel package"
 	@echo "make dev          - Install in editable mode (alias for install-dev)"
 	@echo "make test         - Run tests (if available)"
-	@echo "make run          - Run the app in development mode (without installing)"
+	@echo "make dev-run      - Run the app in development mode (without installing)"
+	@echo "make reinstall    - Uninstall and reinstall the package"
+	@echo "make reinstall-dev - Uninstall and reinstall in editable mode"
+	@echo ""
+	@echo "Running in Development Mode:"
+	@echo "============================"
+	@echo "Usage: make dev-run ARGS='<command> <options>'"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make dev-run ARGS='run --path /test/to/path --user batman'"
+	@echo "  make dev-run ARGS='init --path /test/to/path'"
+	@echo "  make dev-run                    # Shows help"
+	@echo ""
+	@echo "Available commands:"
+	@echo "  run   - Run FiWa application"
+	@echo "  init  - Initialize new FiWa database"
+	@echo ""
+	@echo "Common options for 'run' command:"
+	@echo "  --path <path>   - Path to FiWa data directory (required)"
+	@echo "  --user <name>   - Username to login as (required)"
 	@echo ""
 	@echo "Development workflow:"
 	@echo "  1. make install-dev    # Install in editable mode"
 	@echo "  2. make changes to code"
-	@echo "  3. fiwa run --path /path/to/data --user username"
+	@echo "  3. make dev-run ARGS='run --path /path/to/data --user username'"
 	@echo ""
-	@echo "Alternative: Use ./run_dev.sh for running without installation"
+	@echo "Alternative without installation:"
+	@echo "  make dev-run ARGS='run --path /path/to/data --user username'"
 
 # Install the package in production mode
 install: clean
@@ -73,11 +93,11 @@ test:
 	fi
 
 # Run the app in development mode without installing
-run-dev:
-    #export ARGS='run --path /home/koenig/fiwa-cli-stage1 --user batman'
+# Usage: make dev-run ARGS="run --path /path/to/data --user username"
+dev-run:
 	@echo "Running FiWa CLI in development mode..."
-	@echo "Usage: make run ARGS='run --path /path/to/data --user username'"
 	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make dev-run ARGS='run --path /path/to/data --user username'"; \
 		PYTHONPATH=src python -m fiwa_cli.main --help; \
 	else \
 		PYTHONPATH=src python -m fiwa_cli.main $(ARGS); \

@@ -6,6 +6,7 @@ from textual.message import Message
 from datetime import datetime
 
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.screens.password_update_modal import PasswordUpdateModal
 
 
 class ModifyUserForm(Vertical):
@@ -121,6 +122,7 @@ class ModifyUserForm(Vertical):
             yield Button("Update User", id="user-update-button")
             yield Button("Reset", id="user-reset-button")
             yield Button("Cancel", id="user-cancel-button")
+            yield Button("Update Password", id="password-update-button")
 
     def _create_user_form_fields(self, user_id: int) -> list:
         """Create form fields for the selected user."""
@@ -177,13 +179,26 @@ class ModifyUserForm(Vertical):
                 placeholder="Enter email address"
             ))
 
-            # Birthday (optional)
-            fields.append(Static("Birthday (YYYY-MM-DD)", classes="form-label"))
-            fields.append(Input(
-                value=user_data[4] or "",
-                id="user-birthday",
-                placeholder="YYYY-MM-DD"
-            ))
+            # Birthday (optional) - only editable by admin
+            # Convert birthday to string if it exists, handle None/empty values
+            birthday_value = ""
+            if user_data[4]:
+                # Handle both string and date object formats
+                birthday_value = str(user_data[4]).split()[0] if user_data[4] else ""
+
+            if self._is_admin:
+                # Admin can edit birthday
+                fields.append(Static("Birthday (YYYY-MM-DD) * (Admin Only)", classes="form-label"))
+                fields.append(Input(
+                    value=birthday_value,
+                    id="user-birthday",
+                    placeholder="YYYY-MM-DD"
+                ))
+            else:
+                # Regular user can only view birthday
+                display_birthday = birthday_value if birthday_value else "Not set"
+                fields.append(Static(f"Birthday: {display_birthday} (Contact admin to change)",
+                                   classes="info-label"))
 
             # Scope
             fields.append(Static("Scope *", classes="form-label"))
@@ -316,10 +331,16 @@ class ModifyUserForm(Vertical):
             except:
                 pass
 
-            try:
-                self.query_one("#user-birthday", Input).value = user_data[4] or ""
-            except:
-                pass
+            # Birthday - only update if admin (regular users don't have input field)
+            if self._is_admin:
+                try:
+                    # Convert birthday to string, handling both None and date object formats
+                    birthday_value = ""
+                    if user_data[4]:
+                        birthday_value = str(user_data[4]).split()[0] if user_data[4] else ""
+                    self.query_one("#user-birthday", Input).value = birthday_value
+                except:
+                    pass
 
             try:
                 self.query_one("#user-scope", Input).value = user_data[10] or "user:write"
@@ -346,6 +367,8 @@ class ModifyUserForm(Vertical):
             self._reset_form()
         elif event.button.id == "user-update-button":
             self._update_user()
+        elif event.button.id == "password-update-button":
+            self.run_worker(self._open_password_modal())
 
     def _reset_form(self) -> None:
         """Reset the form to original values."""
@@ -354,6 +377,44 @@ class ModifyUserForm(Vertical):
             self.app.notify("Form reset to original values", severity="info")
         else:
             self.app.notify("No user selected", severity="warning")
+
+    async def _open_password_modal(self) -> None:
+        """Open the password update modal."""
+        if not self._selected_user_id:
+            self.app.notify("No user selected", severity="error")
+            return
+
+        try:
+            # Get username for display
+            dbh = self.app._config["dbh"]
+            dbh.load()
+            query = f"""
+                SELECT username
+                FROM p{dbh._db_salt}_users
+                WHERE user_id = ?
+            """
+            result = dbh.execute_query(query, [self._selected_user_id])
+            dbh.close()
+
+            if not result:
+                self.app.notify("User not found", severity="error")
+                return
+
+            username = result[0][0]
+
+            # Open modal and wait for result
+            result = await self.app.push_screen_wait(
+                PasswordUpdateModal(self._selected_user_id, username)
+            )
+
+            if result:
+                self.app.log(f"Password updated successfully for user {self._selected_user_id}")
+            else:
+                self.app.log("Password update cancelled")
+
+        except Exception as e:
+            self.app.notify(f"Error opening password modal: {str(e)}", severity="error")
+            self.app.log(f"Error in _open_password_modal: {e}")
 
     def _update_user(self) -> None:
         """Validate and update the user."""
@@ -367,8 +428,15 @@ class ModifyUserForm(Vertical):
             last_name = self.query_one("#user-last-name", Input).value.strip()
             username = self.query_one("#user-username", Input).value.strip()
             email = self.query_one("#user-email", Input).value.strip()
-            birthday = self.query_one("#user-birthday", Input).value.strip()
             scope = self.query_one("#user-scope", Input).value.strip()
+
+            # Birthday - only read if admin (regular users don't have input field)
+            birthday = ""
+            if self._is_admin:
+                try:
+                    birthday = self.query_one("#user-birthday", Input).value.strip()
+                except:
+                    pass
 
             # Validate required fields
             if not first_name:

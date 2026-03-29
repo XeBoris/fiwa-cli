@@ -197,6 +197,8 @@ class SettingsScreen(ReactiveScreen):
         Handle the ProjectCreated message from CreateProjectForm.
         Creates the project in the database and updates app_state.
         """
+        from fiwa_cli.functions.project_composer import ProjectComposer
+
         try:
             dbh = self.app._config["dbh"]
             user_id = self.app.app_state.get("user_id", -1)
@@ -204,6 +206,11 @@ class SettingsScreen(ReactiveScreen):
             if user_id <= 0:
                 self.notify("Error: No user logged in", severity="error")
                 return
+
+            # extract the project style from the message: we need it
+            # to finish the project build phase and set up the minimum required structure
+            # of the project.
+            project_style = message.project_data.get("project_style", "ExpenseTracker")
 
             # Create project in database
             project_id = dbh.op_project_create(message.project_data, user_id)
@@ -215,10 +222,27 @@ class SettingsScreen(ReactiveScreen):
             # Fetch updated project list for the user
             project_info = dbh.op_project_get_info(user_id)
 
+            # Finish project setup based on style:
+            compose_users =[
+                {"user_id": user_id,
+                 "username": self.app.app_state.get("user_name", "Unknown")}
+            ]
+
+            pc = ProjectComposer.create(compose_type=project_style,
+                                        dbh=dbh,
+                                        project_id=project_id,
+                                        users=compose_users)
+
+            pc.build()            # prepare the project
+            pc.compose_accounts() # prepare the default accounts
+
             # Extract project data for app_state
             project_names = []
             project_ids = []
             primary_project_id = 0
+            primary_project_style = "default"
+            primary_project_name = "No Project"
+            primary_project_store = {}
 
             if project_info and len(project_info) > 0:
                 for project in project_info:
@@ -226,10 +250,19 @@ class SettingsScreen(ReactiveScreen):
                     project_names.append(project["project_name"])
                     if project.get("project_primary", False):
                         primary_project_id = project["project_id"]
+                        primary_project_style = project.get("project_style", "default")
+                        primary_project_name = project.get("project_name", "No Project")
+                        primary_project_store = project.get("project_store", {})
 
                 # If no primary project, use the newly created one
                 if primary_project_id == 0:
                     primary_project_id = project_id
+                    # Find the newly created project details
+                    new_project = next((p for p in project_info if p["project_id"] == project_id), None)
+                    if new_project:
+                        primary_project_style = new_project.get("project_style", "default")
+                        primary_project_name = new_project.get("project_name", "No Project")
+                        primary_project_store = new_project.get("project_store", {})
 
             # Update app_state with new project information
             self.app.app_state = {
@@ -237,6 +270,9 @@ class SettingsScreen(ReactiveScreen):
                 "project_names": project_names,
                 "project_ids": project_ids,
                 "project_id": primary_project_id,
+                "project_style": primary_project_style,
+                "project_name": primary_project_name,
+                "project_store": primary_project_store,
             }
 
             self.notify(

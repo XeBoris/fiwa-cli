@@ -8,7 +8,10 @@ CREATE TABLE IF NOT EXISTS pstand_projects
     currency_main VARCHAR(3),
     currency_list TEXT,  -- Store as JSON string
     project_hash VARCHAR(64) NOT NULL UNIQUE,
-    project_store TEXT DEFAULT '{}'  -- Store additional project metadata as JSON
+    project_store TEXT DEFAULT '{}',  -- Store additional project metadata as JSON
+    project_style TEXT DEFAULT 'default',
+    project_staged BOOLEAN DEFAULT 0,
+    project_activated BOOLEAN DEFAULT 1
 );
 
 -- Users table
@@ -74,10 +77,27 @@ CREATE TABLE IF NOT EXISTS pstand_labels
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
     composite TEXT NOT NULL,  -- Store as JSON string
+    label_owner INTEGER DEFAULT -1,  -- -1 for project wide labels, user_id for user-created labels
     label_status INTEGER DEFAULT 2,
-    label_type INTEGER DEFAULT 1,
+    label_type INTEGER DEFAULT 2,
+    label_sub_type INTEGER DEFAULT -2,
     UNIQUE (name, project_id)
 );
+
+-- User Label Defaults table
+-- Stores each user's default label preference for each label_type within a project
+-- Each user can have ONE default label per label_type per project
+CREATE TABLE IF NOT EXISTS pstand_user_label_defaults
+(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
+    project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
+    label_id INTEGER NOT NULL REFERENCES pstand_labels (label_id),
+    label_type INTEGER NOT NULL,  -- Redundant but helps with queries
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, project_id, label_type)  -- Only one default per user per type per project
+);
+
 
 -- Session table
 CREATE TABLE IF NOT EXISTS pstand_session_table

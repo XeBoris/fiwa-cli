@@ -6,7 +6,7 @@ from textual import on
 from fiwa_cli.components.item_input_form import ItemInputForm
 
 from fiwa_cli.functions.loader import load_dynamic_css
-
+import json
 
 class EditExpenseView(VerticalScroll):
     """View for editing expenses with tabs per user showing their items."""
@@ -34,9 +34,9 @@ class EditExpenseView(VerticalScroll):
         period_label = self.app.app_state.get("current_period_label", "")
 
         if period_start and period_end:
-            date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
-            date_range_text = "📅 Showing all expenses"
+            date_range_text = "𝌌 Showing all expenses"
 
         self.app.log(f"EditExpenseView compose - Period: {date_range_text}")
         yield Static(date_range_text, id="date-selection-display", classes="date-info")
@@ -56,12 +56,16 @@ class EditExpenseView(VerticalScroll):
                     table = DataTable(id=f"items-table-{user['user_id']}")
 
                     # Add columns and store the keys
-                    col_id = table.add_column("ID")
-                    col_name = table.add_column("Name")
+                    #col_id = table.add_column("ID")
+                    col_name = table.add_column("Name", width=15)
                     col_price = table.add_column("Price")
                     col_currency = table.add_column("Currency")
                     col_final = table.add_column(f"Final [{currency_main}]")
                     col_date = table.add_column("Date")
+                    col_label = table.add_column("Labels")
+
+                    table.zebra_stripes = True
+                    table.fixed_columns = 1
 
                     table.cursor_type = "row"
 
@@ -71,14 +75,18 @@ class EditExpenseView(VerticalScroll):
                         # Extract date only (remove time if present)
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
+                        # Get transaction label name (already extracted in _get_user_items)
+                        label_names = item.get("label_d", "")
+
                         # Add row with all price information
                         table.add_row(
-                            str(item['item_id']),
+                            #str(item['item_id']),
                             item['name'],
                             f"{item['price']:.2f}",  # Original price
                             item['currency'],  # Original currency
                             f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
+                            label_names,  # Show transaction label name
                             key=str(item['item_id'])  # Use item_id as row key
                         )
 
@@ -119,68 +127,116 @@ class EditExpenseView(VerticalScroll):
         Returns:
             List of item dictionaries with name, bought_date, price_final, and currency
         """
-        try:
-            dbh = self.app._config.get("dbh")
-            if not dbh:
-                return []
-
-            # Get period boundaries from app_state
-            period_start = self.app.app_state.get("current_period_start")
-            period_end = self.app.app_state.get("current_period_end")
-
-            # Format dates for query
-            start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
-            end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
-
-            self.app.log(f"EditExpenseView: Fetching items for user {user_id}, project {project_id}, " +
-                        f"period: {start_date_str} to {end_date_str}")
-
-            # Query ALL items for this user in the current period (no LIMIT)
-            # Filter by bought_for_id to show expenses that belong to this user
-            # (their share), regardless of who physically paid (bought_by_id)
-            dbh.load()
-            query = f"""
-                SELECT item_id, name, bought_date, price, currency, price_final, currency_final, 
-                       bought_by_id, note, exchange_rate, exchange_rate_date, tags
-                FROM p{dbh._db_salt}_items
-                WHERE bought_for_id = ? 
-                AND project_id = ?
-                AND bought_date BETWEEN ? AND ?
-                ORDER BY bought_date DESC
-            """
-
-            results = dbh.execute_query(query, [
-                user_id,
-                project_id,
-                start_date_str,
-                end_date_str
-            ])
-            dbh.close()
-
-            self.app.log(f"EditExpenseView: Found {len(results)} items for user {user_id} in period")
-
-            items = []
-            for row in results:
-                items.append({
-                    'item_id': row[0],
-                    'name': row[1],
-                    'bought_date': row[2],
-                    'price': row[3],
-                    'currency': row[4],
-                    'price_final': row[5],
-                    'currency_final': row[6],
-                    'bought_by_id': row[7],
-                    'note': row[8],
-                    'exchange_rate': row[9],
-                    'exchange_rate_date': row[10],
-                    'tags': row[11]
-                })
-
-            return items
-
-        except Exception as e:
-            self.app.log(f"Error fetching user items: {e}")
+#        try:
+        dbh = self.app._config.get("dbh")
+        if not dbh:
             return []
+
+        # Get period boundaries from app_state
+        period_start = self.app.app_state.get("current_period_start")
+        period_end = self.app.app_state.get("current_period_end")
+
+        # Format dates for query
+        start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
+        end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+
+        self.app.log(f"EditExpenseView: Fetching items for user {user_id}, project {project_id}, " +
+                    f"period: {start_date_str} to {end_date_str}")
+
+        # Query ALL items for this user in the current period (no LIMIT)
+        # Filter by bought_for_id to show expenses that belong to this user
+        # (their share), regardless of who physically paid (bought_by_id)
+        dbh.load()
+        query = f"""
+            SELECT item_id, name, bought_date, price, currency, price_final, currency_final, 
+                   bought_by_id, note, exchange_rate, exchange_rate_date, tags
+            FROM p{dbh._db_salt}_items
+            WHERE bought_for_id = ? 
+            AND project_id = ?
+            AND bought_date >= ?
+            AND bought_date < ?
+            ORDER BY bought_date DESC
+        """
+
+        results = dbh.execute_query(query, [
+            user_id,
+            project_id,
+            start_date_str,
+            end_date_str
+        ])
+
+        self.app.log(f"EditExpenseView: Found {len(results)} items for user {user_id} in period")
+
+        # Fetch all project users once for label owner mapping
+        project_users = self._get_project_users(project_id)
+        user_map = {u['user_id']: u['username'] for u in project_users}
+        self.app.log(f"User map for label owners: {user_map}")
+
+        # Get all labels for the project to build label map
+        labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+        label_map = {l['label_id']: l for l in labels}
+
+        # Get ProjectComposer instance for tag parsing
+        from fiwa_cli.functions.project_composer import ProjectComposer
+        project_style = self.app.app_state.get("project_style", "default")
+
+        try:
+            pc = ProjectComposer.create(
+                compose_type=project_style,
+                dbh=dbh,
+                project_id=project_id,
+                users=[]
+            )
+        except Exception as e:
+            self.app.log(f"Error creating ProjectComposer: {e}")
+            pc = None
+
+        # Build items list with parsed transactional labels
+        items = []
+        for row in results:
+            tags_raw = row[11] if row[11] else ""
+
+            # Use ProjectComposer to parse tags if available
+            if pc:
+                parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
+            else:
+                # Fallback: empty parsed tags
+                parsed_tags = {'c': '', 't': '', 'b': '', 'm': '', 's': []}
+
+            # Extract transaction label name
+            # transaction_label_name = ""
+            # if parsed_tags['transaction_id']:
+            #     label_info = label_map.get(parsed_tags['transaction_id'])
+            #     if label_info:
+            #         transaction_label_name = label_info.get('name', f"Unknown Label {parsed_tags['transaction_id']}")
+            #     else:
+            #         transaction_label_name = f"Unknown Label {parsed_tags['transaction_id']}"
+
+            items.append({
+                'item_id': row[0],
+                'name': row[1],
+                'bought_date': row[2],
+                'price': row[3],
+                'currency': row[4],
+                'price_final': row[5],
+                'currency_final': row[6],
+                'bought_by_id': row[7],
+                'note': row[8],
+                'exchange_rate': row[9],
+                'exchange_rate_date': row[10],
+                'tags': tags_raw,
+                # 'parsed_tags': parsed_tags,
+                'label_d': parsed_tags["m"]  # Transaction label name for display
+            })
+
+        dbh.close()
+        self.app.log(f"Returning {len(items)} items with enriched label details")
+
+        return items
+
+        # except Exception as e:
+        #     self.app.log(f"Error fetching user items: {e}")
+        #     return []
 
     def _update_date_display(self) -> None:
         """Update the date selection display with current period."""
@@ -190,9 +246,9 @@ class EditExpenseView(VerticalScroll):
             period_label = self.app.app_state.get("current_period_label", "")
 
             if period_start and period_end:
-                date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
-                date_range_text = "📅 Showing all expenses"
+                date_range_text = "𝌌 Showing all expenses"
 
             self.app.log(f"EditExpenseView refresh - Period: {date_range_text}")
 
@@ -233,13 +289,17 @@ class EditExpenseView(VerticalScroll):
                         # Extract date only (remove time if present)
                         date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
 
+                        # Get transaction label name (already extracted in _get_user_items)
+                        label_names = str(item["label_d"])
+
                         table.add_row(
-                            str(item['item_id']),
+                            #str(item['item_id']),
                             item['name'],
                             f"{item['price']:.2f}",  # Original price
                             item['currency'],  # Original currency
                             f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
+                            label_names,
                             key=str(item['item_id'])
                         )
 

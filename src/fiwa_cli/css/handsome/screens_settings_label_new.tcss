@@ -37,10 +37,10 @@ CreateLabelForm #form-content {
 }
 
 CreateLabelForm #action-grid {
-    grid-size: 3 3;
-    grid-columns: 1fr 1fr 1fr;
+    grid-size: 4 3;
+    grid-columns: 1fr 1fr 1fr 1fr;
     grid-gutter: 1 1;
-    grid-rows: 3 3 3;
+    grid-rows: 3 3 3 3;
     align: center middle;
     margin: 0 1 0 0;
     padding: 0 0 0 0;
@@ -70,6 +70,10 @@ CreateLabelForm #label-type-select {
     height: 3;
 }
 
+CreateLabelForm #label-owner-select {
+    width: 100%;
+    height: 3;
+}
 
 CreateLabelForm #new-label-activated {
     height: 100%;

@@ -56,6 +56,6 @@ SettingsScreen #back-button {
 SettingsScreen #settings-content-area {
     width: 1fr;
     height: 100%;
-    padding: 0;
+    padding: 2;
     scrollbar-size: 3 1;
 }

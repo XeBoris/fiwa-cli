@@ -63,6 +63,12 @@ class ProjectSelectorScreen(ModalScreen):
             # Load currency information for the selected project
             self._load_project_currency(selected_project_id)
 
+            # we need to refresh the cached labels:
+            dbh = self.app._config.get("dbh")
+            dbh.op_label_get_all(project_id=selected_project_id,
+                                 use_cache=False,
+                                 force_refresh=True)
+
             # Explicitly update the header to reflect the new project BEFORE dismissing
             self._refresh_header()
 
@@ -74,7 +80,7 @@ class ProjectSelectorScreen(ModalScreen):
             self.dismiss()
 
     def _load_project_currency(self, project_id: int) -> None:
-        """Load currency information for the selected project into app_state."""
+        """Load currency information and project style for the selected project into app_state."""
         try:
             dbh = self.app._config.get("dbh")
             if not dbh:
@@ -91,6 +97,10 @@ class ProjectSelectorScreen(ModalScreen):
                 import json
                 currency_main = project.get("currency_main", "USD")
                 currency_list_str = project.get("currency_list", "[]")
+                project_style = project.get("project_style", "default")
+                project_name = project.get("project_name", "Unknown Project")
+                project_store = project.get("project_store", {})
+
                 try:
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
                 except:
@@ -98,9 +108,12 @@ class ProjectSelectorScreen(ModalScreen):
 
                 self.app.app_state["current_project_currency_main"] = currency_main
                 self.app.app_state["current_project_currency_list"] = currency_list
-                self.app.log(f"Loaded currencies for project {project_id}: {currency_main}, {currency_list}")
+                self.app.app_state["project_style"] = project_style
+                self.app.app_state["project_name"] = project_name
+                self.app.app_state["project_store"] = project_store
+                self.app.log(f"Loaded project info for {project_id}: style={project_style}, currency={currency_main}, store={project_store}")
         except Exception as e:
-            self.app.log(f"Error loading project currency: {e}")
+            self.app.log(f"Error loading project info: {e}")
 
     def _refresh_header(self) -> None:
         """Refresh the header to display the updated project."""

@@ -4,7 +4,7 @@ from textual.widgets import Static, Button, Select
 from textual.app import ComposeResult
 
 import datetime
-
+import json
 from fiwa_cli.components import FiwaHeader
 from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.components.week_month_picker import WeekMonthWidget
@@ -12,6 +12,7 @@ from fiwa_cli.components.week_month_picker import WeekMonthWidget
 from .base import ReactiveScreen
 from .inputs_insert_expense import CreateExpenseForm
 from .inputs_edit_expense import EditExpenseView
+from .inputs_repl_expenses import ReplicateExpensesView
 
 
 class InputsScreen(ReactiveScreen):
@@ -26,7 +27,11 @@ class InputsScreen(ReactiveScreen):
         self._current_year = datetime.date.today().year
         self._current_week = datetime.date.today().isocalendar()[1]
         self._current_month = datetime.date.today().month
-
+        try:
+            self._month_start = json.loads(self.app.app_state["project_store"])
+        except:
+            self._month_start = {}
+        self._month_start = int(self._month_start.get("month_start", "1"))
     # DEFAULT_CSS = ""
 
     def compose(self) -> ComposeResult:
@@ -39,21 +44,25 @@ class InputsScreen(ReactiveScreen):
 
         with Container(id="container-body"):
             with ScrollableContainer(id="container-sidebar"):
-                yield Static("Quick Actions", classes="menu-section")
-                yield Button("New",
-                             id="new-item-button",
-                             classes="sidebar-menu-button",
-                             compact=True, flat=True)
-                yield Button("Edit",
-                             id="edit-item-button",
-                             classes="sidebar-menu-button",
-                             compact=True, flat=True)
+                if self.app.app_state["is_logged_in"] is True:
+                    yield Static("Quick Actions", classes="menu-section")
+                    yield Button("New",
+                                 id="new-item-button",
+                                 classes="sidebar-menu-button",
+                                 compact=True, flat=True)
+                    yield Button("Edit",
+                                 id="edit-item-button",
+                                 classes="sidebar-menu-button",
+                                 compact=True, flat=True)
 
-                yield Static("Period", classes="menu-section")
+                    yield Static("Period", classes="menu-section")
 
-                # Week/Month picker widget (includes dropdown and navigation)
-                yield WeekMonthWidget(id="reports-date-picker")
-
+                    # Week/Month picker widget (includes dropdown and navigation)
+                    yield WeekMonthWidget(id="reports-date-picker")
+                    yield Button("Replicate",
+                                 id="replicate-button",
+                                 classes="sidebar-menu-button",
+                                 compact=True, flat=True)
                 # Always show Back button
                 yield Button("Back", id="back-button", variant="primary")
 
@@ -100,6 +109,8 @@ class InputsScreen(ReactiveScreen):
             self.app.notify("View Recent - Coming soon!", severity="info")
         elif event.button.id == "import-csv-button":
             self.app.notify("Import CSV - Coming soon!", severity="info")
+        elif event.button.id == "replicate-button":
+            self.show_replicate_view()
 
     def on_week_month_widget_period_changed(self, message: WeekMonthWidget.PeriodChanged) -> None:
         """Handle PeriodChanged messages from WeekMonthWidget.
@@ -131,6 +142,12 @@ class InputsScreen(ReactiveScreen):
         content_area = self.query_one("#inputs-content-area", ScrollableContainer)
         content_area.remove_children()
         content_area.mount(EditExpenseView())
+
+    def show_replicate_view(self) -> None:
+        """Show the replicate view in the content area."""
+        content_area = self.query_one("#inputs-content-area", ScrollableContainer)
+        content_area.remove_children()
+        content_area.mount(ReplicateExpensesView())
 
     def on_item_input_form_item_created(self, message) -> None:
         """Handle ItemCreated message - refresh the EditExpenseView tables."""
@@ -165,17 +182,22 @@ class InputsScreen(ReactiveScreen):
             if self._current_period_type == "week":
                 # Calculate week boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
-                tc = TimeClass()
+                tc = TimeClass(country_code="DE")
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
                 period_start = week_info['week_beg']
                 period_end = week_info['week_end']
+                period_end += datetime.timedelta(days=1)  # Include the end date in the range
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
-                tc = TimeClass()
-                month_info = tc.cmp_month_by_number(self._current_year, self._current_month)
+                tc = TimeClass(country_code="DE")
+
+                month_info = tc.cmp_month_by_number(self._current_year,
+                                                    self._current_month,
+                                                    self._month_start
+                                                    )
 
                 period_start = month_info['month_beg']
                 period_end = month_info['month_end']
@@ -199,14 +221,20 @@ class InputsScreen(ReactiveScreen):
             self.app.log(f"Error updating app_state period: {e}")
 
     def _refresh_data_tables(self) -> None:
-        """Refresh DataTables in EditExpenseView if it's currently displayed."""
+        """Refresh DataTables in EditExpenseView or ReplicateExpensesView if displayed."""
         try:
             # Try to find EditExpenseView in the content area
             edit_view = self.query_one(EditExpenseView)
             edit_view.refresh_tables()
             self.app.log("Refreshed EditExpenseView tables")
-        except Exception as e:
-            self.app.log(f"Could not refresh tables (EditExpenseView may not be loaded): {e}")
+        except Exception:
+            # EditExpenseView not loaded, try ReplicateExpensesView
+            try:
+                replicate_view = self.query_one(ReplicateExpensesView)
+                replicate_view.refresh_data()
+                self.app.log("Refreshed ReplicateExpensesView")
+            except Exception as e:
+                self.app.log(f"Could not refresh tables (no active view found): {e}")
 
     def update_displays(self) -> None:
         """Update displays when app_state changes."""

@@ -89,10 +89,9 @@ def sanitize_string(
 class LabelModalScreen(ModalScreen):
     """Modal screen for selecting labels for a transaction.
 
-    Labels are organized by type in tabs:
-    - Type 0: Transactional labels
-    - Type 1: Konto (Account) labels
-    - Type 2: Category labels
+    Labels are organized by type in tabs dynamically based on the project's style.
+    Tab structure comes from ProjectComposer.get_label_map() which returns:
+    {type_id: group_name} - e.g., {0: "Balance", 1: "Transaction", 2: "Account", 3: "Main Labels"}
 
     This tab-based design scales well with many labels.
     """
@@ -101,23 +100,52 @@ class LabelModalScreen(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-
     def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.project_labels = project_labels
         self.selected_labels = selected_labels or []
 
-        # Organize labels by type
-        self.labels_by_type = {
-            0: [],  # Transactional
-            1: [],  # Konto
-            2: []   # Category
-        }
+        # Get label map from ProjectComposer based on project style
+        self.label_map = self._get_label_map_from_composer()
 
+        # Organize labels by type dynamically
+        self.labels_by_type = {}
+        for type_id in self.label_map.keys():
+            self.labels_by_type[type_id] = []
+
+        # Populate labels by type
         for label in project_labels:
             label_type = label.get('label_type', 0)
             if label_type in self.labels_by_type:
                 self.labels_by_type[label_type].append(label)
+
+    def _get_label_map_from_composer(self) -> dict:
+        """Get label map from ProjectComposer based on current project style."""
+        try:
+            from fiwa_cli.functions.project_composer import ProjectComposer
+
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = self.app.app_state.get("project_id", 0)
+
+            if project_style and project_style != "default":
+                dbh = self.app._config.get("dbh")
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+                label_map = pc.get_label_map()
+                self.app.log(f"Loaded label map from ProjectComposer ({project_style}): {label_map}")
+                return label_map
+            else:
+                # Fallback to default label types
+                self.app.log("Using default label map (project_style is 'default')")
+                return {0: "Action", 1: "Account", 2: "Label"}
+        except Exception as e:
+            self.app.log(f"Error loading label map from ProjectComposer: {e}")
+            # Fallback to default
+            return {0: "Action", 1: "Account", 2: "Label"}
 
     def compose(self) -> ComposeResult:
         from textual.widgets import TabbedContent, TabPane
@@ -128,42 +156,30 @@ class LabelModalScreen(ModalScreen):
                 yield Static(f"Currently selected: {len(self.selected_labels)} label(s)",
                            id="selection-count", classes="selection-count")
 
-            with TabbedContent(initial="tab-transactional"):
-                # Tab 1: Transactional Labels (Type 0)
-                with TabPane("🔄 Transactional", id="tab-transactional"):
-                    if self.labels_by_type[0]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[0]],
-                                id="label-selection-transactional"
-                            )
-                    else:
-                        yield Static("No transactional labels available", classes="no-labels-message")
+            # Determine initial tab ID (first available type as string)
+            if self.label_map:
+                first_type_id = min(self.label_map.keys())
+                initial_tab = f"tab-{first_type_id}"
+            else:
+                initial_tab = "tab-0"
 
-                # Tab 2: Konto Labels (Type 1)
-                with TabPane("💼 Konto", id="tab-konto"):
-                    if self.labels_by_type[1]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[1]],
-                                id="label-selection-konto"
-                            )
-                    else:
-                        yield Static("No konto labels available", classes="no-labels-message")
+            with TabbedContent(initial=initial_tab):
+                # Dynamically create tabs based on label_map
+                for type_id, group_name in sorted(self.label_map.items()):
+                    tab_id = f"tab-{type_id}"
+                    selection_list_id = f"label-selection-{type_id}"
 
-                # Tab 3: Category Labels (Type 2)
-                with TabPane("📁 Category", id="tab-category"):
-                    if self.labels_by_type[2]:
-                        with ScrollableContainer():
-                            yield SelectionList[int](
-                                *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                  for label in self.labels_by_type[2]],
-                                id="label-selection-category"
-                            )
-                    else:
-                        yield Static("No category labels available", classes="no-labels-message")
+                    # Create a tab for this label type
+                    with TabPane(group_name, id=tab_id):
+                        if self.labels_by_type.get(type_id):
+                            with ScrollableContainer():
+                                yield SelectionList[int](
+                                    *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
+                                      for label in self.labels_by_type[type_id]],
+                                    id=selection_list_id
+                                )
+                        else:
+                            yield Static(f"No {group_name.lower()} labels available", classes="no-labels-message")
 
             with Horizontal(classes="button-row"):
                 yield Button("🗑️ Clear All", id="label-clear-button", variant="warning")
@@ -186,8 +202,9 @@ class LabelModalScreen(ModalScreen):
         """Update the selection count display."""
         try:
             selected = []
-            # Collect from all three lists
-            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+            # Collect from all dynamically created SelectionLists
+            for type_id in self.label_map.keys():
+                list_id = f"label-selection-{type_id}"
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     selected.extend(list(sel_list.selected))
@@ -202,29 +219,17 @@ class LabelModalScreen(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses in the label modal."""
         if event.button.id == "label-ok-button":
-            # Get selected labels from all three SelectionLists
+            # Get selected labels from all dynamically created SelectionLists
             selected = []
             try:
-                # Collect from transactional labels
-                try:
-                    sel_list = self.query_one("#label-selection-transactional", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
-
-                # Collect from konto labels
-                try:
-                    sel_list = self.query_one("#label-selection-konto", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
-
-                # Collect from category labels
-                try:
-                    sel_list = self.query_one("#label-selection-category", SelectionList)
-                    selected.extend(list(sel_list.selected))
-                except:
-                    pass
+                # Collect from all label type SelectionLists
+                for type_id in self.label_map.keys():
+                    list_id = f"label-selection-{type_id}"
+                    try:
+                        sel_list = self.query_one(f"#{list_id}", SelectionList)
+                        selected.extend(list(sel_list.selected))
+                    except:
+                        pass
 
                 self.dismiss(selected)  # Return list of selected label IDs
             except Exception as e:
@@ -232,8 +237,9 @@ class LabelModalScreen(ModalScreen):
                 self.dismiss([])  # Return empty list on error
 
         elif event.button.id == "label-clear-button":
-            # Clear all selections
-            for list_id in ["label-selection-transactional", "label-selection-konto", "label-selection-category"]:
+            # Clear all selections from all dynamically created SelectionLists
+            for type_id in self.label_map.keys():
+                list_id = f"label-selection-{type_id}"
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     sel_list.deselect_all()
@@ -316,22 +322,35 @@ class ItemConfirmationModal(ModalScreen):
                     # Calculate total percentage for validation
                     total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
 
+                    # Show each user with their amount and labels
                     for share in cost_shares:
                         username = share.get('username', 'Unknown')
                         percentage = share.get('percentage', 0)
                         amount = share.get('amount', 0)
                         currency_final = self.item_data.get('currency_final', 'USD')
 
+                        # Get label information for this user
+                        label_text = share.get('labels_text', 'None')
+
                         if percentage > 0:
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
                                 classes="cost-share-row"
+                            )
+                            # Show labels for this user
+                            yield Static(
+                                f"    Labels: {label_text}",
+                                classes="cost-share-labels"
                             )
                         elif share.get('user_id') == self.item_data.get('bought_by_id'):
                             # Show bought_by user even if they pay 0% (others pay 100%)
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
                                 classes="cost-share-row"
+                            )
+                            yield Static(
+                                f"    Labels: {label_text}",
+                                classes="cost-share-labels"
                             )
 
                     # Show total
@@ -456,14 +475,61 @@ class ItemInputForm(ModalScreen):
 
         # Load selected labels from item_data in edit mode
         if edit_mode and item_data and item_data.get('tags'):
-            import json
+            # In edit mode, tags come from database as a string (e.g., "3_4_5_6_[7,8]")
+            # We need to parse it to get individual label IDs
+            tags_str = item_data['tags']
+
+            # Try to parse using ProjectComposer if available
             try:
-                # Parse tags if it's a JSON string
-                if isinstance(item_data['tags'], str):
-                    self._selected_label_ids = json.loads(item_data['tags'])
+                from fiwa_cli.functions.project_composer import ProjectComposer
+
+                project_style = self.app.app_state.get("project_style", "default")
+                project_id = item_data.get('project_id', self.app.app_state.get("project_id", 0))
+
+                # Get label map
+                dbh = self.app._config.get("dbh")
+                if dbh:
+                    labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+                    label_map = {l['label_id']: l for l in labels}
+
+                    # Create ProjectComposer instance
+                    pc = ProjectComposer.create(
+                        compose_type=project_style,
+                        dbh=dbh,
+                        project_id=project_id,
+                        users=[]
+                    )
+
+                    # Parse the tag string - this returns names, but we need IDs
+                    # We need to extract IDs from the string directly
+                    parts = tags_str.split('_')
+                    label_ids = []
+
+                    if len(parts) >= 4:
+                        # Extract IDs from positions 0-3
+                        for i in range(4):
+                            if parts[i].strip().isdigit():
+                                label_id = int(parts[i].strip())
+                                if label_id > 0:
+                                    label_ids.append(label_id)
+
+                        # Extract secondary IDs from position 4 (the list part)
+                        if len(parts) >= 5:
+                            s_part = parts[4].strip().strip('[]')
+                            if s_part:
+                                for s_id in s_part.split(','):
+                                    if s_id.strip().isdigit():
+                                        label_id = int(s_id.strip())
+                                        if label_id > 0:
+                                            label_ids.append(label_id)
+
+                    self._selected_label_ids = label_ids
+                    self.app.log(f"Parsed tag string '{tags_str}' to label IDs: {label_ids}")
                 else:
-                    self._selected_label_ids = item_data['tags']
-            except:
+                    self._selected_label_ids = []
+
+            except Exception as e:
+                self.app.log(f"Error parsing tag string in edit mode: {e}")
                 self._selected_label_ids = []
         else:
             self._selected_label_ids = []
@@ -520,6 +586,58 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error fetching project users: {e}")
             return []
 
+    def _get_default_labels(self, project_id: int) -> list:
+        """Get default labels for each label type for the current user.
+
+        Returns a list of label IDs for default labels, ordered by type.
+        If a type has no default, returns 0 for that position.
+
+        Returns:
+            List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
+        """
+        try:
+            dbh = self.app._config.get("dbh")
+            user_id = self.app.app_state.get("user_id", -1)
+
+            if not dbh or user_id <= 0:
+                return []
+
+            # Get user's default labels as a map: {label_type: label_id}
+            defaults_map = dbh.op_label_get_user_defaults(user_id, project_id)
+
+            # Get ProjectComposer to know which types exist and their order
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+
+            if project_style != "default":
+                try:
+                    pc = ProjectComposer.create(
+                        compose_type=project_style,
+                        dbh=dbh,
+                        project_id=project_id,
+                        users=[]
+                    )
+                    label_map = pc.get_label_map()
+
+                    # Build list of default label IDs in type order
+                    default_labels = []
+                    for type_id in sorted(label_map.keys()):
+                        # Get default for this type, or 0 if none set
+                        default_labels.append(defaults_map.get(type_id, 0))
+
+                    self.app.log(f"Default labels for user {user_id} in project {project_id}: {default_labels}")
+                    return default_labels
+
+                except Exception as e:
+                    self.app.log(f"Error getting default labels from ProjectComposer: {e}")
+
+            # Fallback: no defaults
+            return []
+
+        except Exception as e:
+            self.app.log(f"Error fetching default labels: {e}")
+            return []
+
     def _get_project_labels(self, project_id: int) -> list:
         """Get all labels for the current project."""
         try:
@@ -532,6 +650,101 @@ class ItemInputForm(ModalScreen):
         except Exception as e:
             self.app.log(f"Error fetching project labels: {e}")
             return []
+
+    def _prepare_user_labels(self, cost_shares: list, bought_by_id: int, selected_labels: list,
+                             project_id: int, project_labels: list) -> list:
+        """
+        Prepare label information for each user in cost_shares.
+
+        Key logic:
+        - If bought_by == bought_for (buying for self): Use selected/default labels
+        - If bought_by != bought_for (buying for another): Replace account label with that user's LIABILITY account
+
+        The Liability account is defined as: label_type=2 (Account), label_sub_type=0, label_owner=user_id
+
+        Args:
+            cost_shares: List of cost share dicts with user_id, username, percentage, amount
+            bought_by_id: User ID of the person buying
+            selected_labels: List of selected label IDs (or defaults if none selected)
+            project_id: Current project ID
+            project_labels: List of all project labels
+
+        Returns:
+            Updated cost_shares list with 'labels' and 'labels_text' added to each share
+        """
+        try:
+            # Build a map of user_id -> liability account label for quick lookup
+            # liability_accounts[user_id] = label object
+            liability_accounts = {}
+            for label in project_labels:
+                if label.get('label_type') == 2 and label.get('label_sub_type') == 0:
+                    owner_id = label.get('label_owner', -1)
+                    if owner_id > 0:  # User-owned liability account
+                        liability_accounts[owner_id] = label
+                        self.app.log(f"Found liability account for user {owner_id}: {label.get('name')}")
+
+            if not liability_accounts:
+                self.app.log("WARNING: No user-specific liability accounts found (type=2, sub_type=0, owner>0)")
+
+            # Process each cost share
+            updated_shares = []
+            for share in cost_shares:
+                user_id = share['user_id']
+
+                # Skip users with 0% share
+                if share.get('percentage', 0) <= 0.0001:
+                    updated_shares.append(share)
+                    continue
+
+                # Determine which labels to use for this user
+                if user_id == bought_by_id:
+                    # Buying for self - use the selected/default labels as-is
+                    user_labels = selected_labels.copy()
+                    self.app.log(f"User {share['username']} (buying for self): Using selected labels")
+                else:
+                    # Buying for another user - use THAT user's liability account
+                    user_labels = selected_labels.copy()
+
+                    # Find this specific user's liability account
+                    user_liability_label = liability_accounts.get(user_id)
+
+                    if user_liability_label:
+                        # Replace position 2 (account) with this user's liability account
+                        # The label structure is: [balance, transaction, account, main, secondary...]
+                        if len(user_labels) >= 3:
+                            user_labels[2] = user_liability_label['label_id']
+                            self.app.log(f"Replaced account label for user {share['username']} (ID:{user_id}) with their liability account: {user_liability_label.get('name')}")
+                        else:
+                            # Labels list is too short, need to extend it
+                            while len(user_labels) < 3:
+                                user_labels.append(0)
+                            user_labels[2] = user_liability_label['label_id']
+                            self.app.log(f"Added liability account for user {share['username']} (ID:{user_id}): {user_liability_label.get('name')}")
+                    else:
+                        self.app.log(f"WARNING: No liability account found for user {share['username']} (ID:{user_id})")
+
+                # Get label names for display
+                label_names = [label['name'] for label in project_labels if label['label_id'] in user_labels]
+                labels_text = ", ".join(label_names) if label_names else "None"
+
+                # Add label information to share
+                share['labels'] = user_labels
+                share['labels_text'] = labels_text
+                updated_shares.append(share)
+
+                self.app.log(f"User {share['username']}: labels={user_labels}, text='{labels_text}'")
+
+            return updated_shares
+
+        except Exception as e:
+            self.app.log(f"Error in _prepare_user_labels: {e}")
+            import traceback
+            self.app.log(f"Traceback: {traceback.format_exc()}")
+            # Return original cost_shares with default labels
+            for share in cost_shares:
+                share['labels'] = selected_labels
+                share['labels_text'] = "Error preparing labels"
+            return cost_shares
 
     def compose(self) -> ComposeResult:
         # Get project data from app_state
@@ -858,11 +1071,65 @@ class ItemInputForm(ModalScreen):
             # Use exchange date from input field, default to bought_date if not provided
             exchange_rate_date = exchange_date_input if exchange_date_input else bought_date
 
+            # Get project users EARLY - needed for default label logic and cost sharing
+            project_users = self._get_project_users(project_id)
+            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
+            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
+
             # Get selected labels from the modal
             selected_labels = self._selected_label_ids
 
-            # Get label names for display
+            # Get project labels for display
             project_labels = self._get_project_labels(project_id)
+
+            # AUTO-APPLY DEFAULT LABELS:
+            # If user is buying for themselves ONLY and hasn't selected labels, use defaults
+            if not selected_labels or len(selected_labels) == 0:
+                # Check if buying for themselves (100% for bought_by user, 0% for others)
+                is_buying_for_self = False
+
+                if not self._edit_mode:
+                    # In create mode, check cost_shares
+                    # Will be populated below, so we need to check if only bought_by has 100%
+                    # For now, do a quick check: if all shares except bought_by are 0
+                    buying_for_self_only = True
+                    for user in project_users:
+                        try:
+                            share_input = self.query_one(f"#share-{user['user_id']}", Input)
+                            share_value = share_input.value.strip()
+                            share_percent = float(share_value) if share_value else 0.0
+
+                            if user['user_id'] == bought_by_id:
+                                # bought_by user should have 100%
+                                if abs(share_percent - 100.0) >= 0.01:
+                                    buying_for_self_only = False
+                                    break
+                            else:
+                                # Other users should have 0%
+                                if share_percent > 0.0001:
+                                    buying_for_self_only = False
+                                    break
+                        except:
+                            pass
+
+                    is_buying_for_self = buying_for_self_only
+                else:
+                    # In edit mode, always buying for self (single item)
+                    is_buying_for_self = True
+
+                # If buying for self and no labels selected, use defaults
+                if is_buying_for_self:
+                    default_labels = self._get_default_labels(project_id)
+                    if default_labels and any(label_id > 0 for label_id in default_labels):
+                        selected_labels = default_labels
+                        self._selected_label_ids = selected_labels
+
+                        self.app.log(f"Auto-applied default labels: {selected_labels}")
+                        self.app.notify("ℹ No labels selected - using default labels", severity="info")
+                    else:
+                        self.app.log("No default labels found or all are 0")
+
+            # Get label names for display
             label_names = [label['name'] for label in project_labels if label['label_id'] in selected_labels]
             labels_text = ", ".join(label_names) if label_names else "None"
 
@@ -883,14 +1150,9 @@ class ItemInputForm(ModalScreen):
             # Convert price
             price_float = float(price)
 
-
             price_final = price_float * exchange_rate_float
             currency_final = currency_main
 
-            # Get project users for name lookup
-            project_users = self._get_project_users(project_id)
-            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
-            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
 
             # Collect cost-sharing data from bought-for section (only in create mode)
             cost_shares = []
@@ -906,6 +1168,8 @@ class ItemInputForm(ModalScreen):
 
                         if share_value:
                             share_percent = float(share_value)
+                            if share_percent <= 0.0001:
+                                continue
                             share_amount = (price_final * share_percent) / 100.0
                             cost_shares.append({
                                 'user_id': user['user_id'],
@@ -939,13 +1203,22 @@ class ItemInputForm(ModalScreen):
                     else:
                         self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - must be 100%! Please adjust.", severity="error")
                     return
+
+                # Now prepare labels for each user in cost_shares
+                # Key logic:
+                # - If bought_by == bought_for (buying for self), use selected/default labels
+                # - If bought_by != bought_for (buying for another), use LIABILITY account for the account label
+                cost_shares = self._prepare_user_labels(cost_shares, bought_by_id, selected_labels, project_id, project_labels)
+
             else:
                 # In edit mode, just update the single item - no cost sharing
                 cost_shares.append({
                     'user_id': bought_by_id,
                     'username': bought_by_name,
                     'percentage': 100.0,
-                    'amount': price_final
+                    'amount': price_final,
+                    'labels': selected_labels,
+                    'labels_text': labels_text
                 })
 
             # Build complete item data dictionary
@@ -1053,6 +1326,22 @@ class ItemInputForm(ModalScreen):
 
             self.app.log(f"Creating {len(cost_shares)} item entries for cost sharing")
 
+            # Get ProjectComposer instance for building tag string
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = item_data['project_id']
+
+            try:
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+            except Exception as e:
+                self.app.log(f"Error creating ProjectComposer: {e}")
+                pc = None
+
             # Keep track of created item IDs
             created_item_ids = []
 
@@ -1062,6 +1351,7 @@ class ItemInputForm(ModalScreen):
                 share_amount = share.get('amount')  # Final price share
                 share_percentage = share.get('percentage', 100.0)
                 username = share.get('username')
+                user_labels = share.get('labels', [])  # Get user-specific labels
 
                 # Calculate proportional original price (in original currency)
                 original_price_share = (item_data['price'] * share_percentage) / 100.0
@@ -1082,12 +1372,28 @@ class ItemInputForm(ModalScreen):
                     'project_id': item_data['project_id'],
                     'exchange_rate': item_data['exchange_rate'],
                     'exchange_rate_date': item_data['exchange_rate_date'],
-                    'tags': item_data['tags'],  # Convert to JSON below
+                    'tags': user_labels,  # Use user-specific labels, will be converted to string below
                 }
 
-                # Convert tags list to JSON string
-                import json
-                db_item_data['tags'] = json.dumps(db_item_data['tags'])
+                # Convert tags to proper string format using ProjectComposer
+                # user_labels is a list of selected label IDs for this specific user
+                # We need to build a tags_dict and then convert to string
+                if pc and user_labels:
+                    # For now, store the labels in their respective positions
+                    # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
+                    tags_dict = {
+                        'c': user_labels[0] if len(user_labels) > 0 else 0,
+                        't': user_labels[1] if len(user_labels) > 1 else 0,
+                        'b': user_labels[2] if len(user_labels) > 2 else 0,
+                        'm': user_labels[3] if len(user_labels) > 3 else 0,
+                        's': user_labels[4:] if len(user_labels) > 4 else []
+                    }
+                    db_item_data['tags'] = pc.build_tags_string(tags_dict)
+                    self.app.log(f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}")
+                else:
+                    # Fallback: empty tag string
+                    db_item_data['tags'] = "0_0_0_0_[]"
+                    self.app.log(f"Using fallback empty tag string for {username}")
 
                 # Log the data being saved with both prices
                 self.app.log(f"Saving item share for {username}: "
@@ -1134,11 +1440,42 @@ class ItemInputForm(ModalScreen):
                 self.app.notify("Database connection not available", severity="error")
                 return False
 
+            # Get ProjectComposer instance for building tag string
+            from fiwa_cli.functions.project_composer import ProjectComposer
+            project_style = self.app.app_state.get("project_style", "default")
+            project_id = item_data['project_id']
+
+            try:
+                pc = ProjectComposer.create(
+                    compose_type=project_style,
+                    dbh=dbh,
+                    project_id=project_id,
+                    users=[]
+                )
+            except Exception as e:
+                self.app.log(f"Error creating ProjectComposer: {e}")
+                pc = None
+
+            # Convert tags to proper string format using ProjectComposer
+            if pc and item_data['tags']:
+                # For now, store the main label in position 'm' (position 3)
+                tags_dict = {
+                    'c': item_data['tags'][0] if len(item_data['tags']) > 0 else 0,
+                    't': item_data['tags'][1] if len(item_data['tags']) > 1 else 0,
+                    'b': item_data['tags'][2] if len(item_data['tags']) > 2 else 0,
+                    'm': item_data['tags'][3] if len(item_data['tags']) > 3 else 0,
+                    's': item_data['tags'][4:] if len(item_data['tags']) > 4 else []
+                }
+                tags_string = pc.build_tags_string(tags_dict)
+                self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
+            else:
+                # Fallback: empty tag string
+                tags_string = "0_0_0_0_[]"
+                self.app.log("Using fallback empty tag string for update")
+
             # Prepare UPDATE query
             dbh.load()
 
-            import json
-            tags_json = json.dumps(item_data['tags'])
 
             query = f"""
                 UPDATE p{dbh._db_salt}_items
@@ -1167,7 +1504,7 @@ class ItemInputForm(ModalScreen):
                 item_data['bought_by_id'],
                 item_data['exchange_rate'],
                 item_data['exchange_rate_date'],
-                tags_json,
+                tags_string,
                 self._item_id,
                 item_data['project_id']
             ]

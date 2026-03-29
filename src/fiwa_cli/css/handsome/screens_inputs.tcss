@@ -50,7 +50,7 @@ SettingsScreen #container-sidebar > ScrollableContainer > Button {
 
 InputsScreen #back-button {
     margin-top: 1;
-    width: 100%;
+    width: 90%;
 }
 
 # This element controls the right content area where forms and messages are displayed
@@ -67,7 +67,7 @@ InputsScreen #inputs-content-area {
    Override sizing to be compact
    =================================== */
 InputsScreen #reports-date-picker {
-    width: 100%;
+    width: 95%;
     height: 8;
     margin: 1 0 1 0;
 }

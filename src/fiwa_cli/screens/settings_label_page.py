@@ -7,6 +7,7 @@ from textual.screen import ModalScreen
 from datetime import datetime
 
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.functions.project_composer import ProjectComposer
 
 class LabelEditorModal(ModalScreen):
     """Modal screen for editing label name, description, and status."""
@@ -161,9 +162,12 @@ class LabelManagementForm(Vertical):
 
         # Load labels from database
         if project_id > 0:
+
             try:
                 dbh = self.app._config["dbh"]
-                self._labels = dbh.op_label_get_all(project_id)
+                # Force refresh to bypass cache and get latest data from database
+                # Pass user_id to get user-specific default information
+                self._labels = dbh.op_label_get_all(project_id, use_cache=False, force_refresh=True, user_id=user_id)
             except Exception as e:
                 self.app.log(f"Error loading labels: {e}")
                 self._labels = []
@@ -189,7 +193,19 @@ class LabelManagementForm(Vertical):
             # Labels table
             yield Static("Existing Labels:", classes="section-header")
             table = DataTable(id="labels-table")
-            table.add_columns("Name", "Description", "Status", "Type")
+            table.add_columns("Name", "Description", "Status", "Type", "Owner", "Default")
+
+            # Get project users to map user_id to username
+            user_map = {}  # {user_id: username}
+            if project_id > 0:
+                try:
+                    dbh = self.app._config["dbh"]
+                    project_users = dbh.op_project_get_users(project_id)
+                    for user in project_users:
+                        user_map[user.get('user_id')] = user.get('username', 'Unknown')
+                    self.app.log(f"Loaded {len(user_map)} users for label owner mapping")
+                except Exception as e:
+                    self.app.log(f"Error loading project users: {e}")
 
             # Populate table with existing labels
             # Note: We store label_id as the row key for internal reference
@@ -197,12 +213,25 @@ class LabelManagementForm(Vertical):
                 status_text = self._get_status_text(label['label_status'])
                 label_type_text = self._get_action_type(label['label_type'])
 
+                # Get label owner text
+                label_owner_id = label.get('label_owner', -1)
+                if label_owner_id == -1:
+                    owner_text = "Common"
+                else:
+                    owner_text = user_map.get(label_owner_id, f"User {label_owner_id}")
+
+                # Get default indicator (user-specific)
+                is_default = label.get('is_user_default', False)
+                default_text = "⭐" if is_default else ""
+
                 # Add row with plain text (no background colors)
                 table.add_row(
                     label['name'],
                     label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
                     status_text,
                     label_type_text,
+                    owner_text,
+                    default_text,
                     key=f"label-id-{label['label_id']}"  # Store label_id in the row key
                 )
 
@@ -224,12 +253,27 @@ class LabelManagementForm(Vertical):
 
     def _get_action_type(self, status: int) -> str:
         """Convert status code to text."""
-        status_map = {
-            0: "Action",
-            1: "Account",
-            2: "Label"
-        }
-        return status_map.get(status, "Unknown")
+        project_style = self.app.app_state.get("project_style", "default")
+
+        # Handle default/invalid project style
+        if project_style == "default" or not project_style:
+            # Return generic status map for default projects
+            status_map = {0: "Type 0", 1: "Type 1", 2: "Type 2", 3: "Type 3", 4: "Type 4"}
+            return status_map.get(status, "Unknown")
+
+        try:
+            dbh = self.app._config.get("dbh")
+            pc = ProjectComposer.create(
+                compose_type=project_style,
+                dbh=dbh,
+                project_id=self.app.app_state["project_id"],
+                users=[]
+            )
+            status_map = pc.get_label_map()
+            return status_map.get(status, "Unknown")
+        except Exception as e:
+            self.app.log(f"Error getting action type from ProjectComposer: {e}")
+            return f"Type {status}"
 
     def _set_label_type(self, label_type: int) -> None:
         """Set the selected label type and update button styling."""
@@ -263,7 +307,7 @@ class LabelManagementForm(Vertical):
             self._set_label_type(label_type)
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
-        """Handle cell selection in the table - clicking any cell opens the label editor."""
+        """Handle cell selection in the table - clicking Default column toggles default, other cells open editor."""
         table = event.data_table
         row_index = event.coordinate.row
         col_index = event.coordinate.column
@@ -285,19 +329,24 @@ class LabelManagementForm(Vertical):
             self.app.notify(f"Label ID {label_id} not found", severity="error")
             return
 
-        label_name = label['name']
-        label_description = label['description']
-        current_status = label.get('label_status', 2)
+        # Check if user clicked on the "Default" column (column 5)
+        if col_index == 5:
+            self._handle_default_toggle(label_id, label, table, row_index)
+        else:
+            # Open label editor for other columns
+            label_name = label['name']
+            label_description = label['description']
+            current_status = label.get('label_status', 2)
 
-        self.app.log(f"Row clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}")
+            self.app.log(f"Row clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}")
 
-        # Open label editor modal (clicking any cell in the row opens the editor)
-        self.app.push_screen(
-            LabelEditorModal(label_id, label_name, label_description, current_status),
-            callback=lambda result: self._handle_label_update(
-                label_id, result, table, row_index
+            # Open label editor modal (clicking any cell in the row opens the editor)
+            self.app.push_screen(
+                LabelEditorModal(label_id, label_name, label_description, current_status),
+                callback=lambda result: self._handle_label_update(
+                    label_id, result, table, row_index
+                )
             )
-        )
 
 
     def _handle_label_update(self, label_id: int, result: dict | None, table: DataTable, row_index: int) -> None:
@@ -385,3 +434,91 @@ class LabelManagementForm(Vertical):
             self.app.notify(f"Error saving label: {str(e)}", severity="error")
             self.app.log(f"Database update error for label {label_id}: {e}")
 
+    def _handle_default_toggle(self, label_id: int, label: dict, table: DataTable, row_index: int) -> None:
+        """Handle toggling the default status of a label for the current user.
+
+        Args:
+            label_id: The ID of the label
+            label: The label data dictionary
+            table: The DataTable instance
+            row_index: The row index in the table
+        """
+        # Check user permissions - must be Project Manager or higher (xxxx11 or xxxx10)
+        user_scope = self.app.app_state.get("user_scope", "user:write")
+        project_id = self.app.app_state.get("project_id", 0)
+        user_id = self.app.app_state.get("user_id", -1)
+
+        # Get user's permission for this project
+        try:
+            dbh = self.app._config["dbh"]
+            project_users = dbh.op_project_get_users(project_id)
+            current_user = next((u for u in project_users if u['user_id'] == user_id), None)
+
+            if not current_user:
+                self.app.notify("You are not a member of this project", severity="error")
+                return
+
+            perm_model = current_user.get('project_perm_model', '000000')
+
+            # Check if user has Project (position 4) or Manage (position 5) permission
+            # if len(perm_model) < 6 or \
+            #         perm_model[2] != '1' or \
+            #         ( perm_model[4] != '1' and perm_model[5] != '1'):
+            #     self.app.notify(
+            #         "You need Project Manager permissions to change default labels",
+            #         severity="error"
+            #     )
+            #     self.app.log(f"User {user_id} lacks permission to toggle default (perm: {perm_model})")
+            #     return
+
+            # Get current default status for THIS USER
+            current_default = label.get('is_user_default', False)
+            new_default = not current_default
+            label_type = label.get('label_type', 0)
+            label_name = label.get('name', 'Unknown')
+
+            # If setting as default, use op_label_set_default
+            if new_default:
+                dbh.op_label_set_default(label_id, project_id, label_type, user_id)
+                self.app.log(f"Set label {label_id} ({label_name}) as default for user {user_id}, type {label_type}")
+            else:
+                # If unsetting default, remove from user_label_defaults table
+                dbh.op_label_unset_default(project_id, label_type, user_id)
+                self.app.log(f"Unset label {label_id} ({label_name}) as default for user {user_id}")
+
+            # Update in-memory labels for THIS USER
+            # Reload labels with user_id to get fresh default info
+            self._labels = dbh.op_label_get_all(project_id, use_cache=False, force_refresh=True, user_id=user_id)
+
+            # Re-sort labels
+            self._labels.sort(key=lambda x: (
+                x.get('label_type', 0),
+                -x.get('label_status', 0),
+                x.get('name', '').lower()
+            ))
+
+            # Update ALL rows in the table to reflect changes
+            from textual.coordinate import Coordinate
+
+            for idx, lbl in enumerate(self._labels):
+                if lbl['label_type'] == label_type:
+                    # Update Default column (column 5) for all labels of this type
+                    is_default = lbl.get('is_user_default', False)
+                    default_symbol = "⭐" if is_default else ""
+                    try:
+                        table.update_cell_at(Coordinate(idx, 5), default_symbol)
+                        self.app.log(f"Updated row {idx} ({lbl['name']}): default={default_symbol}")
+                    except Exception as e:
+                        self.app.log(f"Could not update row {idx}: {e}")
+
+            # Show notification
+            if new_default:
+                self.app.notify(f"Set '{label_name}' as YOUR default for {self._get_action_type(label_type)}",
+                              severity="information")
+            else:
+                self.app.notify(f"Removed YOUR default status from '{label_name}'",
+                              severity="information")
+
+        except Exception as e:
+            self.app.notify(f"Error toggling default: {str(e)}", severity="error")
+            self.app.log(f"Error in _handle_default_toggle: {e}")

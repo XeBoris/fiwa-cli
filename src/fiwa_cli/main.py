@@ -7,6 +7,7 @@ from textual.app import App, ComposeResult, Binding
 from textual.containers import Horizontal
 from textual.widgets import Button, Footer, Static
 from textual.reactive import reactive
+from textual import log
 
 from fiwa_cli.functions.loader import load_yaml_config
 from fiwa_cli.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handle_args
@@ -21,8 +22,10 @@ class MyApp(App):
     # Use Path(__file__) to get the directory where main.py is installed
     print(str(Path(__file__).parent))
     CSS_PATH = str(Path(__file__).parent / "main.tcss")
+
     BINDINGS = [
         Binding("ctrl+c", "quit_app", "Quit", show=False),
+        ("q", "quit_app", "Quit"),
         ("d", "toggle_dark", "Toggle dark mode"),
         ("m", "open_menu", "Menu"),
         ("s", "open_settings", "Settings"),
@@ -30,10 +33,6 @@ class MyApp(App):
         ("r", "open_reports", "Reports"),
         ("p", "select_project", "Projects"),
     ]
-
-    # r = self.app._config["dbh"].op_get_user_sessions()
-    # ruser = r["user_info"]
-    # rsession = r["session_info"]
 
     # Single reactive dictionary that will trigger UI updates when changed
     # This contains all shared state across the application
@@ -57,12 +56,18 @@ class MyApp(App):
         self._config = config or {}
         self._mode = mode  # "terminal" or "web"
         self.count = 0
+        
+        # Setup log file path for textual run command
+        data_path = self._config.get("_data_directory", ".")
+        log_dir = Path(data_path)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self._log_file_path = log_dir / "fiwa.log"
 
         # Note: app_state is initialized at class level as reactive variable
         # We can update it after initialization if needed from database
         u = self.app._config["dbh"].op_get_user_sessions()
 
-        # let's update the app_state with actual session info from the database on startup
+        # ...existing code...
         self.app_state["user_name"] = u.get("user_info", {}).get("username", "Guest")
         self.app_state["user_id"] = u.get("user_info", {}).get("user_id", -1)
         self.app_state["user_scope"] = u.get("user_info", {}).get("scope", "user:write")
@@ -85,11 +90,15 @@ class MyApp(App):
             primary_project = next((p for p in project_info if p.get("project_primary", False)), None)
             primary_project_id = primary_project["project_id"] if primary_project else (project_ids[0] if project_ids else 0)
             primary_project_name = primary_project["project_name"] if primary_project else (project_names[0] if project_names else "No Projects")
+            primary_project_style = primary_project["project_style"] if primary_project else "default"
+            primary_project_store = primary_project.get("project_store", {}) if primary_project else {}
 
             self.app_state["project_ids"] = project_ids
             self.app_state["project_names"] = project_names
             self.app_state["project_id"] = primary_project_id
             self.app_state["project_name"] = primary_project_name
+            self.app_state["project_style"] = primary_project_style
+            self.app_state["project_store"] = primary_project_store
 
             # Load currency information for the primary project
             if primary_project:
@@ -111,13 +120,86 @@ class MyApp(App):
             self.app_state["project_names"] = ["No Projects"]
             self.app_state["project_id"] = 0
             self.app_state["project_name"] = "No Project"
+            self.app_state["project_style"] = "default"
             self.app_state["current_project_currency_main"] = "USD"
             self.app_state["current_project_currency_list"] = []
 
     def on_mount(self) -> None:
+        """Called when app is mounted."""
+        # Setup custom file logging
+        self._setup_file_logging()
+
+        # Log initial startup using custom logger
+        self.file_log.info("-" * 60)
+        self.file_log.info("| FiWa Application Started")
+        self.file_log.info(f"| User: {self.app_state.get('user_name', 'Guest')}")
+        self.file_log.info(f"| Project: {self.app_state.get('project_name', 'No Project')}")
+        self.file_log.info(f"| Project Style: {self.app_state.get('project_style', 'default')}")
+        self.file_log.info("-" * 60)
+
         self.theme = "textual-dark"  # Set initial theme
         self.update_session_display()  # Update session info on mount
         self.is_mounted = True  # Flag to indicate the app is fully mounted and ready for updates
+
+    def _setup_file_logging(self) -> None:
+        """
+        Setup custom file logging that doesn't interfere with Textual's logging.
+
+        Creates self.file_log that can be used from any component:
+        - From App: self.file_log.info("message")
+        - From Screen/Widget: self.app.file_log.info("message")
+
+        Log levels available: debug(), info(), warning(), error(), critical()
+        """
+        try:
+            import logging
+            from logging.handlers import RotatingFileHandler
+
+            # Ensure log directory exists
+            self._log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create rotating file handler
+            handler = RotatingFileHandler(
+                str(self._log_file_path),
+                maxBytes=10 * 1024 * 1024,  # 10 MB
+                backupCount=5,
+                encoding='utf-8'
+            )
+
+            # Set log format
+            formatter = logging.Formatter(
+                fmt='%(asctime)s - %(levelname)-8s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            handler.setFormatter(formatter)
+
+            # Create a custom logger for our app
+            file_logger = logging.getLogger("fiwa_app")
+            file_logger.handlers.clear()  # Clear any existing handlers
+            file_logger.addHandler(handler)
+            file_logger.setLevel(logging.DEBUG)
+            file_logger.propagate = False  # Don't propagate to root logger
+
+            # Make it accessible as self.file_log
+            self.file_log = file_logger
+
+            # Write startup marker
+            self.file_log.info("=" * 60)
+            self.file_log.info(f"Log file: {self._log_file_path}")
+            self.file_log.info(f"Max size: 10 MB, Backups: 5")
+            self.file_log.info("=" * 60)
+
+            print(f"✓ Custom file logging configured: {self._log_file_path}")
+            print(f"  Usage: self.app.file_log.info('message') from any screen/widget")
+
+        except Exception as e:
+            print(f"✗ Warning: Could not setup file logging: {e}")
+            import traceback
+            traceback.print_exc()
+            # Create a dummy logger so code doesn't break
+            import logging
+            self.file_log = logging.getLogger("fiwa_dummy")
+
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -129,12 +211,23 @@ class MyApp(App):
         )
         c_user = self.app_state.get("user_name", "Guest")
         c_project = self.app_state.get("project_name", "No Project")
-        yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}", id="main_body")
-        yield Static()
-        #yield Static(str(self.app_state), id="app_state_display_1")
-        #yield Static(str(self.app.app_state), id="app_state_display_2")
-
+        #yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
+        #             id="main_body")
+        m = """
+     _____ _                                
+    |  ___(_)_ __   __ _ _ __   ___ ___    
+    | |_  | | '_ \\ / _` | '_ \\ / __/ _ \\
+    |  _| | | | | | (_| | | | | (_|  __/
+    |_|   |_|_|_|_|\\__,_|_| |_|\\___\\___|
+                     __        __    _       _               
+                     \\ \\      / /_ _| |_ ___| |__   ___ _ __ 
+                      \\ \\ /\\ / / _` | __/ __| '_ \\ / _ \\ '__|
+                       \\ V  V / (_| | || (__| | | |  __/ |   
+                        \\_/\\_/ \\__,_|\\__\\___|_| |_|\\___|_|           
+"""
+        yield Static(m)
         yield Static(id="user_session_info")  # Will be updated reactively
+
         yield Footer()
 
     def watch_app_state(self, new_state: dict) -> None:
@@ -169,9 +262,13 @@ class MyApp(App):
 
     def update_session_display(self) -> None:
         """Update the session display with current reactive values."""
+
         try:
-            session_widget = self.query_one("#user_session_info", Static)
-            session_widget.update(f"{self.app_state['user_name']} - {self.app_state['session_uuid']}")
+            # session_widget = self.query_one("#user_session_info", Static)
+            # session_widget.update(f"{self.app_state['user_name']} - {self.app_state['session_uuid']}")
+            c_project = self.app_state.get("project_name", "No Project")
+            main_body = self.query_one("#main_body", Static)
+            main_body.update(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}")
         except Exception:
             # Widget might not be ready yet
             pass
@@ -200,7 +297,21 @@ class MyApp(App):
         pass
 
     def action_quit_app(self) -> None:
-        """An action to quit the app."""
+        """An action to quit the app - performs logout before exiting."""
+        # Check if user is logged in
+        is_logged_in = self.app_state.get("is_logged_in", False)
+
+        if is_logged_in:
+            # Perform logout using shared utility
+            from fiwa_cli.functions.logout_util import perform_logout
+            logout_success = perform_logout(self)
+
+            if logout_success:
+                self.log("User logged out before exit")
+            else:
+                self.log("Logout failed during exit, but continuing to close app")
+
+        # Exit the application
         self.exit(0)
 
     def action_toggle_dark(self) -> None:
@@ -260,34 +371,22 @@ def main():
 
         config = setup_fiwa(abs_path=abs_path, config=_conf)  # Initialize FiWa with the loaded config
         app = MyApp(config=config)
-        app.run()
+
+        # Get log file path from app's configuration
+        log_file = app._log_file_path
+        print(f"Starting app with logging to: {log_file}")
+
+        # Run with textual devtools logging
+        # Use textual run command: textual run --dev main.py to see logs in console
+        # Or use app.run() and logs go to the file via self.log()
+        try:
+            # Run the app - Textual's built-in logging will handle file writes
+            app.run()
+        finally:
+            # On exit, log the shutdown
+            print(f"App closed. Logs saved to: {log_file}")
+        
         exit(0)
-
-    # if args.config is not None:
-    #     abs_path = args.config
-    #     abs_path = os.path.abspath(abs_path)
-
-
-    #     config = setup_fiwa(abs_path=abs_path,
-    #                         config=config)  # Initialize FiWa with the loaded config
-    #     print("Your FiWa environment has been initialized with the following configuration:")
-    #     print(config)
-    #     exit()
-
-    # elif args.mode == "run":
-    #     config = load_yaml_config(os.path.join(args.config, "config.yml"))
-    #     config = setup_fiwa(abs_path=abs_path,
-    #                         config=config)  # Initialize FiWa with the loaded config
-    #     app = MyApp(config=config)
-    #     app.run()
-
-    # exit()
-
-    # config_path = "./config.yml"  # for testing purposes
-    # config = load_yaml_config(config_path)
-
-    # config = setup_fiwa(abs_path=abs_path,
-    #                     config=config)  # Initialize FiWa with the loaded config
 
     exit()
     # app = MyApp(config=config)
