@@ -39,9 +39,9 @@ class ReplicateExpensesView(Vertical):
             return
 
         if period_start and period_end:
-            date_range_text = f"📅 Replicating from: {period_label}"
+            date_range_text = f"𝌌 Replicating from: {period_label}"
         else:
-            date_range_text = "📅 No period selected"
+            date_range_text = "𝌌 No period selected"
 
         yield Static(date_range_text, id="replicate-date-display", classes="date-info")
 

@@ -658,9 +658,9 @@ class ItemInputForm(ModalScreen):
 
         Key logic:
         - If bought_by == bought_for (buying for self): Use selected/default labels
-        - If bought_by != bought_for (buying for another): Replace account label with LIABILITY account
+        - If bought_by != bought_for (buying for another): Replace account label with that user's LIABILITY account
 
-        The Liability account is defined as: label_type=2 (Account), label_sub_type=0
+        The Liability account is defined as: label_type=2 (Account), label_sub_type=0, label_owner=user_id
 
         Args:
             cost_shares: List of cost share dicts with user_id, username, percentage, amount
@@ -673,15 +673,18 @@ class ItemInputForm(ModalScreen):
             Updated cost_shares list with 'labels' and 'labels_text' added to each share
         """
         try:
-            # Get the liability account label for this project
-            liability_label = None
+            # Build a map of user_id -> liability account label for quick lookup
+            # liability_accounts[user_id] = label object
+            liability_accounts = {}
             for label in project_labels:
                 if label.get('label_type') == 2 and label.get('label_sub_type') == 0:
-                    liability_label = label
-                    break
+                    owner_id = label.get('label_owner', -1)
+                    if owner_id > 0:  # User-owned liability account
+                        liability_accounts[owner_id] = label
+                        self.app.log(f"Found liability account for user {owner_id}: {label.get('name')}")
 
-            if not liability_label:
-                self.app.log("WARNING: No liability account label found (type=2, sub_type=0)")
+            if not liability_accounts:
+                self.app.log("WARNING: No user-specific liability accounts found (type=2, sub_type=0, owner>0)")
 
             # Process each cost share
             updated_shares = []
@@ -697,22 +700,28 @@ class ItemInputForm(ModalScreen):
                 if user_id == bought_by_id:
                     # Buying for self - use the selected/default labels as-is
                     user_labels = selected_labels.copy()
+                    self.app.log(f"User {share['username']} (buying for self): Using selected labels")
                 else:
-                    # Buying for another user - modify the account label
+                    # Buying for another user - use THAT user's liability account
                     user_labels = selected_labels.copy()
 
-                    # Find and replace the account label (position 2, label_type=2)
-                    # The label structure is: [balance, transaction, account, main, secondary...]
-                    if liability_label and len(user_labels) >= 3:
-                        # Replace position 2 (account) with liability account
-                        user_labels[2] = liability_label['label_id']
-                        self.app.log(f"Replaced account label for user {share['username']} with liability account")
-                    elif liability_label:
-                        # Labels list is too short, need to extend it
-                        while len(user_labels) < 3:
-                            user_labels.append(0)
-                        user_labels[2] = liability_label['label_id']
-                        self.app.log(f"Added liability account for user {share['username']}")
+                    # Find this specific user's liability account
+                    user_liability_label = liability_accounts.get(user_id)
+
+                    if user_liability_label:
+                        # Replace position 2 (account) with this user's liability account
+                        # The label structure is: [balance, transaction, account, main, secondary...]
+                        if len(user_labels) >= 3:
+                            user_labels[2] = user_liability_label['label_id']
+                            self.app.log(f"Replaced account label for user {share['username']} (ID:{user_id}) with their liability account: {user_liability_label.get('name')}")
+                        else:
+                            # Labels list is too short, need to extend it
+                            while len(user_labels) < 3:
+                                user_labels.append(0)
+                            user_labels[2] = user_liability_label['label_id']
+                            self.app.log(f"Added liability account for user {share['username']} (ID:{user_id}): {user_liability_label.get('name')}")
+                    else:
+                        self.app.log(f"WARNING: No liability account found for user {share['username']} (ID:{user_id})")
 
                 # Get label names for display
                 label_names = [label['name'] for label in project_labels if label['label_id'] in user_labels]

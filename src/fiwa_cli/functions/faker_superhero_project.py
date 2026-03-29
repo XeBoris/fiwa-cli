@@ -222,7 +222,7 @@ def generate_data(
     user_id: int,
     bought_for_id: int,
     names: list = [],
-    labels: list = [],
+    labels: str = '[]',
     start_date_str: str = "2024-11-01",
     end_date: Optional[datetime] = None,
     currency: str = "USD",
@@ -338,7 +338,7 @@ def generate_data(
                 "project_id": project_id,
                 "exchange_rate": 1.0,
                 "exchange_rate_date": shopping_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps(labels)  # Empty tags for now, can be populated with label IDs
+                "tags": labels  # Empty tags for now, can be populated with label IDs
             }
 
             # Create item in database

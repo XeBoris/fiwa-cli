@@ -187,6 +187,7 @@ class InputsScreen(ReactiveScreen):
 
                 period_start = week_info['week_beg']
                 period_end = week_info['week_end']
+                period_end += datetime.timedelta(days=1)  # Include the end date in the range
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries

@@ -96,6 +96,7 @@ class ModifyProjectForm(Vertical):
         current_description = ""
         current_currency_main = ""
         current_currency_list = ""
+        current_month_start = 1  # Default to 1st of month
 
         if project_info:
             # Ensure None values become empty strings for widgets
@@ -113,6 +114,18 @@ class ModifyProjectForm(Vertical):
             except (json.JSONDecodeError, TypeError, ValueError) as e:
                 self.app.log(f"Error parsing currency_list: {e}")
                 current_currency_list = ""
+
+            # Parse project_store to get month_start
+            project_store_raw = project_info.get("project_store", {})
+            try:
+                if isinstance(project_store_raw, str):
+                    project_store = json.loads(project_store_raw) if project_store_raw else {}
+                else:
+                    project_store = project_store_raw if project_store_raw else {}
+                current_month_start = project_store.get("month_start", 1)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                self.app.log(f"Error parsing project_store: {e}")
+                current_month_start = 1
 
         with ScrollableContainer(id="form-content"):
             with Vertical(id="form-project-area"):
@@ -142,6 +155,23 @@ class ModifyProjectForm(Vertical):
                     yield Input(placeholder="e.g., USD, EUR, JPY",
                                 id="currency-list",
                                 value=current_currency_list)
+
+            with Horizontal(id="form-month-section"):
+                with Vertical(id="form-month-start-section"):
+                    yield Static("Month Start Day (1-28)", classes="form-label")
+                    yield Input(
+                        placeholder="1-28",
+                        id="month-start",
+                        type="integer",
+                        value=str(current_month_start)
+                    )
+                with Vertical(id="form-month-info-section"):
+                    yield Static("ℹ Info", classes="form-label")
+                    yield Static(
+                        "Defines which day of the month starts a new monthly period.\n"
+                        "E.g., if set to 15, monthly reports run from 15th to 14th.",
+                        classes="info-text"
+                    )
 
             with Vertical(id="form-user-section"):
                 # Fetch and display users for this project
@@ -187,7 +217,7 @@ class ModifyProjectForm(Vertical):
                         with Horizontal(classes="user-row"):
                             yield Static(display_name, classes="user-item")
                             yield Button(
-                                "🔧",
+                                "edit",
                                 id=f"edit-perm-{user_id_val}",
                                 classes="edit-permission-button"
                             )
@@ -224,6 +254,7 @@ class ModifyProjectForm(Vertical):
         description = self.query_one("#project-description", TextArea).text.strip()
         currency_main = self.query_one("#currency-main", Input).value.strip().upper()
         currency_list_str = self.query_one("#currency-list", Input).value.strip()
+        month_start_str = self.query_one("#month-start", Input).value.strip()
 
         if not name:
             self.app.notify("Project name is required", severity="error")
@@ -233,9 +264,41 @@ class ModifyProjectForm(Vertical):
             self.app.notify("Valid 3-letter currency code required", severity="error")
             return
 
+        # Validate month_start
+        try:
+            month_start = int(month_start_str) if month_start_str else 1
+            if month_start < 1 or month_start > 28:
+                self.app.notify("Month start day must be between 1 and 28", severity="error")
+                return
+        except ValueError:
+            self.app.notify("Month start day must be a valid number", severity="error")
+            return
+
         currency_list = []
         if currency_list_str:
             currency_list = [c.strip().upper() for c in currency_list_str.split(",") if c.strip()]
+
+        # Get existing project_store and update month_start
+        try:
+            dbh = self.app._config["dbh"]
+            all_projects = dbh.op_project_get_info(user_id)
+            project_info = next((p for p in all_projects if p["project_id"] == project_id), None)
+
+            if project_info:
+                project_store_raw = project_info.get("project_store", {})
+                if isinstance(project_store_raw, str):
+                    project_store = json.loads(project_store_raw) if project_store_raw else {}
+                else:
+                    project_store = project_store_raw if project_store_raw else {}
+            else:
+                project_store = {}
+
+            # Update month_start in project_store
+            project_store["month_start"] = month_start
+
+        except Exception as e:
+            self.app.log(f"Error preparing project_store: {e}")
+            project_store = {"month_start": month_start}
 
         project_data = {
             "project_id": project_id,
@@ -243,18 +306,107 @@ class ModifyProjectForm(Vertical):
             "description": description if description else None,
             "currency_main": currency_main,
             "currency_list": currency_list,
+            "project_store": project_store,
         }
 
         # Update in database
         try:
             dbh = self.app._config["dbh"]
             dbh.op_project_update(project_data)
+
+            # Reload the complete project information into app_state
+            # This ensures all changes (name, currency, month_start) are immediately reflected
+            self._reload_project_into_app_state(project_id, user_id)
+
             self.app.notify("Project updated successfully!", severity="information")
             self.post_message(self.ProjectModified(project_data))
         except ValueError as e:
             self.app.notify(f"Update failed: {str(e)}", severity="error")
         except Exception as e:
             self.app.notify(f"Error updating project: {str(e)}", severity="error")
+
+    def _reload_project_into_app_state(self, project_id: int, user_id: int) -> None:
+        """
+        Reload complete project information into app_state after updates.
+
+        This ensures all project-related data (name, currency, project_store, etc.)
+        is immediately reflected in the app without requiring a re-login.
+
+        Args:
+            project_id: ID of the project that was updated
+            user_id: ID of the current user
+        """
+        try:
+            dbh = self.app._config["dbh"]
+
+            # Fetch fresh project info from database
+            all_projects = dbh.op_project_get_info(user_id)
+
+            if not all_projects:
+                self.app.log("No projects found during reload")
+                return
+
+            # Extract project data
+            project_names = [p["project_name"] for p in all_projects]
+            project_ids = [p["project_id"] for p in all_projects]
+
+            # Find the current/primary project
+            current_project = next((p for p in all_projects if p["project_id"] == project_id), None)
+
+            if not current_project:
+                self.app.log(f"Project {project_id} not found in user's projects")
+                return
+
+            # Parse project_store
+            project_store_raw = current_project.get("project_store", {})
+            if isinstance(project_store_raw, str):
+                project_store = json.loads(project_store_raw) if project_store_raw else {}
+            else:
+                project_store = project_store_raw if project_store_raw else {}
+
+            # Parse currency_list
+            currency_list_str = current_project.get("currency_list", "[]")
+            try:
+                if isinstance(currency_list_str, str):
+                    currency_list = json.loads(currency_list_str) if currency_list_str else []
+                else:
+                    currency_list = currency_list_str if currency_list_str else []
+            except:
+                currency_list = []
+
+            # Update app_state with complete project information
+            self.app.app_state.update({
+                "project_names": project_names,
+                "project_ids": project_ids,
+                "project_name": current_project.get("project_name", "Unknown"),
+                "project_style": current_project.get("project_style", "default"),
+                "project_store": project_store,
+                "current_project_currency_main": current_project.get("currency_main", "USD"),
+                "current_project_currency_list": currency_list,
+            })
+
+            self.app.log(f"Reloaded project {project_id} into app_state:")
+            self.app.log(f"  - Name: {current_project.get('project_name')}")
+            self.app.log(f"  - Style: {current_project.get('project_style')}")
+            self.app.log(f"  - Store: {project_store}")
+            self.app.log(f"  - Currency: {current_project.get('currency_main')}")
+
+            # Refresh header to reflect changes immediately
+            try:
+                from fiwa_cli.components.header import FiwaHeader
+                header = self.app.query_one(FiwaHeader)
+                header.project_id = project_id
+                header.project_ids = project_ids
+                header.projects = project_names
+                header.refresh()
+                self.app.log("Header refreshed with updated project information")
+            except Exception as e:
+                self.app.log(f"Could not refresh header: {e}")
+
+        except Exception as e:
+            self.app.log(f"Error reloading project into app_state: {e}")
+            import traceback
+            self.app.log(f"Traceback: {traceback.format_exc()}")
 
     def _show_permission_dialog(self, user_id: int) -> None:
         """Show permission edit dialog for a user."""

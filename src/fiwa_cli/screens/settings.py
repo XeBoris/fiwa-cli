@@ -242,6 +242,7 @@ class SettingsScreen(ReactiveScreen):
             primary_project_id = 0
             primary_project_style = "default"
             primary_project_name = "No Project"
+            primary_project_store = {}
 
             if project_info and len(project_info) > 0:
                 for project in project_info:
@@ -251,6 +252,7 @@ class SettingsScreen(ReactiveScreen):
                         primary_project_id = project["project_id"]
                         primary_project_style = project.get("project_style", "default")
                         primary_project_name = project.get("project_name", "No Project")
+                        primary_project_store = project.get("project_store", {})
 
                 # If no primary project, use the newly created one
                 if primary_project_id == 0:
@@ -260,6 +262,7 @@ class SettingsScreen(ReactiveScreen):
                     if new_project:
                         primary_project_style = new_project.get("project_style", "default")
                         primary_project_name = new_project.get("project_name", "No Project")
+                        primary_project_store = new_project.get("project_store", {})
 
             # Update app_state with new project information
             self.app.app_state = {
@@ -269,6 +272,7 @@ class SettingsScreen(ReactiveScreen):
                 "project_id": primary_project_id,
                 "project_style": primary_project_style,
                 "project_name": primary_project_name,
+                "project_store": primary_project_store,
             }
 
             self.notify(

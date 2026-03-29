@@ -106,7 +106,8 @@ class FiwaHeader(Static):
         elif len(self.projects) > 0:
             project_name = self.projects[0]
 
-        # yield Static(f"User: {self.user} | Project: {project_name}", id="user-info")
+        # yield Static(f"User: {self.user} | Project: {project_name}",
+        #              id="user-info")
 
         yield TimeDisplay()
 

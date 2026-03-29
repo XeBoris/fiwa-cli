@@ -34,9 +34,9 @@ class EditExpenseView(VerticalScroll):
         period_label = self.app.app_state.get("current_period_label", "")
 
         if period_start and period_end:
-            date_range_text = f"📓 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
-            date_range_text = "📓 Showing all expenses"
+            date_range_text = "𝌌 Showing all expenses"
 
         self.app.log(f"EditExpenseView compose - Period: {date_range_text}")
         yield Static(date_range_text, id="date-selection-display", classes="date-info")
@@ -246,9 +246,9 @@ class EditExpenseView(VerticalScroll):
             period_label = self.app.app_state.get("current_period_label", "")
 
             if period_start and period_end:
-                date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
-                date_range_text = "📅 Showing all expenses"
+                date_range_text = "𝌌 Showing all expenses"
 
             self.app.log(f"EditExpenseView refresh - Period: {date_range_text}")
 

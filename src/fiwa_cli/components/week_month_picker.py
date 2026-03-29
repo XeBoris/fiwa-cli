@@ -105,7 +105,6 @@ class WeekMonthWidget(Widget):
         Yields:
             Widget: The vertical container with dropdown and grid
         """
-        self.app.notify(f"test", severity="info")
         with Vertical(classes="week-month-picker-container"):
             # Period type selector dropdown - centered above grid
             yield Select(
@@ -189,17 +188,33 @@ class WeekMonthWidget(Widget):
 
             # Handle year boundaries for weeks
             if self.current_week < 1:
-                self.current_year -= 1
-                # Get last week of previous year (usually 52, sometimes 53)
+                # Going back from week 1 - move to previous year's last week
+                # Need to find the last week that actually belongs to the previous year
+                # Some years have 52 weeks, some have 53
                 from datetime import date
-                last_day = date(self.current_year, 12, 31)
-                self.current_week = last_day.isocalendar()[1]
+
+                self.current_year -= 1
+
+                # Find the last week that belongs to this year
+                # Start from Dec 28 (guaranteed to be in the year) and work backwards
+                test_date = date(self.current_year, 12, 28)
+                iso_cal = test_date.isocalendar()
+
+                # If Dec 28 belongs to next year, go back a week
+                if iso_cal[0] > self.current_year:
+                    # Dec 28 is in next year's W01, so find last week of current year
+                    test_date = date(self.current_year, 12, 21)
+                    iso_cal = test_date.isocalendar()
+
+                self.current_week = iso_cal[1]
+
             elif self.current_week > 52:
-                # Check if week 53 exists for this year
+                # Going forward - check if week 53 exists for this year
                 from datetime import date
                 last_day = date(self.current_year, 12, 31)
                 max_week = last_day.isocalendar()[1]
                 if self.current_week > max_week:
+                    # Week doesn't exist, move to next year's week 1
                     self.current_year += 1
                     self.current_week = 1
         else:  # month

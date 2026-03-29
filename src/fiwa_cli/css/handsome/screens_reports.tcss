@@ -26,17 +26,17 @@ ReportsScreen #reports-sidebar {
 }
 ReportsScreen .menu-section {
     text-style: bold;
-    padding: 0;
-    margin: 0;
+    padding: 1 0 1 0;
     color: $accent;
-    height: auto;
 }
 ReportsScreen #reports-sidebar Button {
-    width: 100%;
+    width: 90%;
+    min-width: 20;
     height: 3;
     margin: 0 0 1 0;
-    padding: 0 1;
-    border: solid $accent;
+    padding: 0 0 0 0;
+    border: none;
+    content-align: center middle;
 }
 ReportsScreen #reports-sidebar Button:hover {
     background: $accent;
@@ -47,7 +47,7 @@ ReportsScreen #reports-sidebar Button:hover {
    Override sizing to be compact
    =================================== */
 ReportsScreen #reports-date-picker {
-    width: 100%;
+    width: 95%;
     height: 10;
     margin: 1 0 0 0;
 }

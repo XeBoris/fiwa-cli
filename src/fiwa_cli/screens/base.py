@@ -182,6 +182,7 @@ class LoginScreen(ModalScreen):
             primary_project_id = 0
             primary_project_name = "No Project"
             primary_project_style = "default"
+            primary_project_store = {}
 
             if project_info and len(project_info) > 0:
                 for project in project_info:
@@ -191,14 +192,16 @@ class LoginScreen(ModalScreen):
                         primary_project_id = project["project_id"]
                         primary_project_name = project["project_name"]
                         primary_project_style = project.get("project_style", "default")
+                        primary_project_store = project.get("project_store", {})
 
                 # If no primary project is set, use the first one
                 if primary_project_id == 0 and len(project_ids) > 0:
                     primary_project_id = project_ids[0]
                     primary_project_name = project_names[0]
-                    # Get style for first project
+                    # Get style and store for first project
                     first_project = project_info[0]
                     primary_project_style = first_project.get("project_style", "default")
+                    primary_project_store = first_project.get("project_store", {})
             else:
                 # No projects found
                 project_names = ["No Projects"]
@@ -238,6 +241,7 @@ class LoginScreen(ModalScreen):
                 "project_id": primary_project_id,
                 "project_name": primary_project_name,
                 "project_style": primary_project_style,
+                "project_store": primary_project_store,
                 "current_project_currency_main": currency_main,
                 "current_project_currency_list": currency_list,
                 # Restore application-level configuration

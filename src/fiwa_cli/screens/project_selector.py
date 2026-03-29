@@ -99,6 +99,7 @@ class ProjectSelectorScreen(ModalScreen):
                 currency_list_str = project.get("currency_list", "[]")
                 project_style = project.get("project_style", "default")
                 project_name = project.get("project_name", "Unknown Project")
+                project_store = project.get("project_store", {})
 
                 try:
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
@@ -109,7 +110,8 @@ class ProjectSelectorScreen(ModalScreen):
                 self.app.app_state["current_project_currency_list"] = currency_list
                 self.app.app_state["project_style"] = project_style
                 self.app.app_state["project_name"] = project_name
-                self.app.log(f"Loaded project info for {project_id}: style={project_style}, currency={currency_main}")
+                self.app.app_state["project_store"] = project_store
+                self.app.log(f"Loaded project info for {project_id}: style={project_style}, currency={currency_main}, store={project_store}")
         except Exception as e:
             self.app.log(f"Error loading project info: {e}")
 

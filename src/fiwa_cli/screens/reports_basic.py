@@ -21,16 +21,16 @@ class RepayModal(ModalScreen):
     def compose(self) -> ComposeResult:
         """Compose the repayment modal interface."""
         with Vertical(id="repay-modal-container"):
-            yield Static("💸 Repay Overview", classes="modal-title")
+            yield Static("☛ Repay Overview", classes="modal-title")
 
             # Show current period
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
 
             if period_start and period_end:
-                period_text = f"Period: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                period_text = f"𝌌 Period: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
-                period_text = "All time"
+                period_text = "𝌌 All time"
 
             yield Static(period_text, classes="modal-period")
             yield Static("Who owes whom:", classes="modal-subtitle")
@@ -210,9 +210,9 @@ class BasicReportForm(Vertical):
         period_type = self.app.app_state.get("current_period_type", "week")
 
         if period_start and period_end:
-            date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+            date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
-            date_range_text = "📅 All expenses"
+            date_range_text = "𝌌 All expenses"
 
         self.app.log(f"BasicReportForm compose - Period: {date_range_text}")
         yield Static(date_range_text, id="date-selection-display", classes="date-info")
@@ -317,7 +317,7 @@ class BasicReportForm(Vertical):
 
                         table_fv.sort(col_date_fv, reverse=True)
                         yield table_fv
-                        yield Static(f"Total Fixed/Variable: {total_fv:.2f} {currency_main}",
+                        yield Static(f"Total Fixed/Variable: -{expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main} ",
                                    classes="subtotal", id=f"total-fv-{user['user_id']}")
 
                         # --- Table 2: Daily Items ---
@@ -371,7 +371,7 @@ class BasicReportForm(Vertical):
 
                         table_daily.sort(col_date_daily, reverse=True)
                         yield table_daily
-                        yield Static(f"Total Daily: {total_daily:.2f} {currency_main}",
+                        yield Static(f"Total Daily: -{expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main} ",
                                    classes="subtotal", id=f"total-daily-{user['user_id']}")
 
                         # --- Combined Summary ---
@@ -379,7 +379,10 @@ class BasicReportForm(Vertical):
                         total_revenue = revenue_fv + revenue_daily
                         total_expenses = expenses_fv + expenses_daily
 
-                        breakdown_lines = [f"💰 Grand Total: {total_all:.2f} {currency_main}"]
+                        if period_type == "week":
+                            breakdown_lines = [f"💰 Grand Total: {total_daily:.2f} {currency_main}"]
+                        else:
+                            breakdown_lines = [f"💰 Grand Total: {total_all:.2f} {currency_main}"]
 
                         # Show revenue/expense breakdown for monthly view
                         if period_type == "month":
@@ -388,9 +391,11 @@ class BasicReportForm(Vertical):
                             breakdown_lines.append(f"  = Balance: {total_all:.2f} {currency_main}")
 
                         # Show who bought what breakdown
-                        total_self = bought_by_self_fv + bought_by_self_daily
-                        if total_self > 0:
-                            breakdown_lines.append(f"  • Self: {total_self:.2f} {currency_main}")
+                        total_self = bought_by_self_fv - bought_by_self_daily
+                        if bought_by_self_daily > 0 and period_type == "week":
+                            breakdown_lines.append(f"  • Self: {bought_by_self_daily:.2f} {currency_main}")
+                        if total_self > 0 and period_type == "month":
+                                breakdown_lines.append(f"  • Self: {total_self:.2f} {currency_main}")
 
                         # Merge bought_by_others from both tables
                         all_bought_by_others = {}
@@ -593,9 +598,9 @@ class BasicReportForm(Vertical):
             period_type = self.app.app_state.get("current_period_type", "week")
 
             if period_start and period_end:
-                date_range_text = f"📅 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
+                date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
-                date_range_text = "📅 All expenses"
+                date_range_text = "𝌌 All expenses"
 
             self.app.log(f"BasicReportForm refresh_data - Period: {date_range_text}")
 
@@ -700,7 +705,7 @@ class BasicReportForm(Vertical):
 
                     # Update fixed/variable total
                     total_fv_widget = self.query_one(f"#total-fv-{user['user_id']}", Static)
-                    total_fv_widget.update(f"Total Fixed/Variable: {total_fv:.2f} {currency_main}")
+                    total_fv_widget.update(f"Total Fixed/Variable: {expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main}")
 
                 except Exception as e:
                     self.app.log(f"Could not refresh fixed/variable table for user {user['user_id']}: {e}")
@@ -754,7 +759,7 @@ class BasicReportForm(Vertical):
 
                     # Update daily total
                     total_daily_widget = self.query_one(f"#total-daily-{user['user_id']}", Static)
-                    total_daily_widget.update(f"Total Daily: {total_daily:.2f} {currency_main}")
+                    total_daily_widget.update(f"Total Daily: {expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main}")
 
                 except Exception as e:
                     self.app.log(f"Could not refresh daily table for user {user['user_id']}: {e}")

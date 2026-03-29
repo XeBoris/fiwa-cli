@@ -135,8 +135,8 @@ class MyApp(App):
         )
         c_user = self.app_state.get("user_name", "Guest")
         c_project = self.app_state.get("project_name", "No Project")
-        yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
-                     id="main_body")
+        #yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
+        #             id="main_body")
         m = """
      _____ _                                
     |  ___(_)_ __   __ _ _ __   ___ ___    
