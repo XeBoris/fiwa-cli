@@ -59,6 +59,7 @@ See Also:
     components.week_month_picker: Period selection affecting this report
     inputs_edit_expense: Similar tabbed expense view for editing
 """
+
 from textual.containers import Vertical, ScrollableContainer, Horizontal
 from textual.widgets import Static, TabbedContent, TabPane, DataTable, Button
 from textual.app import ComposeResult
@@ -131,7 +132,7 @@ class RepayModal(ModalScreen):
     BINDINGS = [
         ("escape", "dismiss_modal", "Close"),
     ]
-    
+
     def __init__(self, project_id: int, *args, **kwargs):
         """Initialize the repayment modal.
 
@@ -142,7 +143,7 @@ class RepayModal(ModalScreen):
         """
         super().__init__(*args, **kwargs)
         self.project_id = project_id
-        
+
     def compose(self) -> ComposeResult:
         """Compose the repayment modal interface."""
         with Vertical(id="repay-modal-container"):
@@ -159,35 +160,36 @@ class RepayModal(ModalScreen):
 
             yield Static(period_text, classes="modal-period")
             yield Static("Who owes whom:", classes="modal-subtitle")
-            
+
             with ScrollableContainer(id="repay-list-container"):
                 # Calculate and display repayments
                 repayments = self._calculate_repayments()
-                
+
                 if repayments:
                     for repayment in repayments:
-                        debtor = repayment['debtor']
-                        creditor = repayment['creditor']
-                        amount = repayment['amount']
-                        currency = repayment['currency']
-                        
+                        debtor = repayment["debtor"]
+                        creditor = repayment["creditor"]
+                        amount = repayment["amount"]
+                        currency = repayment["currency"]
+
                         yield Static(
                             f"💰 {debtor} owes {creditor}: {amount:.2f} {currency}",
-                            classes="repayment-item"
+                            classes="repayment-item",
                         )
                 else:
-                    yield Static("✅ All settled! No repayments needed.", 
-                               classes="repayment-settled")
-            
+                    yield Static(
+                        "✅ All settled! No repayments needed.", classes="repayment-settled"
+                    )
+
             yield Button("OK", id="ok-button", variant="primary")
-    
+
     def _calculate_repayments(self) -> list:
         """Calculate who owes whom based on bought_by vs bought_for.
-        
+
         Logic:
         - If User A bought an item for User B, then B owes A
         - We aggregate all transactions to calculate net debts
-        
+
         Returns:
             List of dicts with debtor, creditor, amount, currency
         """
@@ -195,12 +197,12 @@ class RepayModal(ModalScreen):
             dbh = self.app._config.get("dbh")
             if not dbh:
                 return []
-            
+
             # Get period boundaries from app_state
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
             currency_main = self.app.app_state.get("current_project_currency_main", "USD")
-            
+
             # Format dates for query
             start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
             end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
@@ -218,13 +220,9 @@ class RepayModal(ModalScreen):
                 AND bought_by_id != bought_for_id
                 ORDER BY bought_date DESC
             """
-            
-            results = dbh.execute_query(query, [
-                self.project_id,
-                start_date_str,
-                end_date_str
-            ])
-            
+
+            results = dbh.execute_query(query, [self.project_id, start_date_str, end_date_str])
+
             # Get user names for IDs
             users_query = f"""
                 SELECT user_id, first_name, last_name
@@ -238,7 +236,7 @@ class RepayModal(ModalScreen):
                 user_id = row[0]
                 full_name = f"{row[1]} {row[2]}"
                 user_names[user_id] = full_name
-            
+
             self.app.log(f"Loaded {len(user_names)} users for repayment calculation")
             self.app.log(f"Found {len(results)} cross-user transactions")
 
@@ -247,75 +245,79 @@ class RepayModal(ModalScreen):
             # Calculate net debts between users
             # debt_matrix[debtor][creditor] = amount
             debt_matrix = {}
-            
+
             for row in results:
                 bought_by_id = row[0]  # Who paid
                 bought_for_id = row[1]  # Who benefited
                 amount = row[2]  # Amount in main currency
-                
+
                 # bought_for_id owes bought_by_id
                 if bought_for_id not in debt_matrix:
                     debt_matrix[bought_for_id] = {}
-                
+
                 if bought_by_id not in debt_matrix[bought_for_id]:
                     debt_matrix[bought_for_id][bought_by_id] = 0.0
-                
+
                 debt_matrix[bought_for_id][bought_by_id] += amount
-            
+
             # Simplify debts (net out mutual debts)
             simplified_debts = []
             processed_pairs = set()
-            
+
             for debtor_id in debt_matrix:
                 for creditor_id in debt_matrix[debtor_id]:
                     pair = tuple(sorted([debtor_id, creditor_id]))
-                    
+
                     if pair in processed_pairs:
                         continue
-                    
+
                     processed_pairs.add(pair)
-                    
+
                     # Amount debtor owes creditor
                     debt_to_creditor = debt_matrix.get(debtor_id, {}).get(creditor_id, 0.0)
                     # Amount creditor owes debtor (reverse)
                     debt_to_debtor = debt_matrix.get(creditor_id, {}).get(debtor_id, 0.0)
-                    
+
                     # Net debt
                     net_debt = debt_to_creditor - debt_to_debtor
-                    
+
                     if abs(net_debt) > 0.01:  # Ignore very small amounts
                         if net_debt > 0:
                             # debtor owes creditor
-                            simplified_debts.append({
-                                'debtor': user_names.get(debtor_id, f"User {debtor_id}"),
-                                'creditor': user_names.get(creditor_id, f"User {creditor_id}"),
-                                'amount': net_debt,
-                                'currency': currency_main
-                            })
+                            simplified_debts.append(
+                                {
+                                    "debtor": user_names.get(debtor_id, f"User {debtor_id}"),
+                                    "creditor": user_names.get(creditor_id, f"User {creditor_id}"),
+                                    "amount": net_debt,
+                                    "currency": currency_main,
+                                }
+                            )
                         else:
                             # creditor owes debtor
-                            simplified_debts.append({
-                                'debtor': user_names.get(creditor_id, f"User {creditor_id}"),
-                                'creditor': user_names.get(debtor_id, f"User {debtor_id}"),
-                                'amount': abs(net_debt),
-                                'currency': currency_main
-                            })
-            
+                            simplified_debts.append(
+                                {
+                                    "debtor": user_names.get(creditor_id, f"User {creditor_id}"),
+                                    "creditor": user_names.get(debtor_id, f"User {debtor_id}"),
+                                    "amount": abs(net_debt),
+                                    "currency": currency_main,
+                                }
+                            )
+
             # Sort by amount descending
-            simplified_debts.sort(key=lambda x: x['amount'], reverse=True)
-            
+            simplified_debts.sort(key=lambda x: x["amount"], reverse=True)
+
             return simplified_debts
-            
+
         except Exception as e:
             self.app.log(f"Error calculating repayments: {e}")
             self.app.notify(f"Error calculating repayments: {str(e)}", severity="error")
             return []
-    
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press."""
         if event.button.id == "ok-button":
             self.dismiss()
-    
+
     def action_dismiss_modal(self) -> None:
         """Handle escape key press."""
         self.dismiss()
@@ -490,10 +492,7 @@ class BasicReportForm(Vertical):
 
         try:
             pc = ProjectComposer.create(
-                compose_type=project_style,
-                dbh=dbh,
-                project_id=project_id,
-                users=[]
+                compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
             )
         except Exception as e:
             self.app.log(f"Error creating ProjectComposer: {e}")
@@ -505,8 +504,10 @@ class BasicReportForm(Vertical):
             with TabbedContent():
                 # Log project users found
                 try:
-                    self.app.file_log.info(f"BasicReportForm compose: {len(project_users)} users to process")
-                except:
+                    self.app.file_log.info(
+                        f"BasicReportForm compose: {len(project_users)} users to process"
+                    )
+                except Exception:
                     pass
 
                 for user in project_users:
@@ -514,21 +515,28 @@ class BasicReportForm(Vertical):
                     user_permission = user.get("project_perm_model", "000000")
 
                     try:
-                        self.app.file_log.info(f"Checking user: {user.get('username')} - perm: {user_permission}")
-                    except:
+                        self.app.file_log.info(
+                            f"Checking user: {user.get('username')} - perm: {user_permission}"
+                        )
+                    except Exception:
                         pass
 
-                    if user_permission[0] != '1' or len(user_permission) < 6:
+                    if user_permission[0] != "1" or len(user_permission) < 6:
                         self.app.log(f"Skipping user {user.get('username')} - no Read permission")
                         try:
-                            self.app.file_log.warning(f"SKIPPED user {user.get('username')} - perm check failed")
-                        except:
+                            self.app.file_log.warning(
+                                f"SKIPPED user {user.get('username')} - perm check failed"
+                            )
+                        except Exception:
                             pass
                         continue
 
-                    with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
+                    with TabPane(
+                        f"{user['first_name']} {user['last_name']}",
+                        id=f"tab-user-{user['user_id']}",
+                    ):
                         # Fetch items for this user
-                        items = self._get_user_items(user['user_id'], project_id)
+                        items = self._get_user_items(user["user_id"], project_id)
 
                         # Apply transformations using ProjectComposer
                         if pc:
@@ -560,39 +568,48 @@ class BasicReportForm(Vertical):
                         bought_by_others_fv = {}
 
                         for item in items_fv:
-                            date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
-                            label_display = item.get('label_m', '')
-                            multiplier = item.get('multiplier', 1)
+                            date_str = (
+                                str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                            )
+                            label_display = item.get("label_m", "")
+                            multiplier = item.get("multiplier", 1)
 
                             table_fv.add_row(
-                                item['name'],
+                                item["name"],
                                 f"{item['price']:.2f}",
-                                item['currency'],
+                                item["currency"],
                                 f"{item['price_final']:.2f}",
                                 date_str,
                                 f"{item['bought_by_last_name']}",
                                 label_display,
-                                key=f"fv-{item['item_id']}"
+                                key=f"fv-{item['item_id']}",
                             )
 
-                            amount = item['price_final'] * multiplier
+                            amount = item["price_final"] * multiplier
                             total_fv += amount
 
                             if multiplier == 1:
-                                revenue_fv += item['price_final']
+                                revenue_fv += item["price_final"]
                             else:
-                                expenses_fv += item['price_final']
+                                expenses_fv += item["price_final"]
 
-                            if item['bought_by_id'] == user['user_id']:
-                                bought_by_self_fv += item['price_final']
+                            if item["bought_by_id"] == user["user_id"]:
+                                bought_by_self_fv += item["price_final"]
                             else:
-                                buyer_name = f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                                bought_by_others_fv[buyer_name] = bought_by_others_fv.get(buyer_name, 0.0) + item['price_final']
+                                buyer_name = (
+                                    f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
+                                )
+                                bought_by_others_fv[buyer_name] = (
+                                    bought_by_others_fv.get(buyer_name, 0.0) + item["price_final"]
+                                )
 
                         table_fv.sort(col_date_fv, reverse=True)
                         yield table_fv
-                        yield Static(f"Total Fixed/Variable: -{expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main} ",
-                                   classes="subtotal", id=f"total-fv-{user['user_id']}")
+                        yield Static(
+                            f"Total Fixed/Variable: -{expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main} ",
+                            classes="subtotal",
+                            id=f"total-fv-{user['user_id']}",
+                        )
 
                         # --- Table 2: Daily Items ---
                         yield Static("Daily Transactions", classes="table-section-title")
@@ -614,39 +631,49 @@ class BasicReportForm(Vertical):
                         bought_by_others_daily = {}
 
                         for item in items_daily:
-                            date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
-                            label_display = item.get('label_m', '')
-                            multiplier = item.get('multiplier', 1)
+                            date_str = (
+                                str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                            )
+                            label_display = item.get("label_m", "")
+                            multiplier = item.get("multiplier", 1)
 
                             table_daily.add_row(
-                                item['name'],
+                                item["name"],
                                 f"{item['price']:.2f}",
-                                item['currency'],
+                                item["currency"],
                                 f"{item['price_final']:.2f}",
                                 date_str,
                                 f"{item['bought_by_last_name']}",
                                 label_display,
-                                key=f"daily-{item['item_id']}"
+                                key=f"daily-{item['item_id']}",
                             )
 
-                            amount = item['price_final'] * multiplier
+                            amount = item["price_final"] * multiplier
                             total_daily += amount
 
                             if multiplier == 1:
-                                revenue_daily += item['price_final']
+                                revenue_daily += item["price_final"]
                             else:
-                                expenses_daily += item['price_final']
+                                expenses_daily += item["price_final"]
 
-                            if item['bought_by_id'] == user['user_id']:
-                                bought_by_self_daily += item['price_final']
+                            if item["bought_by_id"] == user["user_id"]:
+                                bought_by_self_daily += item["price_final"]
                             else:
-                                buyer_name = f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                                bought_by_others_daily[buyer_name] = bought_by_others_daily.get(buyer_name, 0.0) + item['price_final']
+                                buyer_name = (
+                                    f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
+                                )
+                                bought_by_others_daily[buyer_name] = (
+                                    bought_by_others_daily.get(buyer_name, 0.0)
+                                    + item["price_final"]
+                                )
 
                         table_daily.sort(col_date_daily, reverse=True)
                         yield table_daily
-                        yield Static(f"Total Daily: -{expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main} ",
-                                   classes="subtotal", id=f"total-daily-{user['user_id']}")
+                        yield Static(
+                            f"Total Daily: -{expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main} ",
+                            classes="subtotal",
+                            id=f"total-daily-{user['user_id']}",
+                        )
 
                         # --- Combined Summary ---
                         total_all = total_fv + total_daily
@@ -660,31 +687,47 @@ class BasicReportForm(Vertical):
 
                         # Show revenue/expense breakdown for monthly view
                         if period_type == "month":
-                            breakdown_lines.append(f"  ↗ Revenue: {total_revenue:.2f} {currency_main}")
-                            breakdown_lines.append(f"  ↘ Expenses: {total_expenses:.2f} {currency_main}")
+                            breakdown_lines.append(
+                                f"  ↗ Revenue: {total_revenue:.2f} {currency_main}"
+                            )
+                            breakdown_lines.append(
+                                f"  ↘ Expenses: {total_expenses:.2f} {currency_main}"
+                            )
                             breakdown_lines.append(f"  = Balance: {total_all:.2f} {currency_main}")
 
                         # Show who bought what breakdown
                         total_self = bought_by_self_fv - bought_by_self_daily
                         if bought_by_self_daily > 0 and period_type == "week":
-                            breakdown_lines.append(f"  • Self: {bought_by_self_daily:.2f} {currency_main}")
+                            breakdown_lines.append(
+                                f"  • Self: {bought_by_self_daily:.2f} {currency_main}"
+                            )
                         if total_self > 0 and period_type == "month":
-                                breakdown_lines.append(f"  • Self: {total_self:.2f} {currency_main}")
+                            breakdown_lines.append(f"  • Self: {total_self:.2f} {currency_main}")
 
                         # Merge bought_by_others from both tables
                         all_bought_by_others = {}
                         for buyer, amount in bought_by_others_fv.items():
-                            all_bought_by_others[buyer] = all_bought_by_others.get(buyer, 0.0) + amount
+                            all_bought_by_others[buyer] = (
+                                all_bought_by_others.get(buyer, 0.0) + amount
+                            )
                         for buyer, amount in bought_by_others_daily.items():
-                            all_bought_by_others[buyer] = all_bought_by_others.get(buyer, 0.0) + amount
+                            all_bought_by_others[buyer] = (
+                                all_bought_by_others.get(buyer, 0.0) + amount
+                            )
 
                         if all_bought_by_others:
-                            for buyer, amount in sorted(all_bought_by_others.items(), key=lambda x: x[1], reverse=True):
-                                breakdown_lines.append(f"  • From {buyer}: {amount:.2f} {currency_main}")
+                            for buyer, amount in sorted(
+                                all_bought_by_others.items(), key=lambda x: x[1], reverse=True
+                            ):
+                                breakdown_lines.append(
+                                    f"  • From {buyer}: {amount:.2f} {currency_main}"
+                                )
 
-                        yield Static("\n".join(breakdown_lines),
-                                   classes="user-total",
-                                   id=f"total-user-{user['user_id']}")
+                        yield Static(
+                            "\n".join(breakdown_lines),
+                            classes="user-total",
+                            id=f"total-user-{user['user_id']}",
+                        )
 
             # Repay button INSIDE ScrollableContainer but OUTSIDE TabbedContent
             yield Button("Repay", id="repay-button", classes="repay-button")
@@ -705,7 +748,7 @@ class BasicReportForm(Vertical):
 
         try:
             self.app.file_log.info("BasicReportForm mounted - Cost Overview report ready")
-        except:
+        except Exception:
             pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -740,7 +783,7 @@ class BasicReportForm(Vertical):
 
             try:
                 self.app.file_log.info(f"Repay modal opened for project {project_id}")
-            except:
+            except Exception:
                 pass
 
     @on(DataTable.HeaderSelected)
@@ -819,11 +862,13 @@ class BasicReportForm(Vertical):
 
                 # Log for debugging
                 try:
-                    self.app.file_log.info(f"_get_project_users: Found {len(users)} users for project {project_id}")
+                    self.app.file_log.info(
+                        f"_get_project_users: Found {len(users)} users for project {project_id}"
+                    )
                     for u in users:
-                        perm = u.get('project_perm_model', 'N/A')
+                        perm = u.get("project_perm_model", "N/A")
                         self.app.file_log.info(f"  User: {u.get('username')} - Permission: {perm}")
-                except:
+                except Exception:
                     pass
 
                 return users  # Return ALL users, let caller filter
@@ -832,7 +877,7 @@ class BasicReportForm(Vertical):
             self.app.log(f"Error fetching project users: {e}")
             try:
                 self.app.file_log.error(f"Error fetching project users: {e}")
-            except:
+            except Exception:
                 pass
             return []
 
@@ -936,62 +981,59 @@ class BasicReportForm(Vertical):
             start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
             end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
 
-            self.app.log(f"Fetching items for user {user_id}, project {project_id}, " +
-                        f"period: {start_date_str} to {end_date_str}")
+            self.app.log(
+                f"Fetching items for user {user_id}, project {project_id}, "
+                + f"period: {start_date_str} to {end_date_str}"
+            )
 
             # Query ALL items for this user in the current period
             # Filter by bought_for_id to show expenses that belong to this user
             dbh.load()
             query = f"""
-                SELECT 
-                    i.item_id, 
-                    i.name, 
-                    i.bought_date, 
-                    i.price, 
-                    i.currency, 
+                SELECT
+                    i.item_id,
+                    i.name,
+                    i.bought_date,
+                    i.price,
+                    i.currency,
                     i.price_final,
-                    i.currency_final, 
-                    i.bought_by_id, 
+                    i.currency_final,
+                    i.bought_by_id,
                     u.username as bought_by_username,
                     u.first_name as bought_by_first_name,
                     u.last_name as bought_by_last_name,
-                    i.note, 
-                    i.exchange_rate, 
-                    i.exchange_rate_date, 
+                    i.note,
+                    i.exchange_rate,
+                    i.exchange_rate_date,
                     i.tags
                 FROM p{dbh._db_salt}_items i
                 LEFT JOIN p{dbh._db_salt}_users u ON i.bought_by_id = u.user_id
-                WHERE i.bought_for_id = ? 
+                WHERE i.bought_for_id = ?
                     AND i.project_id = ?
                     AND i.bought_date >= ?
                     AND i.bought_date < ?
                 ORDER BY i.bought_date DESC
             """
 
-            results = dbh.execute_query(query, [
-                user_id,
-                project_id,
-                start_date_str,
-                end_date_str
-            ])
+            results = dbh.execute_query(query, [user_id, project_id, start_date_str, end_date_str])
             dbh.close()
 
-            self.app.log(f"Found {len(results)} items for user {user_id} in period {start_date_str} to {end_date_str}")
+            self.app.log(
+                f"Found {len(results)} items for user {user_id} in period {start_date_str} to {end_date_str}"
+            )
 
             # Get all labels for the project to build label map
             labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
-            label_map = {l['label_id']: l for l in labels}
+            label_map = {l["label_id"]: l for l in labels}
 
             # Get ProjectComposer instance for tag parsing
             from fiwa_cli.functions.project_composer import ProjectComposer
+
             project_style = self.app.app_state.get("project_style", "default")
 
             try:
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
             except Exception as e:
                 self.app.log(f"Error creating ProjectComposer: {e}")
@@ -1009,30 +1051,32 @@ class BasicReportForm(Vertical):
                 if pc:
                     parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
                 else:
-                    parsed_tags = {'c': '', 't': '', 'b': '', 'm': '', 's': []}
+                    parsed_tags = {"c": "", "t": "", "b": "", "m": "", "s": []}
 
                 # Extract main label for display
-                main_label = parsed_tags.get('m', '')
+                main_label = parsed_tags.get("m", "")
 
-                items.append({
-                    'item_id': row[0],
-                    'name': row[1],
-                    'bought_date': row[2],
-                    'price': row[3],
-                    'currency': row[4],
-                    'price_final': row[5],
-                    'currency_final': row[6],
-                    'bought_by_id': row[7],
-                    'bought_by_username': row[8],
-                    'bought_by_first_name': row[9],
-                    'bought_by_last_name': row[10],
-                    'note': row[11],
-                    'exchange_rate': row[12],
-                    'exchange_rate_date': row[13],
-                    'tags': tags_raw,
-                    'parsed_tags': parsed_tags,
-                    'label_m': main_label  # Main label for display
-                })
+                items.append(
+                    {
+                        "item_id": row[0],
+                        "name": row[1],
+                        "bought_date": row[2],
+                        "price": row[3],
+                        "currency": row[4],
+                        "price_final": row[5],
+                        "currency_final": row[6],
+                        "bought_by_id": row[7],
+                        "bought_by_username": row[8],
+                        "bought_by_first_name": row[9],
+                        "bought_by_last_name": row[10],
+                        "note": row[11],
+                        "exchange_rate": row[12],
+                        "exchange_rate_date": row[13],
+                        "tags": tags_raw,
+                        "parsed_tags": parsed_tags,
+                        "label_m": main_label,  # Main label for display
+                    }
+                )
 
             return items
 
@@ -1141,10 +1185,7 @@ class BasicReportForm(Vertical):
 
             try:
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
             except Exception as e:
                 self.app.log(f"Error creating ProjectComposer: {e}")
@@ -1156,12 +1197,14 @@ class BasicReportForm(Vertical):
                 user_permission = user.get("project_perm_model", "000000")
                 if not user_permission or len(user_permission) < 6:
                     continue
-                if user_permission[0] != '1':
-                    self.app.log(f"Skipping user {user['username']} in refresh - no Read permission")
+                if user_permission[0] != "1":
+                    self.app.log(
+                        f"Skipping user {user['username']} in refresh - no Read permission"
+                    )
                     continue
 
                 # Fetch items for this user
-                items = self._get_user_items(user['user_id'], project_id)
+                items = self._get_user_items(user["user_id"], project_id)
 
                 # Apply transformations
                 if pc:
@@ -1185,34 +1228,40 @@ class BasicReportForm(Vertical):
                     bought_by_others_fv = {}
 
                     for item in items_fv:
-                        date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
-                        label_display = item.get('label_m', '')
-                        multiplier = item.get('multiplier', 1)
+                        date_str = (
+                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                        )
+                        label_display = item.get("label_m", "")
+                        multiplier = item.get("multiplier", 1)
 
                         table_fv.add_row(
-                            item['name'],
+                            item["name"],
                             f"{item['price']:.2f}",
-                            item['currency'],
+                            item["currency"],
                             f"{item['price_final']:.2f}",
                             date_str,
                             f"{item['bought_by_last_name']}",
                             label_display,
-                            key=f"fv-{item['item_id']}"
+                            key=f"fv-{item['item_id']}",
                         )
 
-                        amount = item['price_final'] * multiplier
+                        amount = item["price_final"] * multiplier
                         total_fv += amount
 
                         if multiplier == 1:
-                            revenue_fv += item['price_final']
+                            revenue_fv += item["price_final"]
                         else:
-                            expenses_fv += item['price_final']
+                            expenses_fv += item["price_final"]
 
-                        if item['bought_by_id'] == user['user_id']:
-                            bought_by_self_fv += item['price_final']
+                        if item["bought_by_id"] == user["user_id"]:
+                            bought_by_self_fv += item["price_final"]
                         else:
-                            buyer_name = f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                            bought_by_others_fv[buyer_name] = bought_by_others_fv.get(buyer_name, 0.0) + item['price_final']
+                            buyer_name = (
+                                f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
+                            )
+                            bought_by_others_fv[buyer_name] = (
+                                bought_by_others_fv.get(buyer_name, 0.0) + item["price_final"]
+                            )
 
                     # Sort by date
                     if table_fv.columns:
@@ -1221,10 +1270,14 @@ class BasicReportForm(Vertical):
 
                     # Update fixed/variable total
                     total_fv_widget = self.query_one(f"#total-fv-{user['user_id']}", Static)
-                    total_fv_widget.update(f"Total Fixed/Variable: {expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main}")
+                    total_fv_widget.update(
+                        f"Total Fixed/Variable: {expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main}"
+                    )
 
                 except Exception as e:
-                    self.app.log(f"Could not refresh fixed/variable table for user {user['user_id']}: {e}")
+                    self.app.log(
+                        f"Could not refresh fixed/variable table for user {user['user_id']}: {e}"
+                    )
 
                 # --- Refresh Daily Table ---
                 table_daily_id = f"items-table-daily-{user['user_id']}"
@@ -1239,34 +1292,40 @@ class BasicReportForm(Vertical):
                     bought_by_others_daily = {}
 
                     for item in items_daily:
-                        date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
-                        label_display = item.get('label_m', '')
-                        multiplier = item.get('multiplier', 1)
+                        date_str = (
+                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                        )
+                        label_display = item.get("label_m", "")
+                        multiplier = item.get("multiplier", 1)
 
                         table_daily.add_row(
-                            item['name'],
+                            item["name"],
                             f"{item['price']:.2f}",
-                            item['currency'],
+                            item["currency"],
                             f"{item['price_final']:.2f}",
                             date_str,
                             f"{item['bought_by_last_name']}",
                             label_display,
-                            key=f"daily-{item['item_id']}"
+                            key=f"daily-{item['item_id']}",
                         )
 
-                        amount = item['price_final'] * multiplier
+                        amount = item["price_final"] * multiplier
                         total_daily += amount
 
                         if multiplier == 1:
-                            revenue_daily += item['price_final']
+                            revenue_daily += item["price_final"]
                         else:
-                            expenses_daily += item['price_final']
+                            expenses_daily += item["price_final"]
 
-                        if item['bought_by_id'] == user['user_id']:
-                            bought_by_self_daily += item['price_final']
+                        if item["bought_by_id"] == user["user_id"]:
+                            bought_by_self_daily += item["price_final"]
                         else:
-                            buyer_name = f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                            bought_by_others_daily[buyer_name] = bought_by_others_daily.get(buyer_name, 0.0) + item['price_final']
+                            buyer_name = (
+                                f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
+                            )
+                            bought_by_others_daily[buyer_name] = (
+                                bought_by_others_daily.get(buyer_name, 0.0) + item["price_final"]
+                            )
 
                     # Sort by date
                     if table_daily.columns:
@@ -1275,7 +1334,9 @@ class BasicReportForm(Vertical):
 
                     # Update daily total
                     total_daily_widget = self.query_one(f"#total-daily-{user['user_id']}", Static)
-                    total_daily_widget.update(f"Total Daily: {expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main}")
+                    total_daily_widget.update(
+                        f"Total Daily: {expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main}"
+                    )
 
                 except Exception as e:
                     self.app.log(f"Could not refresh daily table for user {user['user_id']}: {e}")
@@ -1291,7 +1352,9 @@ class BasicReportForm(Vertical):
                     # Show revenue/expense breakdown for monthly view
                     if period_type == "month":
                         breakdown_lines.append(f"  ↗ Revenue: {total_revenue:.2f} {currency_main}")
-                        breakdown_lines.append(f"  ↘ Expenses: {total_expenses:.2f} {currency_main}")
+                        breakdown_lines.append(
+                            f"  ↘ Expenses: {total_expenses:.2f} {currency_main}"
+                        )
                         breakdown_lines.append(f"  = Balance: {total_all:.2f} {currency_main}")
 
                     # Show who bought what breakdown
@@ -1307,13 +1370,19 @@ class BasicReportForm(Vertical):
                         all_bought_by_others[buyer] = all_bought_by_others.get(buyer, 0.0) + amount
 
                     if all_bought_by_others:
-                        for buyer, amount in sorted(all_bought_by_others.items(), key=lambda x: x[1], reverse=True):
-                            breakdown_lines.append(f"  • From {buyer}: {amount:.2f} {currency_main}")
+                        for buyer, amount in sorted(
+                            all_bought_by_others.items(), key=lambda x: x[1], reverse=True
+                        ):
+                            breakdown_lines.append(
+                                f"  • From {buyer}: {amount:.2f} {currency_main}"
+                            )
 
                     total_widget = self.query_one(f"#total-user-{user['user_id']}", Static)
                     total_widget.update("\n".join(breakdown_lines))
 
-                    self.app.log(f"Refreshed tables for user {user['user_id']}: {len(items_fv)} fixed/variable, {len(items_daily)} daily")
+                    self.app.log(
+                        f"Refreshed tables for user {user['user_id']}: {len(items_fv)} fixed/variable, {len(items_daily)} daily"
+                    )
 
                 except Exception as e:
                     self.app.log(f"Could not update summary for user {user['user_id']}: {e}")

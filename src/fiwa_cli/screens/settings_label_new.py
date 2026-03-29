@@ -44,6 +44,7 @@ See Also:
     functions.project_composer: Project-specific label structures
     settings: Main settings screen
 """
+
 from textual.widgets import Static, Button, Input, Switch, Placeholder, Select
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid
 from textual.app import ComposeResult
@@ -51,6 +52,7 @@ from textual.message import Message
 from textual import on
 
 from fiwa_cli.functions.loader import load_dynamic_css
+
 
 class CreateLabelForm(Vertical):
     """Form widget for creating new labels/categories.
@@ -160,6 +162,7 @@ class CreateLabelForm(Vertical):
                 >>>         project_id
                 >>>     )
         """
+
         def __init__(self, label_data: dict) -> None:
             """Initialize the LabelCreated message.
 
@@ -213,15 +216,14 @@ class CreateLabelForm(Vertical):
 
                 dbh = self.app._config["dbh"]
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
                 label_map = pc.get_label_map()
 
                 # Convert label_map to options list: [(group_name, type_id), ...]
-                label_type_options = [(group_name, type_id) for type_id, group_name in sorted(label_map.items())]
+                label_type_options = [
+                    (group_name, type_id) for type_id, group_name in sorted(label_map.items())
+                ]
 
                 self.app.log(f"Loaded dynamic label types for {project_style}: {label_map}")
             else:
@@ -268,19 +270,22 @@ class CreateLabelForm(Vertical):
                 yield Static("Label Owner", classes="form-label")
 
                 # row 2
-                yield Input(placeholder="Enter label name",
-                            id="new-label-name",
-                            compact=True)
-                yield Input(placeholder="Enter description", id="new-label-description",
-                            compact=True)
-                yield Select(options=label_type_options,
-                             id="label-type-select",
-                             value=self._selected_label_type,
-                             compact=True)
-                yield Select(options=label_owner_options,
-                             id="label-owner-select",
-                             value=self._selected_label_owner,
-                             compact=True)
+                yield Input(placeholder="Enter label name", id="new-label-name", compact=True)
+                yield Input(
+                    placeholder="Enter description", id="new-label-description", compact=True
+                )
+                yield Select(
+                    options=label_type_options,
+                    id="label-type-select",
+                    value=self._selected_label_type,
+                    compact=True,
+                )
+                yield Select(
+                    options=label_owner_options,
+                    id="label-owner-select",
+                    value=self._selected_label_owner,
+                    compact=True,
+                )
                 # row 3
                 yield Static()
                 yield Static("Label Status: ", classes="form-label")
@@ -359,13 +364,13 @@ class CreateLabelForm(Vertical):
 
         # Create label data
         label_data = {
-            'name': name,
-            'description': description,
-            'label_owner': self._selected_label_owner,
-            'label_status': label_status,
-            'label_type': self._selected_label_type,
-            'label_sub_type': -1,  # Default sub-type (user cannot choose for now)
-            'composite': []
+            "name": name,
+            "description": description,
+            "label_owner": self._selected_label_owner,
+            "label_status": label_status,
+            "label_type": self._selected_label_type,
+            "label_sub_type": -1,  # Default sub-type (user cannot choose for now)
+            "composite": [],
         }
 
         # Save to database
@@ -383,7 +388,7 @@ class CreateLabelForm(Vertical):
             self.app.notify(f"Label '{name}' created successfully!", severity="information")
 
             # Add label_id to the data
-            label_data['label_id'] = label_id
+            label_data["label_id"] = label_id
 
             # Post message
             self.post_message(self.LabelCreated(label_data))

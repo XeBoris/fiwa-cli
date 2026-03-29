@@ -1,7 +1,7 @@
 """Unit tests for TimeClass in compute_time.py"""
 import unittest
 import datetime
-from functions.compute_time import TimeClass
+from fiwa_cli.functions.compute_time import TimeClass
 
 
 class TestTimeClass(unittest.TestCase):

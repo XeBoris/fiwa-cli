@@ -52,6 +52,7 @@ See Also:
     handler_sqllite: Database operations
     project_composer: Project-specific logic
 """
+
 from typing import Dict, Any, Optional, List
 import os
 import yaml
@@ -65,6 +66,7 @@ import numpy as np
 from fiwa_cli.functions.handler import Handler
 
 import fiwa_cli.functions.faker_superhero_project as shp
+
 
 def load_dynamic_css(widget, css_filename: str) -> None:
     """Load external CSS file based on app theme configuration.
@@ -114,10 +116,7 @@ def load_dynamic_css(widget, css_filename: str) -> None:
         widget.app.notify("Error loading theme CSS.", severity="error")
 
 
-
-
-
-def handle_args()-> [str, Dict[str, Any]]:
+def handle_args() -> [str, Dict[str, Any]]:
     """Handle command-line arguments for FiWa CLI application.
 
     Parses command-line arguments using argparse with two main subcommands:
@@ -169,39 +168,36 @@ def handle_args()-> [str, Dict[str, Any]]:
     import argparse
 
     parser = argparse.ArgumentParser(description="FiWa CLI Application")
-    subparsers = parser.add_subparsers(dest='mode',
-                                       help='Available modes',
-                                       required=True,
-                                       description="Choose the mode to run FiWa in. 'init' will initialize a new FiWa environment.")
+    subparsers = parser.add_subparsers(
+        dest="mode",
+        help="Available modes",
+        required=True,
+        description="Choose the mode to run FiWa in. 'init' will initialize a new FiWa environment.",
+    )
 
-    init_parser = subparsers.add_parser('init', help='Initialize a new FiWa environment')
-    init_parser.add_argument("--path",
-                             type=str,
-                             default=None,
-                             dest="config_path",
-                             help="Path to configuration YAML file")
-    init_parser.add_argument("--operation-model", type=str,
-                             default="local",
-                             dest="operation_model",
-                             help="Operations model to use")
-    init_parser.add_argument("--stage", type=str,
-                             default="prod",
-                             dest="stage",
-                             help="Stage to use (prod or dev)")
-
+    init_parser = subparsers.add_parser("init", help="Initialize a new FiWa environment")
+    init_parser.add_argument(
+        "--path", type=str, default=None, dest="config_path", help="Path to configuration YAML file"
+    )
+    init_parser.add_argument(
+        "--operation-model",
+        type=str,
+        default="local",
+        dest="operation_model",
+        help="Operations model to use",
+    )
+    init_parser.add_argument(
+        "--stage", type=str, default="prod", dest="stage", help="Stage to use (prod or dev)"
+    )
 
     # Subparser for 'run' command
-    run_parser = subparsers.add_parser('run', help='Run the FiWa application')
-    run_parser.add_argument('--path',
-                            type=str,
-                            default=None,
-                            dest="config_path",
-                            help='Path to configuration YAML file')
-    run_parser.add_argument('--user',
-                            type=str,
-                            default=None,
-                            dest="user",
-                            help='Username for the session')
+    run_parser = subparsers.add_parser("run", help="Run the FiWa application")
+    run_parser.add_argument(
+        "--path", type=str, default=None, dest="config_path", help="Path to configuration YAML file"
+    )
+    run_parser.add_argument(
+        "--user", type=str, default=None, dest="user", help="Username for the session"
+    )
 
     args = parser.parse_args()
 
@@ -210,6 +206,7 @@ def handle_args()-> [str, Dict[str, Any]]:
     del _conf["mode"]  # Remove mode from config as it's already stored in _mode variable
     return _mode, _conf
 
+
 def get_abs_path():
     """
     Get the absolute path of the current script.
@@ -217,6 +214,7 @@ def get_abs_path():
         str: The absolute path of the current script.
     """
     return os.path.dirname(os.path.abspath(__file__)).split("functions")[0]
+
 
 def load_yaml_config(config_path: str) -> Dict[str, Any]:
     """
@@ -234,7 +232,7 @@ def load_yaml_config(config_path: str) -> Dict[str, Any]:
         return yaml.safe_load(handle) or {}
 
 
-def identify_os(os_folder:str="fiwa-cli") -> [str, str]:
+def identify_os(os_folder: str = "fiwa-cli") -> [str, str]:
     """
     Identify the operating system and return the home directory path for application data.
 
@@ -245,9 +243,10 @@ def identify_os(os_folder:str="fiwa-cli") -> [str, str]:
         str: The path to the home directory for the application data.
     """
     import platform
+
     os_system = platform.system().lower()
-    if os_system not in  ["linux", "windows", "darwin"]:
-        return "unknown"
+    if os_system not in ["linux", "windows", "darwin"]:
+        return "unknown", "./"
     # detect home directory based on OS:
 
     if os_system == "linux":
@@ -261,16 +260,14 @@ def identify_os(os_folder:str="fiwa-cli") -> [str, str]:
         print("Running on macOS")
         # macOS uses ~/Library/Application Support/
         os_home_dir = os.path.join(
-            os.getenv("HOME", ""),
-            "Library",
-            "Application Support",
-            os_folder
+            os.getenv("HOME", ""), "Library", "Application Support", os_folder
         )
     else:
         print(f"Running on an unsupported OS: {os_system}. Using fallback.")
         os_home_dir = os.path.join(os.getenv("HOME", ""), f".{os_folder}")
 
     return os_system, os_home_dir
+
 
 def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
     """Prepare and initialize a new FiWa environment.
@@ -341,7 +338,7 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
 
     if config.get("config_path", None) is not None:
         config_path = config["config_path"]
-        #test if config_path is absolute, otherwise raise an error:
+        # test if config_path is absolute, otherwise raise an error:
         if not os.path.isabs(config_path):
             raise ValueError(f"Config path must be absolute: {config_path}")
         else:
@@ -357,16 +354,10 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         "configuration": {
             "host": "terminal",
             "path": os_home_dir,
-            "model": config.get("operational_model", "local")
+            "model": config.get("operational_model", "local"),
         },
-        "development": {
-            "stage": config.get("stage", "prod"),
-            "debug_mode": True
-        },
-        "style": {
-            "theme": "textual-light",
-            "form": "handsome"
-        }
+        "development": {"stage": config.get("stage", "prod"), "debug_mode": True},
+        "style": {"theme": "textual-light", "form": "handsome"},
     }
     # create the data directory if it doesn't exist:
     try:
@@ -394,14 +385,16 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         dbh.set_path(sqlite_path)
         dbh.initialize_database(schema_path=_schema_path)
 
-        user_dict = {"first_name": "Admin",
-                     "last_name": "User",
-                     "username": "admin",
-                     "email": "admin@info.com",
-                     "password": "admin123",
-                     "is_superuser": True,
-                     "scope": "admin:write",
-                     "activated": True}
+        user_dict = {
+            "first_name": "Admin",
+            "last_name": "User",
+            "username": "admin",
+            "email": "admin@info.com",
+            "password": "admin123",
+            "is_superuser": True,
+            "scope": "admin:write",
+            "activated": True,
+        }
         dbh.op_user_create(user_dict=user_dict)
         return True
     else:
@@ -409,8 +402,7 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         exit(1)
 
 
-
-def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
+def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
     """
     Set up the FiWa application with the given configuration.
 
@@ -429,7 +421,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
     if config.get("config_path", None) is not None:
         config_path = config["config_path"]
-        #test if config_path is absolute, otherwise raise an error:
+        # test if config_path is absolute, otherwise raise an error:
         if not os.path.isabs(config_path):
             raise ValueError(f"Config path must be absolute: {config_path}")
         else:
@@ -459,8 +451,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
-            dbh.op_user_login(username=config.get("user"),
-                              password=config.get("password"))
+            dbh.op_user_login(username=config.get("user"), password=config.get("password"))
 
         # Store in config for later use
         configyml["_data_directory"] = os_home_dir
@@ -478,7 +469,9 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
     elif opp_model == "local" and dev_config.get("stage", None) == "superheros":
         print(f"Running in local mode with path: {os_home_dir}")
-        print(f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data")
+        print(
+            f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data"
+        )
 
         # delete previous database for clean dev environment:
         if os.path.exists(sqlite_path):
@@ -515,8 +508,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
-            dbh.op_user_login(username=config.get("user"),
-                              password=config.get("password"))
+            dbh.op_user_login(username=config.get("user"), password=config.get("password"))
 
         configyml["_data_directory"] = os_home_dir
         configyml["dbh"] = dbh
@@ -524,7 +516,9 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         return configyml
     elif opp_model == "local" and dev_config.get("stage", None) == "stage2":
         print(f"[Stage2] Running in local mode with path: {os_home_dir}")
-        print(f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data")
+        print(
+            f"Run in stage {dev_config.get('stage', None)} - initializing database with schema and default data"
+        )
 
         # delete previous database for clean dev environment:
         if os.path.exists(sqlite_path):
@@ -553,21 +547,18 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
             "project_style": "ExpenseTracker",
             "project_staged": False,
             "project_activated": True,
-            "project_store": {"month_start": 25}
+            "project_store": {"month_start": 25},
         }
-        p0_id = dbh.op_project_create(project_dict=project_dict,
-                                      user_id=sph_user_ids["batman"])
+        p0_id = dbh.op_project_create(project_dict=project_dict, user_id=sph_user_ids["batman"])
 
-        dbh.op_project_stage(project_id=p0_id,
-                             users=[ {"user_id": sph_user_ids["batman"],
-                                      "user_name": "batman"} ]
-                             )
+        dbh.op_project_stage(
+            project_id=p0_id, users=[{"user_id": sph_user_ids["batman"], "user_name": "batman"}]
+        )
 
         # exit()
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
-            dbh.op_user_login(username=config.get("user"),
-                              password=config.get("password"))
+            dbh.op_user_login(username=config.get("user"), password=config.get("password"))
 
         configyml["_data_directory"] = os_home_dir
         configyml["dbh"] = dbh
@@ -577,7 +568,7 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
     elif opp_model == "local" and dev_config.get("stage", None) == "dev":
         print(f"Running in local mode with path: {os_home_dir}")
 
-        #delete previous database for clean dev environment:
+        # delete previous database for clean dev environment:
         if os.path.exists(sqlite_path):
             os.remove(sqlite_path)
 
@@ -585,14 +576,19 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
         dbh = h.load()
         dbh.set_path(sqlite_path)
 
-
         _schema_path = os.path.dirname(os.path.abspath(__file__))
         _schema_path = _schema_path.split("functions")[0]
         _schema_path = os.path.join(_schema_path, "database", "schema.sql")
 
         dbh.initialize_database(schema_path=_schema_path)
 
-        from .db_faker import faker_users, faker_user_login, faker_projects, faker_labels, faker_items
+        from .db_faker import (
+            faker_users,
+            faker_user_login,
+            faker_projects,
+            faker_labels,
+            faker_items,
+        )
 
         faker_users(dbh=dbh, num_users=5)
         #
@@ -660,11 +656,3 @@ def setup_fiwa(abs_path:str = "", config: Dict[str, Any] = {}) -> None:
     # end_date = datetime.now()
     # user_id = "admin"  # Assuming admin user ID
     # generate_fake_shopping_data(dbh, start_date, end_date, user_id, num_entries=10)
-
-
-
-
-
-
-
-

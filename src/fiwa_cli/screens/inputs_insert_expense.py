@@ -45,6 +45,7 @@ See Also:
     inputs.InputsScreen: Parent screen that mounts this form
     inputs_edit_expense: Editing existing expenses
 """
+
 from textual.widgets import Static, Button
 from textual.containers import Vertical
 from textual.app import ComposeResult
@@ -124,7 +125,6 @@ class CreateExpenseForm(Vertical):
         inputs_edit_expense.EditExpenseView: Editing existing expenses
     """
 
-
     class ExpenseCreated(Message):
         """Message sent when an expense is successfully created.
 
@@ -145,6 +145,7 @@ class CreateExpenseForm(Vertical):
             >>>     item_id = message.expense_data['item_id']
             >>>     self.notify(f"Expense {item_id} created!")
         """
+
         def __init__(self, expense_data: dict) -> None:
             """Initialize ExpenseCreated message.
 
@@ -171,7 +172,9 @@ class CreateExpenseForm(Vertical):
         yield Static("Create New Expense", classes="form-title")
 
         with Vertical(classes="content-area"):
-            yield Static("Click the button below to add a new expense transaction.", id="instructions")
+            yield Static(
+                "Click the button below to add a new expense transaction.", id="instructions"
+            )
             yield Button("📝 Add New Expense", id="open-form-button", variant="primary")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -184,7 +187,8 @@ class CreateExpenseForm(Vertical):
         if item_data is not None:
             # Post the ExpenseCreated message with the item data
             self.post_message(self.ExpenseCreated(item_data))
-            self.app.notify(f"Expense '{item_data.get('name', 'Unknown')}' created!", severity="success")
+            self.app.notify(
+                f"Expense '{item_data.get('name', 'Unknown')}' created!", severity="success"
+            )
         else:
             self.app.notify("Expense creation cancelled", severity="info")
-

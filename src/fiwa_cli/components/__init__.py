@@ -40,6 +40,7 @@ See Also:
     screens: Screen implementations using these components
     main: Main application
 """
+
 from fiwa_cli.components.header import FiwaHeader
 from fiwa_cli.components.time_display import TimeDisplay
 

@@ -41,6 +41,7 @@ See Also:
     settings: Main settings screen
     functions.handler_sqllite.SQLLiteHandler.op_user_create: Database operation
 """
+
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer
 from textual.widgets import Static, Input, Button
 from textual.widget import Widget
@@ -49,6 +50,7 @@ from textual.message import Message
 from datetime import date
 
 from fiwa_cli.functions.loader import load_dynamic_css
+
 
 class CreateUserForm(Widget):
     """Form widget for creating new user accounts.
@@ -180,7 +182,7 @@ class CreateUserForm(Widget):
 
     def on_mount(self) -> None:
         load_dynamic_css(self, "screens_settings_user_new.tcss")
-        #update project usage info on mount
+        # update project usage info on mount
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -262,7 +264,7 @@ class CreateUserForm(Widget):
             "email": email,
             "birthday": birthday if birthday else None,
             "password": password,  # TODO: Hash this before saving
-            "max_projects": max_projects_int
+            "max_projects": max_projects_int,
         }
 
         # use the backend API to create the user:

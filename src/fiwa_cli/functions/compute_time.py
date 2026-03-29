@@ -228,13 +228,12 @@ class TimeClass:
         except (NotImplementedError, KeyError):
             # Fallback to English if country/language not available
             try:
-                country_holidays = holidays.country_holidays('US')
+                country_holidays = holidays.country_holidays("US")
                 self._is_holiday = check_day in country_holidays
                 self._holiday_name = country_holidays.get(check_day) if self._is_holiday else None
-            except:
+            except Exception:
                 self._is_holiday = False
                 self._holiday_name = None
-
 
     def get_day(self, day: datetime.date = None, country_code: str = None):
         """
@@ -292,7 +291,7 @@ class TimeClass:
             "year_beg": self._year_beg,
             "year_end": self._year_end,
             "is_holiday": self._is_holiday,
-            "holiday_name": self._holiday_name
+            "holiday_name": self._holiday_name,
         }
         return r
 
@@ -317,8 +316,8 @@ class TimeClass:
 
         try:
             # Format day name in local language using babel
-            self._day_name = format_date(self._day, format='EEEE', locale=locale_str)
-        except:
+            self._day_name = format_date(self._day, format="EEEE", locale=locale_str)
+        except Exception:
             # Fallback to English if locale not available
             self._day_name = self._day.strftime("%A")
 
@@ -371,13 +370,15 @@ class TimeClass:
         # Translate month name based on country code
         locale_str = self._country_code.lower()
         try:
-            self._month_name = format_date(self._day, format='MMMM', locale=locale_str)
-        except:
+            self._month_name = format_date(self._day, format="MMMM", locale=locale_str)
+        except Exception:
             # Fallback to English
             self._month_name = self._day.strftime("%B")
 
         self._month_beg = self._day.replace(day=1)
-        self._month_end = self._day.replace(day=28) + datetime.timedelta(days=4)  # this will never fail
+        self._month_end = self._day.replace(day=28) + datetime.timedelta(
+            days=4
+        )  # this will never fail
         self._month_end = self._month_end - datetime.timedelta(days=self._month_end.day)
 
     def cmp_year(self):
@@ -426,15 +427,10 @@ class TimeClass:
         """
         first_day_of_year = datetime.date(year, 1, 1)
         first_week_beg = first_day_of_year - datetime.timedelta(days=first_day_of_year.weekday())
-        week_beg = first_week_beg + datetime.timedelta(weeks=week-1)
+        week_beg = first_week_beg + datetime.timedelta(weeks=week - 1)
         week_end = week_beg + datetime.timedelta(days=6)
 
-        r = {
-            "year": year,
-            "week_nb": week,
-            "week_beg": week_beg,
-            "week_end": week_end
-        }
+        r = {"year": year, "week_nb": week, "week_beg": week_beg, "week_end": week_end}
 
         return r
 
@@ -510,20 +506,24 @@ class TimeClass:
         # Translate month name based on country code
         locale_str = self._country_code.lower()
         try:
-            month_name = format_date(month_beg, format='MMMM', locale=locale_str)
-        except:
+            month_name = format_date(month_beg, format="MMMM", locale=locale_str)
+        except Exception:
             # Fallback to English
             month_name = month_beg.strftime("%B")
 
         if month_start_day >= 15:
             month_beg = month_beg - datetime.timedelta(days=month_start_day)
             month_beg = month_beg.replace(day=month_start_day)
-            month_end = month_beg.replace(day=28) + datetime.timedelta(days=4)  # this will never fail
+            month_end = month_beg.replace(day=28) + datetime.timedelta(
+                days=4
+            )  # this will never fail
             month_end = month_end.replace(day=month_start_day)
         else:
-            #month_beg = month_beg - datetime.timedelta(days=month_start_day)
-            #month_beg = month_beg.replace(day=month_start_day)
-            month_end = month_beg.replace(day=28) + datetime.timedelta(days=4)  # this will never fail
+            # month_beg = month_beg - datetime.timedelta(days=month_start_day)
+            # month_beg = month_beg.replace(day=month_start_day)
+            month_end = month_beg.replace(day=28) + datetime.timedelta(
+                days=4
+            )  # this will never fail
             month_end = month_end.replace(day=month_start_day)
 
         r = {
@@ -531,7 +531,7 @@ class TimeClass:
             "month_beg": month_beg,
             "month_end": month_end,
             "month_nb": month,
-            "month_name": month_name
+            "month_name": month_name,
         }
         return r
 

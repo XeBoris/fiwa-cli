@@ -9,7 +9,6 @@ import os
 from datetime import datetime, timedelta
 
 
-
 class CalendarWidget(ModalScreen):
     """Interactive calendar modal for date selection in terminal user interfaces.
 
@@ -147,16 +146,20 @@ class CalendarWidget(ModalScreen):
             directly with the selected date. Kept for potential future use
             if event-based notification is needed instead of modal dismissal.
         """
+
         def __init__(self, selected_date: datetime) -> None:
             self.selected_date = selected_date
             super().__init__()
 
-    def __init__(self,
-                 initial_date: datetime = None,
-                 align: str = "center middle",
-                 margin: int | tuple[int, ...] | None = None,
-                 week_starts_monday: bool = True,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        initial_date: datetime = None,
+        align: str = "center middle",
+        margin: int | tuple[int, ...] | None = None,
+        week_starts_monday: bool = True,
+        *args,
+        **kwargs,
+    ):
         """Initialize the calendar widget with optional configuration.
 
         Sets up the calendar with the specified initial date and appearance options.
@@ -268,7 +271,6 @@ class CalendarWidget(ModalScreen):
                 # Navigation header with prev/next month and today button
                 # Using Grid layout for navigation: < Today >
 
-
                 # Month/Year display
                 month_year = self.display_date.strftime("%B %Y")
                 yield Static(month_year, id="month-year-display", classes="calendar-title")
@@ -313,8 +315,10 @@ class CalendarWidget(ModalScreen):
         """
         # Log to custom file logger (self.app.file_log)
         try:
-            self.app.file_log.info(f"CalendarWidget mounted - displaying {self.display_date.strftime('%B %Y')}")
-        except:
+            self.app.file_log.info(
+                f"CalendarWidget mounted - displaying {self.display_date.strftime('%B %Y')}"
+            )
+        except Exception:
             pass  # Logging is not critical
 
         # Get the container widget
@@ -437,9 +441,9 @@ class CalendarWidget(ModalScreen):
 
         # Get number of days in current month
         if month == 12:
-            next_month_first = first_day.replace(year=year+1, month=1, day=1)
+            next_month_first = first_day.replace(year=year + 1, month=1, day=1)
         else:
-            next_month_first = first_day.replace(month=month+1, day=1)
+            next_month_first = first_day.replace(month=month + 1, day=1)
         last_day = next_month_first - timedelta(days=1)
         days_in_month = last_day.day
 
@@ -461,7 +465,7 @@ class CalendarWidget(ModalScreen):
                 id=f"day-{date.strftime('%Y-%m-%d')}",
                 classes="day-button day-other-month",
                 compact=True,
-                flat=True
+                flat=True,
             )
 
         # PART 2: Add days of current month
@@ -470,9 +474,11 @@ class CalendarWidget(ModalScreen):
             classes = "day-button"
 
             # Highlight today
-            if (date.year == self.today.year and
-                date.month == self.today.month and
-                date.day == self.today.day):
+            if (
+                date.year == self.today.year
+                and date.month == self.today.month
+                and date.day == self.today.day
+            ):
                 classes += " day-today"
 
             yield Button(
@@ -480,7 +486,7 @@ class CalendarWidget(ModalScreen):
                 id=f"day-{date.strftime('%Y-%m-%d')}",
                 classes=classes,
                 compact=True,
-                flat=True
+                flat=True,
             )
 
         # PART 3: Fill remaining cells with next month days (grayed out)
@@ -497,7 +503,7 @@ class CalendarWidget(ModalScreen):
                 id=f"day-{date.strftime('%Y-%m-%d')}",
                 classes="day-button day-other-month",
                 compact=True,
-                flat=True
+                flat=True,
             )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -890,4 +896,5 @@ class CalendarWidget(ModalScreen):
         except Exception as e:
             self.app.log(f"✗ Error refreshing calendar: {e}")
             import traceback
+
             self.app.log(traceback.format_exc())

@@ -34,6 +34,7 @@ Example:
 See Also:
     components.header.FiwaHeader: Header component that uses TimeDisplay
 """
+
 from datetime import datetime
 
 from textual.widgets import Static

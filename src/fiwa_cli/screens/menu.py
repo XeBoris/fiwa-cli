@@ -75,6 +75,7 @@ See Also:
     main.MyApp: Keyboard binding 'M' for menu
     functions.logout_util.perform_logout: Shared logout logic
 """
+
 from textual.screen import ModalScreen
 from textual.containers import Vertical
 from textual.widgets import Static, OptionList
@@ -332,9 +333,7 @@ class MenuScreen(ModalScreen):
                 last_option,
             )
 
-    def on_option_list_option_selected(
-        self, event: OptionList.OptionSelected
-    ) -> None:
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         """Handle menu item selection and navigate to chosen screen.
 
         Routes the selected menu option to the appropriate action:
@@ -441,9 +440,10 @@ class MenuScreen(ModalScreen):
             # For example: close websocket, clear session, redirect to login, etc.
         elif option_id == "menu-login" and self.app.app_state.get("is_logged_in", False) is False:
             self.dismiss()
-            self.app.push_screen(LoginScreen(is_logged_in=self.app.app_state.get("is_logged_in", False)),
-                                 # self.handle_login_result
-                                 )
+            self.app.push_screen(
+                LoginScreen(is_logged_in=self.app.app_state.get("is_logged_in", False)),
+                # self.handle_login_result
+            )
         elif option_id == "menu-login" and self.app.app_state.get("is_logged_in", False) is True:
             # Perform logout directly here
             self._perform_logout()
@@ -499,4 +499,3 @@ class MenuScreen(ModalScreen):
         """
         # Use shared logout utility to avoid code duplication
         perform_logout(self.app)
-

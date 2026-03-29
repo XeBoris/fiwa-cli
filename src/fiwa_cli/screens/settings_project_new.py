@@ -33,6 +33,7 @@ See Also:
     functions.project_composer: Project structure setup
     settings: Main settings screen that mounts this form
 """
+
 from textual.widgets import Static, Button, Input, TextArea
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid
 from textual.app import ComposeResult
@@ -132,6 +133,7 @@ class CreateProjectForm(ScrollableContainer):
                 >>>     data = message.project_data
                 >>>     project_id = dbh.op_project_create(data, user_id)
         """
+
         def __init__(self, project_data: dict) -> None:
             """Initialize the ProjectCreated message.
 
@@ -190,19 +192,19 @@ class CreateProjectForm(ScrollableContainer):
                 f"⚠ WARNING: You have reached your maximum project limit!\n"
                 f"Current projects: {user_id} {current_projects} / {max_projects}\n"
                 f"You cannot create more projects.",
-                classes="error-box"
+                classes="error-box",
             )
         elif current_projects >= max_projects - 1:
             yield Static(
                 f"⚠ WARNING: You are at your project limit!\n"
                 f"Current projects: {current_projects} / {max_projects}\n"
                 f"This will be your last project.",
-                classes="warning-box"
+                classes="warning-box",
             )
         else:
             yield Static(
                 f"ℹ Project Usage: {current_projects} / {max_projects} projects used",
-                classes="info-box"
+                classes="info-box",
             )
 
         with ScrollableContainer(id="form-content"):
@@ -214,11 +216,7 @@ class CreateProjectForm(ScrollableContainer):
                 yield TextArea(id="project-description")
 
                 yield Static("Month starts at", classes="form-label")
-                yield Input(
-                    placeholder=f"pick a day",
-                    id="project-start-date",
-                    value=f"01"
-                )
+                yield Input(placeholder=f"pick a day", id="project-start-date", value=f"01")
 
             with Horizontal(id="form-currency-section"):
                 with Vertical(id="form-currency-section-main"):
@@ -257,7 +255,7 @@ class CreateProjectForm(ScrollableContainer):
             Loads screens_settings_project_new.tcss stylesheet
         """
         load_dynamic_css(self, "screens_settings_project_new.tcss")
-        #update project usage info on mount
+        # update project usage info on mount
 
     def reset_form(self) -> None:
         """Reset all form fields to their default values.
@@ -285,7 +283,9 @@ class CreateProjectForm(ScrollableContainer):
             self.query_one("#project-description", TextArea).text = ""
             self.query_one("#currency-main", Input).value = ""
             self.query_one("#currency-list", Input).value = ""
-            self.query_one("#project-start-date", Input).value = datetime.now().replace(day=1).strftime("%Y-%m-%d")
+            self.query_one("#project-start-date", Input).value = (
+                datetime.now().replace(day=1).strftime("%Y-%m-%d")
+            )
 
             # Focus on the first field
             self.query_one("#project-name", Input).focus()
@@ -367,7 +367,7 @@ class CreateProjectForm(ScrollableContainer):
                 if current_projects >= max_projects:
                     self.app.notify(
                         f"Project limit reached! You have {current_projects}/{max_projects} projects.",
-                        severity="error"
+                        severity="error",
                     )
                     return
             except Exception as e:
@@ -399,14 +399,15 @@ class CreateProjectForm(ScrollableContainer):
         project_data = {
             "name": name,
             "description": description if description else None,
-            #"created_at": datetime.now(),
+            # "created_at": datetime.now(),
             "currency_main": currency_main,
             "currency_list": currency_list,
             "project_hash": project_hash,
             "project_style": project_style,  # Add as separate field for database column
-            "project_store": {"month_start": int(project_start_date),
-                              "style": project_style}  # Also keep in store for backward compatibility
-
+            "project_store": {
+                "month_start": int(project_start_date),
+                "style": project_style,
+            },  # Also keep in store for backward compatibility
         }
 
         self.post_message(self.ProjectCreated(project_data))

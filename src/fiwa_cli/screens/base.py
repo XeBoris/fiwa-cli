@@ -48,12 +48,14 @@ See Also:
     main.MyApp: Main application with app_state management
     functions.logout_util.perform_logout: Shared logout utility
 """
+
 from textual.screen import ModalScreen
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Static, Input, Button
 from textual.app import ComposeResult
 
 from textual.screen import Screen
+
 
 class ReactiveScreen(Screen):
     """Base screen class with automatic app_state change detection.
@@ -207,6 +209,7 @@ class ReactiveScreen(Screen):
             exist yet.
         """
         pass
+
 
 class LoginScreen(ModalScreen):
     """Modal screen for user authentication and logout.
@@ -468,8 +471,7 @@ class LoginScreen(ModalScreen):
                 # Show logout interface
                 yield Static("Logout", id="login-title")
                 yield Static(
-                    f"Currently logged in as: [bold]{self._username}[/bold]",
-                    id="logout-message"
+                    f"Currently logged in as: [bold]{self._username}[/bold]", id="logout-message"
                 )
                 with Vertical(id="logout-container"):
                     yield Button("Logout", id="logout-button", variant="error")
@@ -552,7 +554,6 @@ class LoginScreen(ModalScreen):
             self.notify("No users found in the system. Create a user first", severity="error")
             return
 
-
         # Get input values
         username = self.query_one("#username-input", Input).value.strip()
         password = self.query_one("#password-input", Input).value
@@ -619,14 +620,19 @@ class LoginScreen(ModalScreen):
                 primary_project_id = 0
 
             # Load currency information for the primary project
-            primary_project = next((p for p in project_info if p.get("project_primary", False)), None) if project_info else None
+            primary_project = (
+                next((p for p in project_info if p.get("project_primary", False)), None)
+                if project_info
+                else None
+            )
             if primary_project:
                 import json
+
                 currency_main = primary_project.get("currency_main", "USD")
                 currency_list_str = primary_project.get("currency_list", "[]")
                 try:
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
-                except:
+                except Exception:
                     currency_list = []
             else:
                 currency_main = "USD"
@@ -663,13 +669,15 @@ class LoginScreen(ModalScreen):
             self.notify("Login successful!", severity="success")
 
             # Dismiss modal and pass success result with all info
-            self.dismiss(result={
-                "success": True,
-                "user_id": user_id,
-                "username": username,
-                "session_uuid": user_session.get("session_uuid"),
-                "session_start": user_session.get("session_start")
-            })
+            self.dismiss(
+                result={
+                    "success": True,
+                    "user_id": user_id,
+                    "username": username,
+                    "session_uuid": user_session.get("session_uuid"),
+                    "session_start": user_session.get("session_start"),
+                }
+            )
 
         except Exception as e:
             self.notify(f"Login failed: {str(e)}", severity="error")

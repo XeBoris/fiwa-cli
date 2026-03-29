@@ -145,6 +145,7 @@ See Also:
     functions.handler_sqllite.op_item_create: Database creation
     functions.handler_sqllite.op_item_update: Database update
 """
+
 from textual.widgets import Static, Button, Input, Select, Label, SelectionList, Switch, Placeholder
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
 from textual.app import ComposeResult
@@ -164,8 +165,8 @@ from fiwa_cli.functions.loader import load_dynamic_css
 
 def sanitize_string(
     text: str,
-    allowed_chars: str = r'a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"',
-    allow_internal_spaces: bool = True
+    allowed_chars: str = r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"",
+    allow_internal_spaces: bool = True,
 ) -> tuple[str, bool]:
     """Sanitize and validate string input by removing invalid characters.
 
@@ -246,20 +247,20 @@ def sanitize_string(
 
     # Build the regex pattern
     if allow_internal_spaces:
-        pattern = f'^[{allowed_chars}]+$'
+        pattern = f"^[{allowed_chars}]+$"
     else:
         # Remove \s from allowed_chars if spaces are not allowed
-        allowed_chars_no_space = allowed_chars.replace(r'\s', '')
-        pattern = f'^[{allowed_chars_no_space}]+$'
+        allowed_chars_no_space = allowed_chars.replace(r"\s", "")
+        pattern = f"^[{allowed_chars_no_space}]+$"
 
     # Filter out invalid characters
-    sanitized = ''.join(char for char in text if re.match(f'[{allowed_chars}]', char))
+    sanitized = "".join(char for char in text if re.match(f"[{allowed_chars}]", char))
 
     # Strip again to remove any trailing/leading spaces that might remain
     sanitized = sanitized.strip()
 
     # Check if the string was modified
-    was_modified = (original != sanitized)
+    was_modified = original != sanitized
 
     return (sanitized, was_modified)
 
@@ -293,7 +294,7 @@ class LabelModalScreen(ModalScreen):
 
         # Populate labels by type
         for label in project_labels:
-            label_type = label.get('label_type', 0)
+            label_type = label.get("label_type", 0)
             if label_type in self.labels_by_type:
                 self.labels_by_type[label_type].append(label)
 
@@ -308,13 +309,12 @@ class LabelModalScreen(ModalScreen):
             if project_style and project_style != "default":
                 dbh = self.app._config.get("dbh")
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
                 label_map = pc.get_label_map()
-                self.app.log(f"Loaded label map from ProjectComposer ({project_style}): {label_map}")
+                self.app.log(
+                    f"Loaded label map from ProjectComposer ({project_style}): {label_map}"
+                )
                 return label_map
             else:
                 # Fallback to default label types
@@ -331,8 +331,11 @@ class LabelModalScreen(ModalScreen):
         with Vertical():
             with Vertical(classes="modal-header"):
                 yield Static("Select Labels for Transaction", classes="modal-title")
-                yield Static(f"Currently selected: {len(self.selected_labels)} label(s)",
-                           id="selection-count", classes="selection-count")
+                yield Static(
+                    f"Currently selected: {len(self.selected_labels)} label(s)",
+                    id="selection-count",
+                    classes="selection-count",
+                )
 
             # Determine initial tab ID (first available type as string)
             if self.label_map:
@@ -352,12 +355,21 @@ class LabelModalScreen(ModalScreen):
                         if self.labels_by_type.get(type_id):
                             with ScrollableContainer():
                                 yield SelectionList[int](
-                                    *[(label['name'], label['label_id'], label['label_id'] in self.selected_labels)
-                                      for label in self.labels_by_type[type_id]],
-                                    id=selection_list_id
+                                    *[
+                                        (
+                                            label["name"],
+                                            label["label_id"],
+                                            label["label_id"] in self.selected_labels,
+                                        )
+                                        for label in self.labels_by_type[type_id]
+                                    ],
+                                    id=selection_list_id,
                                 )
                         else:
-                            yield Static(f"No {group_name.lower()} labels available", classes="no-labels-message")
+                            yield Static(
+                                f"No {group_name.lower()} labels available",
+                                classes="no-labels-message",
+                            )
 
             with Horizontal(classes="button-row"):
                 yield Button("🗑️ Clear All", id="label-clear-button", variant="warning")
@@ -386,12 +398,12 @@ class LabelModalScreen(ModalScreen):
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     selected.extend(list(sel_list.selected))
-                except:
+                except Exception:
                     pass
 
             count_widget = self.query_one("#selection-count", Static)
             count_widget.update(f"Currently selected: {len(selected)} label(s)")
-        except:
+        except Exception:
             pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -406,7 +418,7 @@ class LabelModalScreen(ModalScreen):
                     try:
                         sel_list = self.query_one(f"#{list_id}", SelectionList)
                         selected.extend(list(sel_list.selected))
-                    except:
+                    except Exception:
                         pass
 
                 self.dismiss(selected)  # Return list of selected label IDs
@@ -421,7 +433,7 @@ class LabelModalScreen(ModalScreen):
                 try:
                     sel_list = self.query_one(f"#{list_id}", SelectionList)
                     sel_list.deselect_all()
-                except:
+                except Exception:
                     pass
             self._update_selection_count()
 
@@ -446,7 +458,6 @@ class ItemConfirmationModal(ModalScreen):
     BINDINGS = [
         ("escape", "cancel", "Cancel"),
     ]
-
 
     def __init__(self, item_data: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -475,67 +486,77 @@ class ItemConfirmationModal(ModalScreen):
             with Vertical(classes="summary-section"):
                 yield Static("[bold]Transaction Summary[/bold]", classes="section-title")
                 yield Static(f"Item: {self.item_data.get('name', 'N/A')}", classes="summary-row")
-                yield Static(f"Original Price: {self.item_data.get('price', 0):.2f} {self.item_data.get('currency', 'N/A')}",
-                           classes="summary-row")
+                yield Static(
+                    f"Original Price: {self.item_data.get('price', 0):.2f} {self.item_data.get('currency', 'N/A')}",
+                    classes="summary-row",
+                )
 
                 # Show exchange rate if different from main currency
-                if self.item_data.get('currency') != self.item_data.get('currency_final'):
-                    yield Static(f"Exchange Rate: {self.item_data.get('exchange_rate', 1.0):.4f}",
-                               classes="summary-row")
+                if self.item_data.get("currency") != self.item_data.get("currency_final"):
+                    yield Static(
+                        f"Exchange Rate: {self.item_data.get('exchange_rate', 1.0):.4f}",
+                        classes="summary-row",
+                    )
 
-                yield Static(f"[bold]Final Price: {self.item_data.get('price_final', 0):.2f} {self.item_data.get('currency_final', 'N/A')}[/bold]",
-                           classes="total-row")
-                yield Static(f"Date: {self.item_data.get('bought_date', 'N/A')}", classes="summary-row")
-                yield Static(f"Bought By: {self.item_data.get('bought_by_name', 'N/A')}", classes="summary-row")
+                yield Static(
+                    f"[bold]Final Price: {self.item_data.get('price_final', 0):.2f} {self.item_data.get('currency_final', 'N/A')}[/bold]",
+                    classes="total-row",
+                )
+                yield Static(
+                    f"Date: {self.item_data.get('bought_date', 'N/A')}", classes="summary-row"
+                )
+                yield Static(
+                    f"Bought By: {self.item_data.get('bought_by_name', 'N/A')}",
+                    classes="summary-row",
+                )
 
-                if self.item_data.get('labels_text') and self.item_data.get('labels_text') != "None":
-                    yield Static(f"Labels: {self.item_data.get('labels_text', '')}", classes="summary-row")
+                if (
+                    self.item_data.get("labels_text")
+                    and self.item_data.get("labels_text") != "None"
+                ):
+                    yield Static(
+                        f"Labels: {self.item_data.get('labels_text', '')}", classes="summary-row"
+                    )
 
             # Cost-sharing breakdown
-            cost_shares = self.item_data.get('cost_shares', [])
+            cost_shares = self.item_data.get("cost_shares", [])
             if cost_shares:
                 with Vertical(classes="summary-section"):
                     yield Static("[bold]Cost Sharing Breakdown[/bold]", classes="section-title")
 
                     # Calculate total percentage for validation
-                    total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
+                    total_percentage = sum(share.get("percentage", 0) for share in cost_shares)
 
                     # Show each user with their amount and labels
                     for share in cost_shares:
-                        username = share.get('username', 'Unknown')
-                        percentage = share.get('percentage', 0)
-                        amount = share.get('amount', 0)
-                        currency_final = self.item_data.get('currency_final', 'USD')
+                        username = share.get("username", "Unknown")
+                        percentage = share.get("percentage", 0)
+                        amount = share.get("amount", 0)
+                        currency_final = self.item_data.get("currency_final", "USD")
 
                         # Get label information for this user
-                        label_text = share.get('labels_text', 'None')
+                        label_text = share.get("labels_text", "None")
 
                         if percentage > 0:
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
-                                classes="cost-share-row"
+                                classes="cost-share-row",
                             )
                             # Show labels for this user
-                            yield Static(
-                                f"    Labels: {label_text}",
-                                classes="cost-share-labels"
-                            )
-                        elif share.get('user_id') == self.item_data.get('bought_by_id'):
+                            yield Static(f"    Labels: {label_text}", classes="cost-share-labels")
+                        elif share.get("user_id") == self.item_data.get("bought_by_id"):
                             # Show bought_by user even if they pay 0% (others pay 100%)
                             yield Static(
                                 f"  {username}: {percentage:.1f}% = {amount:.2f} {currency_final}",
-                                classes="cost-share-row"
+                                classes="cost-share-row",
                             )
-                            yield Static(
-                                f"    Labels: {label_text}",
-                                classes="cost-share-labels"
-                            )
+                            yield Static(f"    Labels: {label_text}", classes="cost-share-labels")
 
                     # Show total
-                    total_amount = sum(share.get('amount', 0) for share in cost_shares)
+                    total_amount = sum(share.get("amount", 0) for share in cost_shares)
                     yield Static(
                         f"[bold]Total: {total_amount:.2f} {self.item_data.get('currency_final', 'USD')}[/bold]",
-                        classes="total-row"
+                        classes="total-row",
                     )
 
                     # Validation: Check if total percentage equals 100%
@@ -545,29 +566,39 @@ class ItemConfirmationModal(ModalScreen):
                     if not percentage_valid:
                         yield Static(
                             f"[bold red]⚠ WARNING: Total percentage is {total_percentage:.1f}% (should be 100%)[/bold red]",
-                            classes="validation-error"
+                            classes="validation-error",
                         )
                         yield Static(
                             "[red]Cannot save to database. Please go back and adjust the cost sharing percentages.[/red]",
-                            classes="validation-message"
+                            classes="validation-message",
                         )
 
             with Horizontal(classes="button-row"):
                 # Disable OK button if cost shares don't add up to 100%
                 ok_button_disabled = False
                 if cost_shares:
-                    total_percentage = sum(share.get('percentage', 0) for share in cost_shares)
+                    total_percentage = sum(share.get("percentage", 0) for share in cost_shares)
                     ok_button_disabled = abs(total_percentage - 100.0) >= 0.01
 
                 yield Button(
-                    "✓ OK - Save to Database" if not ok_button_disabled else "✗ Cannot Save - Invalid Total",
+                    (
+                        "✓ OK - Save to Database"
+                        if not ok_button_disabled
+                        else "✗ Cannot Save - Invalid Total"
+                    ),
                     id="confirm-ok-button",
                     variant="success" if not ok_button_disabled else "error",
                     flat=True,
                     compact=True,
-                    disabled=ok_button_disabled
+                    disabled=ok_button_disabled,
                 )
-                yield Button("← Back - Edit", id="confirm-back-button", variant="warning", flat=True, compact=True)
+                yield Button(
+                    "← Back - Edit",
+                    id="confirm-back-button",
+                    variant="warning",
+                    flat=True,
+                    compact=True,
+                )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses in the confirmation modal."""
@@ -592,7 +623,6 @@ class DeleteConfirmationModal(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-
     def __init__(self, item_name: str):
         super().__init__()
         self.item_name = item_name
@@ -609,7 +639,7 @@ class DeleteConfirmationModal(ModalScreen):
             yield Static("⚠️ DELETE EXPENSE ⚠️", classes="warning-title")
             yield Static(
                 f"Are you sure you want to delete:\n\n'{self.item_name}'?\n\nThis action cannot be undone!",
-                classes="warning-message"
+                classes="warning-message",
             )
             with Horizontal(classes="button-row"):
                 yield Button("Delete", id="confirm-delete", variant="error")
@@ -634,9 +664,9 @@ class ItemInputForm(ModalScreen):
         ("escape", "dismiss_form", "Close"),
     ]
 
-
     class ItemCreated(Message):
         """Message sent when an item is created and saved to database."""
+
         def __init__(self, item_id: int, item_data: dict) -> None:
             self.item_id = item_id
             self.item_data = item_data
@@ -646,41 +676,38 @@ class ItemInputForm(ModalScreen):
         super().__init__(*args, **kwargs)
         self._edit_mode = edit_mode
         self._item_data = item_data  # Store item data for edit mode
-        self._item_uuid = item_data['item_uuid'] if edit_mode and item_data else str(uuid.uuid4())
-        self._item_id = item_data['item_id'] if edit_mode and item_data else None
+        self._item_uuid = item_data["item_uuid"] if edit_mode and item_data else str(uuid.uuid4())
+        self._item_id = item_data["item_id"] if edit_mode and item_data else None
         self._pending_item_data = None
         self._project_users = []  # Store project users for dynamic updates
 
         # Load selected labels from item_data in edit mode
-        if edit_mode and item_data and item_data.get('tags'):
+        if edit_mode and item_data and item_data.get("tags"):
             # In edit mode, tags come from database as a string (e.g., "3_4_5_6_[7,8]")
             # We need to parse it to get individual label IDs
-            tags_str = item_data['tags']
+            tags_str = item_data["tags"]
 
             # Try to parse using ProjectComposer if available
             try:
                 from fiwa_cli.functions.project_composer import ProjectComposer
 
                 project_style = self.app.app_state.get("project_style", "default")
-                project_id = item_data.get('project_id', self.app.app_state.get("project_id", 0))
+                project_id = item_data.get("project_id", self.app.app_state.get("project_id", 0))
 
                 # Get label map
                 dbh = self.app._config.get("dbh")
                 if dbh:
                     labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
-                    label_map = {l['label_id']: l for l in labels}
+                    label_map = {l["label_id"]: l for l in labels}
 
                     # Create ProjectComposer instance
                     pc = ProjectComposer.create(
-                        compose_type=project_style,
-                        dbh=dbh,
-                        project_id=project_id,
-                        users=[]
+                        compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                     )
 
                     # Parse the tag string - this returns names, but we need IDs
                     # We need to extract IDs from the string directly
-                    parts = tags_str.split('_')
+                    parts = tags_str.split("_")
                     label_ids = []
 
                     if len(parts) >= 4:
@@ -693,9 +720,9 @@ class ItemInputForm(ModalScreen):
 
                         # Extract secondary IDs from position 4 (the list part)
                         if len(parts) >= 5:
-                            s_part = parts[4].strip().strip('[]')
+                            s_part = parts[4].strip().strip("[]")
                             if s_part:
-                                for s_id in s_part.split(','):
+                                for s_id in s_part.split(","):
                                     if s_id.strip().isdigit():
                                         label_id = int(s_id.strip())
                                         if label_id > 0:
@@ -739,7 +766,9 @@ class ItemInputForm(ModalScreen):
                 grid = self.query_one("#bought-for-grid")
                 self.app.log(f"✓ Found bought-for-grid on mount: {grid}")
                 self.app.log(f"  Grid children count: {len(list(grid.children))}")
-                self.app.log(f"  Grid styles: width={grid.styles.width}, height={grid.styles.height}")
+                self.app.log(
+                    f"  Grid styles: width={grid.styles.width}, height={grid.styles.height}"
+                )
             except Exception as e:
                 self.app.log(f"✗ Could not find bought-for-grid on mount: {e}")
 
@@ -785,15 +814,13 @@ class ItemInputForm(ModalScreen):
 
             # Get ProjectComposer to know which types exist and their order
             from fiwa_cli.functions.project_composer import ProjectComposer
+
             project_style = self.app.app_state.get("project_style", "default")
 
             if project_style != "default":
                 try:
                     pc = ProjectComposer.create(
-                        compose_type=project_style,
-                        dbh=dbh,
-                        project_id=project_id,
-                        users=[]
+                        compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                     )
                     label_map = pc.get_label_map()
 
@@ -803,7 +830,9 @@ class ItemInputForm(ModalScreen):
                         # Get default for this type, or 0 if none set
                         default_labels.append(defaults_map.get(type_id, 0))
 
-                    self.app.log(f"Default labels for user {user_id} in project {project_id}: {default_labels}")
+                    self.app.log(
+                        f"Default labels for user {user_id} in project {project_id}: {default_labels}"
+                    )
                     return default_labels
 
                 except Exception as e:
@@ -823,14 +852,20 @@ class ItemInputForm(ModalScreen):
             if dbh and project_id > 0:
                 labels = dbh.op_label_get_all(project_id)
                 # Only return active labels (status = 2)
-                return [label for label in labels if label.get('label_status', 0) == 2]
+                return [label for label in labels if label.get("label_status", 0) == 2]
             return []
         except Exception as e:
             self.app.log(f"Error fetching project labels: {e}")
             return []
 
-    def _prepare_user_labels(self, cost_shares: list, bought_by_id: int, selected_labels: list,
-                             project_id: int, project_labels: list) -> list:
+    def _prepare_user_labels(
+        self,
+        cost_shares: list,
+        bought_by_id: int,
+        selected_labels: list,
+        project_id: int,
+        project_labels: list,
+    ) -> list:
         """
         Prepare label information for each user in cost_shares.
 
@@ -855,22 +890,26 @@ class ItemInputForm(ModalScreen):
             # liability_accounts[user_id] = label object
             liability_accounts = {}
             for label in project_labels:
-                if label.get('label_type') == 2 and label.get('label_sub_type') == 0:
-                    owner_id = label.get('label_owner', -1)
+                if label.get("label_type") == 2 and label.get("label_sub_type") == 0:
+                    owner_id = label.get("label_owner", -1)
                     if owner_id > 0:  # User-owned liability account
                         liability_accounts[owner_id] = label
-                        self.app.log(f"Found liability account for user {owner_id}: {label.get('name')}")
+                        self.app.log(
+                            f"Found liability account for user {owner_id}: {label.get('name')}"
+                        )
 
             if not liability_accounts:
-                self.app.log("WARNING: No user-specific liability accounts found (type=2, sub_type=0, owner>0)")
+                self.app.log(
+                    "WARNING: No user-specific liability accounts found (type=2, sub_type=0, owner>0)"
+                )
 
             # Process each cost share
             updated_shares = []
             for share in cost_shares:
-                user_id = share['user_id']
+                user_id = share["user_id"]
 
                 # Skip users with 0% share
-                if share.get('percentage', 0) <= 0.0001:
+                if share.get("percentage", 0) <= 0.0001:
                     updated_shares.append(share)
                     continue
 
@@ -878,7 +917,9 @@ class ItemInputForm(ModalScreen):
                 if user_id == bought_by_id:
                     # Buying for self - use the selected/default labels as-is
                     user_labels = selected_labels.copy()
-                    self.app.log(f"User {share['username']} (buying for self): Using selected labels")
+                    self.app.log(
+                        f"User {share['username']} (buying for self): Using selected labels"
+                    )
                 else:
                     # Buying for another user - use THAT user's liability account
                     user_labels = selected_labels.copy()
@@ -890,38 +931,49 @@ class ItemInputForm(ModalScreen):
                         # Replace position 2 (account) with this user's liability account
                         # The label structure is: [balance, transaction, account, main, secondary...]
                         if len(user_labels) >= 3:
-                            user_labels[2] = user_liability_label['label_id']
-                            self.app.log(f"Replaced account label for user {share['username']} (ID:{user_id}) with their liability account: {user_liability_label.get('name')}")
+                            user_labels[2] = user_liability_label["label_id"]
+                            self.app.log(
+                                f"Replaced account label for user {share['username']} (ID:{user_id}) with their liability account: {user_liability_label.get('name')}"
+                            )
                         else:
                             # Labels list is too short, need to extend it
                             while len(user_labels) < 3:
                                 user_labels.append(0)
-                            user_labels[2] = user_liability_label['label_id']
-                            self.app.log(f"Added liability account for user {share['username']} (ID:{user_id}): {user_liability_label.get('name')}")
+                            user_labels[2] = user_liability_label["label_id"]
+                            self.app.log(
+                                f"Added liability account for user {share['username']} (ID:{user_id}): {user_liability_label.get('name')}"
+                            )
                     else:
-                        self.app.log(f"WARNING: No liability account found for user {share['username']} (ID:{user_id})")
+                        self.app.log(
+                            f"WARNING: No liability account found for user {share['username']} (ID:{user_id})"
+                        )
 
                 # Get label names for display
-                label_names = [label['name'] for label in project_labels if label['label_id'] in user_labels]
+                label_names = [
+                    label["name"] for label in project_labels if label["label_id"] in user_labels
+                ]
                 labels_text = ", ".join(label_names) if label_names else "None"
 
                 # Add label information to share
-                share['labels'] = user_labels
-                share['labels_text'] = labels_text
+                share["labels"] = user_labels
+                share["labels_text"] = labels_text
                 updated_shares.append(share)
 
-                self.app.log(f"User {share['username']}: labels={user_labels}, text='{labels_text}'")
+                self.app.log(
+                    f"User {share['username']}: labels={user_labels}, text='{labels_text}'"
+                )
 
             return updated_shares
 
         except Exception as e:
             self.app.log(f"Error in _prepare_user_labels: {e}")
             import traceback
+
             self.app.log(f"Traceback: {traceback.format_exc()}")
             # Return original cost_shares with default labels
             for share in cost_shares:
-                share['labels'] = selected_labels
-                share['labels_text'] = "Error preparing labels"
+                share["labels"] = selected_labels
+                share["labels_text"] = "Error preparing labels"
             return cost_shares
 
     def compose(self) -> ComposeResult:
@@ -951,19 +1003,21 @@ class ItemInputForm(ModalScreen):
         # Get project users
         project_users = self._get_project_users(project_id)
         self._project_users = project_users  # Store for later use
-        user_options = [(u['username'], u['user_id']) for u in project_users]
+        user_options = [(u["username"], u["user_id"]) for u in project_users]
 
         # Show ALL project users in the "Bought For" section
         # Logic: By default, bought_by user gets 100% (buying for themselves)
         # Users can then adjust to share costs with others
-        user_options_share_to = [(u['username'], u['user_id']) for u in project_users]
+        user_options_share_to = [(u["username"], u["user_id"]) for u in project_users]
 
         # Determine default bought_by user (current user or first in list)
-        default_bought_by_id = user_id if user_id > 0 else (user_options[0][1] if user_options else -1)
+        default_bought_by_id = (
+            user_id if user_id > 0 else (user_options[0][1] if user_options else -1)
+        )
 
         # Get project labels
         project_labels = self._get_project_labels(project_id)
-        label_options = [(label['name'], label['label_id']) for label in project_labels]
+        label_options = [(label["name"], label["label_id"]) for label in project_labels]
         #
         with Grid(classes="form-grid-row-1"):
             # row 1
@@ -978,35 +1032,44 @@ class ItemInputForm(ModalScreen):
                 placeholder="e.g., Groceries, Rent, Salary",
                 id="grid-item-name",
                 max_length=64,
-                value=self._item_data['name'] if self._edit_mode and self._item_data else ""
+                value=self._item_data["name"] if self._edit_mode and self._item_data else "",
             )
             yield Input(
                 placeholder="0.00",
                 id="grid-item-price",
                 type="number",
-                value=str(self._item_data['price']) if self._edit_mode and self._item_data else ""
+                value=str(self._item_data["price"]) if self._edit_mode and self._item_data else "",
             )
             yield Select(
                 options=currency_options if currency_options else [("USD", "USD")],
-                value=self._item_data['currency'] if self._edit_mode and self._item_data else (currency_main if currency_main else "USD"),
+                value=(
+                    self._item_data["currency"]
+                    if self._edit_mode and self._item_data
+                    else (currency_main if currency_main else "USD")
+                ),
                 id="grid-item-currency",
-                allow_blank=False
+                allow_blank=False,
             )
             yield Input(
                 placeholder="YYYY-MM-DD",
                 id="grid-item-bought-date",
-                value=str(self._item_data['bought_date']).split()[0] if self._edit_mode and self._item_data else datetime.now().strftime("%Y-%m-%d")
+                value=(
+                    str(self._item_data["bought_date"]).split()[0]
+                    if self._edit_mode and self._item_data
+                    else datetime.now().strftime("%Y-%m-%d")
+                ),
             )
             yield Select(
                 options=user_options if user_options else [("No users", -1)],
-                value=self._item_data['bought_by_id'] if self._edit_mode and self._item_data else (user_id if user_id > 0 else (user_options[0][1] if user_options else -1)),
+                value=(
+                    self._item_data["bought_by_id"]
+                    if self._edit_mode and self._item_data
+                    else (user_id if user_id > 0 else (user_options[0][1] if user_options else -1))
+                ),
                 id="grid-item-bought-by",
-                allow_blank=False
+                allow_blank=False,
             )
-            yield Button("🏷️ Labels",
-                         id="open-label-modal-button",
-                         variant="default",
-                         compact=True)
+            yield Button("🏷️ Labels", id="open-label-modal-button", variant="default", compact=True)
 
         # Main horizontal layout - different for create vs edit mode
         with Horizontal(id="bought-for-horizontal-wrapper"):
@@ -1029,19 +1092,25 @@ class ItemInputForm(ModalScreen):
 
                             # Add each user as a Horizontal row
                             for idx, i_item in enumerate(user_options_share_to):
-                                self.app.log(f"Adding user {idx + 1}/{user_count}: {i_item[0]} (ID: {i_item[1]})")
+                                self.app.log(
+                                    f"Adding user {idx + 1}/{user_count}: {i_item[0]} (ID: {i_item[1]})"
+                                )
 
                                 # Set default share: 100% for bought_by user, 0% for others
                                 default_share = "100" if i_item[1] == default_bought_by_id else "0"
 
                                 with Horizontal(classes="bought-for-user-row"):
-                                    yield Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label")
+                                    yield Static(
+                                        f"{i_item[0]}",
+                                        id=f"user-label-{i_item[1]}",
+                                        classes="user-name-label",
+                                    )
                                     yield Input(
                                         placeholder="0-100%",
                                         value=default_share,
                                         type="number",
                                         id=f"share-{i_item[1]}",
-                                        classes="user-share-input"
+                                        classes="user-share-input",
                                     )
                             self.app.log("Finished adding all users")
                 else:
@@ -1060,15 +1129,23 @@ class ItemInputForm(ModalScreen):
                         yield Input(
                             placeholder="1.0",
                             id="item-exchange-rate",
-                            value=str(self._item_data['exchange_rate']) if self._edit_mode and self._item_data else "1.0",
-                            type="number"
+                            value=(
+                                str(self._item_data["exchange_rate"])
+                                if self._edit_mode and self._item_data
+                                else "1.0"
+                            ),
+                            type="number",
                         )
                     with Vertical(classes="field-group"):
                         yield Static("Exchange Rate Date", classes="form-label")
                         yield Input(
                             placeholder="YYYY-MM-DD",
                             id="item-exchange-date",
-                            value=str(self._item_data['exchange_rate_date']).split()[0] if self._edit_mode and self._item_data else datetime.now().strftime("%Y-%m-%d")
+                            value=(
+                                str(self._item_data["exchange_rate_date"]).split()[0]
+                                if self._edit_mode and self._item_data
+                                else datetime.now().strftime("%Y-%m-%d")
+                            ),
                         )
 
                 # Note field
@@ -1079,7 +1156,11 @@ class ItemInputForm(ModalScreen):
                             placeholder="Additional details (optional)",
                             id="item-note",
                             max_length=255,
-                            value=self._item_data['note'] if self._edit_mode and self._item_data and self._item_data['note'] else ""
+                            value=(
+                                self._item_data["note"]
+                                if self._edit_mode and self._item_data and self._item_data["note"]
+                                else ""
+                            ),
                         )
 
         with Horizontal(classes="button-row"):
@@ -1127,13 +1208,13 @@ class ItemInputForm(ModalScreen):
                 else:
                     button.label = "🏷️ Select Labels"
 
-                #self.app.notify(f"{len(self._selected_label_ids)} label(s) selected", severity="info")
+                # self.app.notify(f"{len(self._selected_label_ids)} label(s) selected", severity="info")
             else:  # User clicked Cancel
                 self.app.log("Label selection cancelled")
 
         except Exception as e:
             self.app.log(f"Error opening label modal: {e}")
-            #self.app.notify(f"Error: {str(e)}", severity="error")
+            # self.app.notify(f"Error: {str(e)}", severity="error")
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle select widget changes."""
@@ -1156,10 +1237,7 @@ class ItemInputForm(ModalScreen):
         self.app.log(f"Updating 'Bought For' section, bought_by user: {selected_bought_by_id}")
 
         # Include ALL users in the bought-for section
-        user_options_share_to = [
-            (u['username'], u['user_id'])
-            for u in self._project_users
-        ]
+        user_options_share_to = [(u["username"], u["user_id"]) for u in self._project_users]
 
         self.app.log(f"All users for bought-for: {user_options_share_to}")
 
@@ -1190,23 +1268,22 @@ class ItemInputForm(ModalScreen):
             wrapper.mount(user_row)
 
             # Then mount children to the row
-            user_row.mount(Static(
-                f"{i_item[0]}",
-                id=f"user-label-{i_item[1]}",
-                classes="user-name-label"
-            ))
-            user_row.mount(Input(
-                placeholder="0-100%",
-                value=default_share,
-                type="number",
-                id=f"share-{i_item[1]}",
-                classes="user-share-input"
-            ))
+            user_row.mount(
+                Static(f"{i_item[0]}", id=f"user-label-{i_item[1]}", classes="user-name-label")
+            )
+            user_row.mount(
+                Input(
+                    placeholder="0-100%",
+                    value=default_share,
+                    type="number",
+                    id=f"share-{i_item[1]}",
+                    classes="user-share-input",
+                )
+            )
 
             self.app.log(f"Added user {i_item[0]} with share {default_share}%")
 
         self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
-
 
     def action_dismiss_form(self) -> None:
         """Action called when ESC is pressed - dismiss form without saving."""
@@ -1234,14 +1311,23 @@ class ItemInputForm(ModalScreen):
 
             # Sanitize name and note to remove invalid characters and trim spaces
             # Allow alphanumeric, spaces, and common punctuation
-            name, name_modified = sanitize_string(name, allowed_chars=r'a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"')
-            note, note_modified = sanitize_string(note, allowed_chars=r'a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"')
+            name, name_modified = sanitize_string(
+                name, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+            )
+            note, note_modified = sanitize_string(
+                note, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+            )
 
             # Notify user if their input was modified
             if name_modified:
-                self.app.notify("Item name was cleaned (removed invalid characters or spaces)", severity="warning")
+                self.app.notify(
+                    "Item name was cleaned (removed invalid characters or spaces)",
+                    severity="warning",
+                )
             if note_modified:
-                self.app.notify("Note was cleaned (removed invalid characters or spaces)", severity="warning")
+                self.app.notify(
+                    "Note was cleaned (removed invalid characters or spaces)", severity="warning"
+                )
 
             # Use exchange rate from input field, default to 1.0 if not provided
             exchange_rate_float = float(exchange_rate_input) if exchange_rate_input else 1.0
@@ -1251,8 +1337,8 @@ class ItemInputForm(ModalScreen):
 
             # Get project users EARLY - needed for default label logic and cost sharing
             project_users = self._get_project_users(project_id)
-            bought_by_user = next((u for u in project_users if u['user_id'] == bought_by_id), None)
-            bought_by_name = bought_by_user['username'] if bought_by_user else "Unknown"
+            bought_by_user = next((u for u in project_users if u["user_id"] == bought_by_id), None)
+            bought_by_name = bought_by_user["username"] if bought_by_user else "Unknown"
 
             # Get selected labels from the modal
             selected_labels = self._selected_label_ids
@@ -1277,7 +1363,7 @@ class ItemInputForm(ModalScreen):
                             share_value = share_input.value.strip()
                             share_percent = float(share_value) if share_value else 0.0
 
-                            if user['user_id'] == bought_by_id:
+                            if user["user_id"] == bought_by_id:
                                 # bought_by user should have 100%
                                 if abs(share_percent - 100.0) >= 0.01:
                                     buying_for_self_only = False
@@ -1287,7 +1373,7 @@ class ItemInputForm(ModalScreen):
                                 if share_percent > 0.0001:
                                     buying_for_self_only = False
                                     break
-                        except:
+                        except Exception:
                             pass
 
                     is_buying_for_self = buying_for_self_only
@@ -1303,12 +1389,16 @@ class ItemInputForm(ModalScreen):
                         self._selected_label_ids = selected_labels
 
                         self.app.log(f"Auto-applied default labels: {selected_labels}")
-                        self.app.notify("ℹ No labels selected - using default labels", severity="info")
+                        self.app.notify(
+                            "ℹ No labels selected - using default labels", severity="info"
+                        )
                     else:
                         self.app.log("No default labels found or all are 0")
 
             # Get label names for display
-            label_names = [label['name'] for label in project_labels if label['label_id'] in selected_labels]
+            label_names = [
+                label["name"] for label in project_labels if label["label_id"] in selected_labels
+            ]
             labels_text = ", ".join(label_names) if label_names else "None"
 
             # Validate required fields
@@ -1331,7 +1421,6 @@ class ItemInputForm(ModalScreen):
             price_final = price_float * exchange_rate_float
             currency_final = currency_main
 
-
             # Collect cost-sharing data from bought-for section (only in create mode)
             cost_shares = []
             total_percentage = 0.0
@@ -1349,76 +1438,92 @@ class ItemInputForm(ModalScreen):
                             if share_percent <= 0.0001:
                                 continue
                             share_amount = (price_final * share_percent) / 100.0
-                            cost_shares.append({
-                                'user_id': user['user_id'],
-                                'username': user['username'],
-                                'percentage': share_percent,
-                                'amount': share_amount
-                            })
+                            cost_shares.append(
+                                {
+                                    "user_id": user["user_id"],
+                                    "username": user["username"],
+                                    "percentage": share_percent,
+                                    "amount": share_amount,
+                                }
+                            )
                             total_percentage += share_percent
                         else:
                             # Empty field = 0%
-                            cost_shares.append({
-                                'user_id': user['user_id'],
-                                'username': user['username'],
-                                'percentage': 0.0,
-                                'amount': 0.0
-                            })
+                            cost_shares.append(
+                                {
+                                    "user_id": user["user_id"],
+                                    "username": user["username"],
+                                    "percentage": 0.0,
+                                    "amount": 0.0,
+                                }
+                            )
                     except Exception as e:
                         self.app.log(f"Error reading share for user {user['user_id']}: {e}")
                         # Input field not found or invalid value - treat as 0%
-                        cost_shares.append({
-                            'user_id': user['user_id'],
-                            'username': user['username'],
-                            'percentage': 0.0,
-                            'amount': 0.0
-                        })
+                        cost_shares.append(
+                            {
+                                "user_id": user["user_id"],
+                                "username": user["username"],
+                                "percentage": 0.0,
+                                "amount": 0.0,
+                            }
+                        )
 
                 # VALIDATE: Total must equal exactly 100% (with small tolerance for floating point)
                 if abs(total_percentage - 100.0) >= 0.01:
                     if total_percentage > 100.0:
-                        self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - exceeds 100%! Please adjust.", severity="error")
+                        self.app.notify(
+                            f"⚠ Cost share total is {total_percentage:.1f}% - exceeds 100%! Please adjust.",
+                            severity="error",
+                        )
                     else:
-                        self.app.notify(f"⚠ Cost share total is {total_percentage:.1f}% - must be 100%! Please adjust.", severity="error")
+                        self.app.notify(
+                            f"⚠ Cost share total is {total_percentage:.1f}% - must be 100%! Please adjust.",
+                            severity="error",
+                        )
                     return
 
                 # Now prepare labels for each user in cost_shares
                 # Key logic:
                 # - If bought_by == bought_for (buying for self), use selected/default labels
                 # - If bought_by != bought_for (buying for another), use LIABILITY account for the account label
-                cost_shares = self._prepare_user_labels(cost_shares, bought_by_id, selected_labels, project_id, project_labels)
+                cost_shares = self._prepare_user_labels(
+                    cost_shares, bought_by_id, selected_labels, project_id, project_labels
+                )
 
             else:
                 # In edit mode, just update the single item - no cost sharing
-                cost_shares.append({
-                    'user_id': bought_by_id,
-                    'username': bought_by_name,
-                    'percentage': 100.0,
-                    'amount': price_final,
-                    'labels': selected_labels,
-                    'labels_text': labels_text
-                })
+                cost_shares.append(
+                    {
+                        "user_id": bought_by_id,
+                        "username": bought_by_name,
+                        "percentage": 100.0,
+                        "amount": price_final,
+                        "labels": selected_labels,
+                        "labels_text": labels_text,
+                    }
+                )
 
             # Build complete item data dictionary
             item_data = {
-                'item_uuid': self._item_uuid,
-                'name': name,
-                'note': note,
-                'price': price_float,
-                'price_final': price_final,
-                'currency': currency,
-                'currency_final': currency_final,
-                'exchange_rate': exchange_rate_float,
-                'exchange_rate_date': exchange_rate_date,
-                'bought_date': bought_date,
-                'bought_by_id': bought_by_id,
-                'bought_by_name': bought_by_name,
-                'added_by_id': user_id,
-                'project_id': project_id,
-                'tags': selected_labels,
-                'labels_text': labels_text,
-                'cost_shares': cost_shares,  # List of cost sharing breakdown
-                'total_shared_percentage': total_percentage,
+                "item_uuid": self._item_uuid,
+                "name": name,
+                "note": note,
+                "price": price_float,
+                "price_final": price_final,
+                "currency": currency,
+                "currency_final": currency_final,
+                "exchange_rate": exchange_rate_float,
+                "exchange_rate_date": exchange_rate_date,
+                "bought_date": bought_date,
+                "bought_by_id": bought_by_id,
+                "bought_by_name": bought_by_name,
+                "added_by_id": user_id,
+                "project_id": project_id,
+                "tags": selected_labels,
+                "labels_text": labels_text,
+                "cost_shares": cost_shares,  # List of cost sharing breakdown
+                "total_shared_percentage": total_percentage,
             }
 
             # Store item data for confirmation
@@ -1433,6 +1538,7 @@ class ItemInputForm(ModalScreen):
             self.app.notify(f"Error saving item: {str(e)}", severity="error")
             self.app.log(f"Error in _save_item: {e}")
             import traceback
+
             self.app.log(f"Traceback: {traceback.format_exc()}")
 
     async def _show_confirmation_and_save(self) -> None:
@@ -1446,7 +1552,10 @@ class ItemInputForm(ModalScreen):
                     # Update existing item in database
                     success = await self._update_in_database(self._pending_item_data)
                     if success:
-                        self.app.notify(f"✓ Transaction '{self._pending_item_data['name']}' updated successfully!", severity="success")
+                        self.app.notify(
+                            f"✓ Transaction '{self._pending_item_data['name']}' updated successfully!",
+                            severity="success",
+                        )
                         # Dismiss the form and return the item_id to trigger refresh
                         self.dismiss(self._item_id)
                     else:
@@ -1455,7 +1564,10 @@ class ItemInputForm(ModalScreen):
                     # Save new item to database
                     item_id = await self._save_to_database(self._pending_item_data)
                     if item_id:
-                        self.app.notify(f"✓ Transaction '{self._pending_item_data['name']}' saved successfully!", severity="success")
+                        self.app.notify(
+                            f"✓ Transaction '{self._pending_item_data['name']}' saved successfully!",
+                            severity="success",
+                        )
 
                         # Post message to notify parent screens that item was created
                         self.post_message(self.ItemCreated(item_id, self._pending_item_data))
@@ -1495,7 +1607,7 @@ class ItemInputForm(ModalScreen):
                 return None
 
             # Get cost shares - each user gets their own item entry
-            cost_shares = item_data.get('cost_shares', [])
+            cost_shares = item_data.get("cost_shares", [])
 
             if not cost_shares:
                 self.app.notify("No cost shares defined", severity="error")
@@ -1506,15 +1618,13 @@ class ItemInputForm(ModalScreen):
 
             # Get ProjectComposer instance for building tag string
             from fiwa_cli.functions.project_composer import ProjectComposer
+
             project_style = self.app.app_state.get("project_style", "default")
-            project_id = item_data['project_id']
+            project_id = item_data["project_id"]
 
             try:
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
             except Exception as e:
                 self.app.log(f"Error creating ProjectComposer: {e}")
@@ -1525,32 +1635,32 @@ class ItemInputForm(ModalScreen):
 
             # Create one item entry for each user who shares the cost
             for share in cost_shares:
-                user_id = share.get('user_id')
-                share_amount = share.get('amount')  # Final price share
-                share_percentage = share.get('percentage', 100.0)
-                username = share.get('username')
-                user_labels = share.get('labels', [])  # Get user-specific labels
+                user_id = share.get("user_id")
+                share_amount = share.get("amount")  # Final price share
+                share_percentage = share.get("percentage", 100.0)
+                username = share.get("username")
+                user_labels = share.get("labels", [])  # Get user-specific labels
 
                 # Calculate proportional original price (in original currency)
-                original_price_share = (item_data['price'] * share_percentage) / 100.0
+                original_price_share = (item_data["price"] * share_percentage) / 100.0
 
                 # Prepare item data for this specific user's share
                 db_item_data = {
-                    'item_uuid': item_data['item_uuid'],
-                    'name': item_data['name'],
-                    'note': item_data.get('note', ''),
-                    'price': original_price_share,  # Split original price by percentage
-                    'price_final': share_amount,  # Split final converted price by percentage
-                    'currency': item_data['currency'],
-                    'currency_final': item_data['currency_final'],
-                    'bought_date': item_data['bought_date'],
-                    'bought_by_id': item_data['bought_by_id'],
-                    'bought_for_id': user_id,  # This user receives/shares this portion
-                    'added_by_id': item_data['added_by_id'],
-                    'project_id': item_data['project_id'],
-                    'exchange_rate': item_data['exchange_rate'],
-                    'exchange_rate_date': item_data['exchange_rate_date'],
-                    'tags': user_labels,  # Use user-specific labels, will be converted to string below
+                    "item_uuid": item_data["item_uuid"],
+                    "name": item_data["name"],
+                    "note": item_data.get("note", ""),
+                    "price": original_price_share,  # Split original price by percentage
+                    "price_final": share_amount,  # Split final converted price by percentage
+                    "currency": item_data["currency"],
+                    "currency_final": item_data["currency_final"],
+                    "bought_date": item_data["bought_date"],
+                    "bought_by_id": item_data["bought_by_id"],
+                    "bought_for_id": user_id,  # This user receives/shares this portion
+                    "added_by_id": item_data["added_by_id"],
+                    "project_id": item_data["project_id"],
+                    "exchange_rate": item_data["exchange_rate"],
+                    "exchange_rate_date": item_data["exchange_rate_date"],
+                    "tags": user_labels,  # Use user-specific labels, will be converted to string below
                 }
 
                 # Convert tags to proper string format using ProjectComposer
@@ -1560,24 +1670,28 @@ class ItemInputForm(ModalScreen):
                     # For now, store the labels in their respective positions
                     # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
                     tags_dict = {
-                        'c': user_labels[0] if len(user_labels) > 0 else 0,
-                        't': user_labels[1] if len(user_labels) > 1 else 0,
-                        'b': user_labels[2] if len(user_labels) > 2 else 0,
-                        'm': user_labels[3] if len(user_labels) > 3 else 0,
-                        's': user_labels[4:] if len(user_labels) > 4 else []
+                        "c": user_labels[0] if len(user_labels) > 0 else 0,
+                        "t": user_labels[1] if len(user_labels) > 1 else 0,
+                        "b": user_labels[2] if len(user_labels) > 2 else 0,
+                        "m": user_labels[3] if len(user_labels) > 3 else 0,
+                        "s": user_labels[4:] if len(user_labels) > 4 else [],
                     }
-                    db_item_data['tags'] = pc.build_tags_string(tags_dict)
-                    self.app.log(f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}")
+                    db_item_data["tags"] = pc.build_tags_string(tags_dict)
+                    self.app.log(
+                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}"
+                    )
                 else:
                     # Fallback: empty tag string
-                    db_item_data['tags'] = "0_0_0_0_[]"
+                    db_item_data["tags"] = "0_0_0_0_[]"
                     self.app.log(f"Using fallback empty tag string for {username}")
 
                 # Log the data being saved with both prices
-                self.app.log(f"Saving item share for {username}: "
-                           f"{original_price_share:.2f} {item_data['currency']} → "
-                           f"{share_amount:.2f} {item_data['currency_final']} "
-                           f"({share_percentage:.1f}%)")
+                self.app.log(
+                    f"Saving item share for {username}: "
+                    f"{original_price_share:.2f} {item_data['currency']} → "
+                    f"{share_amount:.2f} {item_data['currency_final']} "
+                    f"({share_percentage:.1f}%)"
+                )
 
                 # Save to database
                 item_id = dbh.op_item_create(db_item_data)
@@ -1601,6 +1715,7 @@ class ItemInputForm(ModalScreen):
             self.app.notify(f"Database error: {str(e)}", severity="error")
             self.app.log(f"EXCEPTION in _save_to_database: {e}")
             import traceback
+
             self.app.log(f"Traceback: {traceback.format_exc()}")
             return None
 
@@ -1620,29 +1735,27 @@ class ItemInputForm(ModalScreen):
 
             # Get ProjectComposer instance for building tag string
             from fiwa_cli.functions.project_composer import ProjectComposer
+
             project_style = self.app.app_state.get("project_style", "default")
-            project_id = item_data['project_id']
+            project_id = item_data["project_id"]
 
             try:
                 pc = ProjectComposer.create(
-                    compose_type=project_style,
-                    dbh=dbh,
-                    project_id=project_id,
-                    users=[]
+                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
                 )
             except Exception as e:
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
             # Convert tags to proper string format using ProjectComposer
-            if pc and item_data['tags']:
+            if pc and item_data["tags"]:
                 # For now, store the main label in position 'm' (position 3)
                 tags_dict = {
-                    'c': item_data['tags'][0] if len(item_data['tags']) > 0 else 0,
-                    't': item_data['tags'][1] if len(item_data['tags']) > 1 else 0,
-                    'b': item_data['tags'][2] if len(item_data['tags']) > 2 else 0,
-                    'm': item_data['tags'][3] if len(item_data['tags']) > 3 else 0,
-                    's': item_data['tags'][4:] if len(item_data['tags']) > 4 else []
+                    "c": item_data["tags"][0] if len(item_data["tags"]) > 0 else 0,
+                    "t": item_data["tags"][1] if len(item_data["tags"]) > 1 else 0,
+                    "b": item_data["tags"][2] if len(item_data["tags"]) > 2 else 0,
+                    "m": item_data["tags"][3] if len(item_data["tags"]) > 3 else 0,
+                    "s": item_data["tags"][4:] if len(item_data["tags"]) > 4 else [],
                 }
                 tags_string = pc.build_tags_string(tags_dict)
                 self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
@@ -1653,7 +1766,6 @@ class ItemInputForm(ModalScreen):
 
             # Prepare UPDATE query
             dbh.load()
-
 
             query = f"""
                 UPDATE p{dbh._db_salt}_items
@@ -1672,19 +1784,19 @@ class ItemInputForm(ModalScreen):
             """
 
             params = [
-                item_data['name'],
-                item_data.get('note', ''),
-                item_data['price'],
-                item_data['price_final'],
-                item_data['currency'],
-                item_data['currency_final'],
-                item_data['bought_date'],
-                item_data['bought_by_id'],
-                item_data['exchange_rate'],
-                item_data['exchange_rate_date'],
+                item_data["name"],
+                item_data.get("note", ""),
+                item_data["price"],
+                item_data["price_final"],
+                item_data["currency"],
+                item_data["currency_final"],
+                item_data["bought_date"],
+                item_data["bought_by_id"],
+                item_data["exchange_rate"],
+                item_data["exchange_rate_date"],
                 tags_string,
                 self._item_id,
-                item_data['project_id']
+                item_data["project_id"],
             ]
 
             dbh.execute_query(query, params)
@@ -1697,6 +1809,7 @@ class ItemInputForm(ModalScreen):
             self.app.notify(f"Database error: {str(e)}", severity="error")
             self.app.log(f"EXCEPTION in _update_in_database: {e}")
             import traceback
+
             self.app.log(f"Traceback: {traceback.format_exc()}")
             return False
 
@@ -1748,8 +1861,8 @@ class ItemInputForm(ModalScreen):
             self.app.notify(f"Error deleting item: {str(e)}", severity="error")
             self.app.log(f"EXCEPTION in _delete_item: {e}")
             import traceback
-            self.app.log(f"Traceback: {traceback.format_exc()}")
 
+            self.app.log(f"Traceback: {traceback.format_exc()}")
 
     def _clear_form(self) -> None:
         """Clear all form fields."""
@@ -1763,7 +1876,9 @@ class ItemInputForm(ModalScreen):
             self.query_one("#grid-item-name", Input).value = ""
             self.query_one("#grid-item-price", Input).value = ""
             self.query_one("#grid-item-currency", Select).value = currency_main
-            self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime("%Y-%m-%d")
+            self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime(
+                "%Y-%m-%d"
+            )
 
             # Clear additional fields
             self.query_one("#item-note", Input).value = ""
@@ -1774,7 +1889,7 @@ class ItemInputForm(ModalScreen):
             try:
                 project_users = self._get_project_users(project_id)
                 if project_users:
-                    default_user = user_id if user_id > 0 else project_users[0]['user_id']
+                    default_user = user_id if user_id > 0 else project_users[0]["user_id"]
                     self.query_one("#grid-item-bought-by", Select).value = default_user
 
                     # Clear cost-sharing fields (only in create mode)
@@ -1783,11 +1898,11 @@ class ItemInputForm(ModalScreen):
                             try:
                                 share_input = self.query_one(f"#share-{user['user_id']}", Input)
                                 # Reset to default: 100% for bought_by user, 0% for others
-                                if user['user_id'] == default_user:
+                                if user["user_id"] == default_user:
                                     share_input.value = "100"
                                 else:
                                     share_input.value = "0"
-                            except:
+                            except Exception:
                                 pass  # Field might not exist
             except Exception as e:
                 self.app.log(f"Error resetting user fields: {e}")
@@ -1796,7 +1911,7 @@ class ItemInputForm(ModalScreen):
             try:
                 labels_widget = self.query_one("#item-labels", SelectionList)
                 labels_widget.deselect_all()
-            except:
+            except Exception:
                 pass
 
             # Generate new UUID for next item

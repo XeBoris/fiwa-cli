@@ -54,6 +54,7 @@ See Also:
     components.week_month_picker: Period selection widget
     settings: Settings screen with similar sidebar pattern
 """
+
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Static, Button
 from textual.app import ComposeResult
@@ -67,8 +68,8 @@ from fiwa_cli.functions.loader import load_dynamic_css
 from .base import ReactiveScreen
 import datetime
 import json
-#from datetime import datetime, timedelta
 
+# from datetime import datetime, timedelta
 
 
 class ReportsScreen(ReactiveScreen):
@@ -184,6 +185,7 @@ class ReportsScreen(ReactiveScreen):
         settings.SettingsScreen: Similar sidebar/content layout pattern
         base.ReactiveScreen: Base class with state watching
     """
+
     def __init__(self, *args, **kwargs):
         """Initialize the reports screen.
 
@@ -217,7 +219,7 @@ class ReportsScreen(ReactiveScreen):
         self._current_month = datetime.date.today().month
         try:
             self._month_start = json.loads(self.app.app_state["project_store"])
-        except:
+        except Exception:
             self._month_start = {}
         self._month_start = int(self._month_start.get("month_start", "1"))
         # # Initialize date range (default: current month)
@@ -255,7 +257,7 @@ class ReportsScreen(ReactiveScreen):
             user=self.app.app_state["user_name"],
             projects=self.app.app_state["project_names"],
             project_id=self.app.app_state["project_id"],
-            project_ids=self.app.app_state["project_ids"]
+            project_ids=self.app.app_state["project_ids"],
         )
 
         with Horizontal(id="reports-body"):
@@ -279,12 +281,13 @@ class ReportsScreen(ReactiveScreen):
                 yield Button("← Back to Main", id="menu-back-button", variant="default")
             # Main content area
             with ScrollableContainer(id="reports-content-area"):
-                yield Static("Select a report type from the sidebar",
-                             #classes="reports-placeholder"
-                             )
+                yield Static(
+                    "Select a report type from the sidebar",
+                    # classes="reports-placeholder"
+                )
                 m = """
- ____                       _       
-|  _ \ ___ _ __   ___  _ __| |_ ___ 
+ ____                       _
+|  _ \ ___ _ __   ___  _ __| |_ ___
 | |_) / _ \ '_ \ / _ \| '__| __/ __|
 |  _ <  __/ |_) | (_) | |  | |_\__ \\
 |_| \_\___| .__/ \___/|_|   \__|___/
@@ -409,8 +412,10 @@ class ReportsScreen(ReactiveScreen):
         if message.month is not None:
             self._current_month = message.month
 
-        self.app.log(f"WeekMonthWidget period changed: {message.period_type} " +
-                    f"Year {message.year}, Week {message.week}, Month {message.month}")
+        self.app.log(
+            f"WeekMonthWidget period changed: {message.period_type} "
+            + f"Year {message.year}, Week {message.week}, Month {message.month}"
+        )
 
         # Update app_state and refresh data tables
         self._update_app_state_period()
@@ -465,17 +470,19 @@ class ReportsScreen(ReactiveScreen):
         content_area = self.query_one("#reports-content-area", ScrollableContainer)
         content_area.remove_children()
 
-
         form = BasicReportForm()
         form.on_mount()
         content_area.mount(form)
         self.app.log("Cost Overview loaded")
+
     def show_content(self, title: str, message: str) -> None:
         """Update the content area with new information."""
         content_area = self.query_one("#reports-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(Static(f"[bold]{title}[/bold]\n\n{message}",
-                                 classes="reports-placeholder"))
+        content_area.mount(
+            Static(f"[bold]{title}[/bold]\n\n{message}", classes="reports-placeholder")
+        )
+
     def _return_to_main_screen(self) -> None:
         """Return to the main application screen."""
         try:
@@ -488,6 +495,7 @@ class ReportsScreen(ReactiveScreen):
         """Reset the WeekMonthWidget to current week or month based on period type."""
         try:
             import datetime
+
             today = datetime.date.today()
 
             # Reset internal state to current date
@@ -510,8 +518,10 @@ class ReportsScreen(ReactiveScreen):
             self._refresh_current_report()
 
             period_type_name = "week" if self._current_period_type == "week" else "month"
-            #self.app.notify(f"Reset to current {period_type_name}", severity="information")
-            self.app.log(f"Reset period to current {period_type_name}: Year {self._current_year}, Week {self._current_week}, Month {self._current_month}")
+            # self.app.notify(f"Reset to current {period_type_name}", severity="information")
+            self.app.log(
+                f"Reset period to current {period_type_name}: Year {self._current_year}, Week {self._current_week}, Month {self._current_month}"
+            )
 
         except Exception as e:
             self.app.log(f"Error resetting period: {e}")
@@ -524,25 +534,26 @@ class ReportsScreen(ReactiveScreen):
             if self._current_period_type == "week":
                 # Calculate week boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
+
                 tc = TimeClass(country_code="DE")
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
-                period_start = week_info['week_beg']
-                period_end = week_info['week_end']
+                period_start = week_info["week_beg"]
+                period_end = week_info["week_end"]
                 period_end += datetime.timedelta(days=1)  # Include the end date in the range
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
-                tc = TimeClass(country_code="DE")
-                month_info = tc.cmp_month_by_number(self._current_year,
-                                                    self._current_month,
-                                                    self._month_start #from class init
-                                                    )
 
-                period_start = month_info['month_beg']
-                period_end = month_info['month_end']
-                #self.app.notify(f"{period_start} / {period_end} / {json.loads(self.app.app_state.get('project_store', {})).get('month_start', 'N/A')}")
+                tc = TimeClass(country_code="DE")
+                month_info = tc.cmp_month_by_number(
+                    self._current_year, self._current_month, self._month_start  # from class init
+                )
+
+                period_start = month_info["month_beg"]
+                period_end = month_info["month_end"]
+                # self.app.notify(f"{period_start} / {period_end} / {json.loads(self.app.app_state.get('project_store', {})).get('month_start', 'N/A')}")
                 period_label = f"{self._current_year} {month_info['month_name']}"
 
             # Update app_state with period information
@@ -554,11 +565,12 @@ class ReportsScreen(ReactiveScreen):
             self.app.app_state["current_period_end"] = period_end
             self.app.app_state["current_period_label"] = period_label
 
-            self.app.log(f"Updated app_state period: {period_label} ({period_start} to {period_end})")
+            self.app.log(
+                f"Updated app_state period: {period_label} ({period_start} to {period_end})"
+            )
 
             # Refresh the current report with new period data
             self._refresh_current_report()
 
         except Exception as e:
             self.app.log(f"Error updating app_state period: {e}")
-

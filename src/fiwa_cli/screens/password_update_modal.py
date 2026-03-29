@@ -78,6 +78,7 @@ See Also:
     settings_user_modify: User modification screen that opens this modal
     functions.handler_sqllite.op_user_update_password: Database operation
 """
+
 from textual.screen import ModalScreen
 from textual.widgets import Static, Button, Input
 from textual.containers import Vertical, Horizontal
@@ -357,7 +358,7 @@ class PasswordUpdateModal(ModalScreen):
                 placeholder="Enter current password",
                 password=True,
                 id="old-password-input",
-                classes="password-input"
+                classes="password-input",
             )
 
             # New password
@@ -366,7 +367,7 @@ class PasswordUpdateModal(ModalScreen):
                 placeholder="Enter new password",
                 password=True,
                 id="new-password-input",
-                classes="password-input"
+                classes="password-input",
             )
 
             # Confirm new password
@@ -375,7 +376,7 @@ class PasswordUpdateModal(ModalScreen):
                 placeholder="Re-enter new password",
                 password=True,
                 id="confirm-password-input",
-                classes="password-input"
+                classes="password-input",
             )
 
             with Horizontal(classes="button-row"):
@@ -576,13 +577,13 @@ class PasswordUpdateModal(ModalScreen):
 
             # Verify old password and update
             success = dbh.op_user_update_password(
-                user_id=self.user_id,
-                old_password=old_password,
-                new_password=new_password
+                user_id=self.user_id, old_password=old_password, new_password=new_password
             )
 
             if success:
-                self.app.notify(f"✓ Password updated successfully for {self.username}!", severity="success")
+                self.app.notify(
+                    f"✓ Password updated successfully for {self.username}!", severity="success"
+                )
                 self.dismiss(True)
             else:
                 self.app.notify("Current password is incorrect", severity="error")

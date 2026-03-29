@@ -61,6 +61,7 @@ See Also:
     components.header.FiwaHeader: Header showing current project
     functions.handler_sqllite.op_project_get_info: Project data retrieval
 """
+
 from textual.screen import ModalScreen
 from textual.containers import Vertical
 from textual.widgets import Static, OptionList
@@ -68,6 +69,7 @@ from textual.widgets.option_list import Option
 from textual.app import ComposeResult
 
 from fiwa_cli.functions.loader import load_dynamic_css
+
 
 class ProjectSelectorScreen(ModalScreen):
     """Modal screen for selecting and switching between user projects.
@@ -253,9 +255,7 @@ class ProjectSelectorScreen(ModalScreen):
 
             yield OptionList(*options)
 
-    def on_option_list_option_selected(
-        self, event: OptionList.OptionSelected
-    ) -> None:
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         """Handle project selection from the OptionList.
 
         When a user selects a project, this method:
@@ -321,9 +321,9 @@ class ProjectSelectorScreen(ModalScreen):
 
             # we need to refresh the cached labels:
             dbh = self.app._config.get("dbh")
-            dbh.op_label_get_all(project_id=selected_project_id,
-                                 use_cache=False,
-                                 force_refresh=True)
+            dbh.op_label_get_all(
+                project_id=selected_project_id, use_cache=False, force_refresh=True
+            )
 
             # Explicitly update the header to reflect the new project BEFORE dismissing
             self._refresh_header()
@@ -412,6 +412,7 @@ class ProjectSelectorScreen(ModalScreen):
 
             if project:
                 import json
+
                 currency_main = project.get("currency_main", "USD")
                 currency_list_str = project.get("currency_list", "[]")
                 project_style = project.get("project_style", "default")
@@ -420,7 +421,7 @@ class ProjectSelectorScreen(ModalScreen):
 
                 try:
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
-                except:
+                except Exception:
                     currency_list = []
 
                 self.app.app_state["current_project_currency_main"] = currency_main
@@ -428,7 +429,9 @@ class ProjectSelectorScreen(ModalScreen):
                 self.app.app_state["project_style"] = project_style
                 self.app.app_state["project_name"] = project_name
                 self.app.app_state["project_store"] = project_store
-                self.app.log(f"Loaded project info for {project_id}: style={project_style}, currency={currency_main}, store={project_store}")
+                self.app.log(
+                    f"Loaded project info for {project_id}: style={project_style}, currency={currency_main}, store={project_store}"
+                )
         except Exception as e:
             self.app.log(f"Error loading project info: {e}")
 
@@ -477,6 +480,7 @@ class ProjectSelectorScreen(ModalScreen):
         """
         try:
             from components.header import FiwaHeader
+
             header = self.app.query_one(FiwaHeader)
             header.project_id = self.app.app_state["project_id"]
             header.project_ids = self.app.app_state["project_ids"]

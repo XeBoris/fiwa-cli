@@ -1,4 +1,4 @@
-.PHONY: help install uninstall clean build dev test run
+.PHONY: help install uninstall clean build dev test test-install test-coverage lint pep8 format format-check run
 
 # Default target - show help
 help:
@@ -10,7 +10,13 @@ help:
 	@echo "make clean        - Remove build artifacts and cache files"
 	@echo "make build        - Build the wheel package"
 	@echo "make dev          - Install in editable mode (alias for install-dev)"
-	@echo "make test         - Run tests (if available)"
+	@echo "make test         - Run tests (requires test dependencies)"
+	@echo "make test-install - Install test dependencies (pytest, pytest-cov, etc.)"
+	@echo "make test-coverage - Run tests with coverage report"
+	@echo "make lint         - Run pylint to check code quality"
+	@echo "make pep8         - Check PEP 8 compliance with pycodestyle"
+	@echo "make format       - Auto-format code with Black"
+	@echo "make format-check - Check if code is formatted correctly"
 	@echo "make dev-run      - Run the app in development mode (without installing)"
 	@echo "make reinstall    - Uninstall and reinstall the package"
 	@echo "make reinstall-dev - Uninstall and reinstall in editable mode"
@@ -98,9 +104,67 @@ build: clean
 test:
 	@echo "Running tests..."
 	@if [ -d "tests" ]; then \
-		python -m pytest tests/ -v; \
+		PYTHONPATH=src python -m pytest tests/ -v; \
 	else \
 		echo "No tests directory found. Create tests/ and add test files."; \
+	fi
+
+# Install test dependencies
+test-install:
+	@echo "Installing test dependencies..."
+	pip install pytest pytest-asyncio pytest-cov pytest-mock
+	@echo "Test dependencies installed!"
+	@echo "Run 'make test' to execute tests."
+
+# Run tests with coverage report
+test-coverage:
+	@echo "Running tests with coverage..."
+	@if [ -d "tests" ]; then \
+		PYTHONPATH=src python -m pytest tests/ -v --cov=src/fiwa_cli --cov-report=html --cov-report=term; \
+		echo ""; \
+		echo "Coverage report generated!"; \
+		echo "Open htmlcov/index.html to view detailed coverage."; \
+	else \
+		echo "No tests directory found. Create tests/ and add test files."; \
+	fi
+
+# Run pylint to check code quality and PEP 8 compliance
+lint:
+	@echo "Running pylint on src/fiwa_cli/..."
+	@pylint src/fiwa_cli/ --score=yes || true
+	@echo ""
+	@echo "Pylint check complete. Review output above."
+
+# Check PEP 8 compliance with pycodestyle
+pep8:
+	@echo "Checking PEP 8 compliance with pycodestyle..."
+	@if command -v pycodestyle >/dev/null 2>&1; then \
+		pycodestyle --max-line-length=100 src/fiwa_cli/ || true; \
+		echo ""; \
+		echo "PEP 8 check complete."; \
+	else \
+		echo "pycodestyle not installed. Install with: pip install pycodestyle"; \
+	fi
+
+# Auto-format code with Black
+format:
+	@echo "Formatting code with Black (line-length=100)..."
+	@if command -v black >/dev/null 2>&1; then \
+		black --line-length 100 src/fiwa_cli/; \
+		echo "Code formatted successfully!"; \
+	else \
+		echo "Black not installed. Install with: pip install black"; \
+	fi
+
+# Check if code is formatted correctly (without making changes)
+format-check:
+	@echo "Checking code formatting with Black..."
+	@if command -v black >/dev/null 2>&1; then \
+		black --check --line-length 100 src/fiwa_cli/ || true; \
+		echo ""; \
+		echo "Format check complete."; \
+	else \
+		echo "Black not installed. Install with: pip install black"; \
 	fi
 
 # Run the app in development mode without installing

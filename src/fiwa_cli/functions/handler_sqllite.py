@@ -1,4 +1,5 @@
 import copy
+
 """SQLite database handler for FiWa CLI.
 
 This module provides comprehensive SQLite database operations for the FiWa
@@ -47,30 +48,30 @@ Operation Naming Convention:
 
 Example:
     Initialize and use handler::
-    
+
         >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
-        >>> 
+        >>>
         >>> # Initialize with database path
         >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
-        >>> 
+        >>>
         >>> # User operations
         >>> user_id = dbh.op_user_create({
         >>>     "username": "batman",
         >>>     "password": "darkknight123",
         >>>     "email": "bruce@wayne.com"
         >>> })
-        >>> 
+        >>>
         >>> # Login
         >>> session = dbh.op_user_login("batman", "darkknight123")
-        >>> 
+        >>>
         >>> # Project operations
         >>> project_id = dbh.op_project_create(project_data, user_id)
         >>> projects = dbh.op_project_get_info(user_id)
-        >>> 
+        >>>
         >>> # Item operations
         >>> item_id = dbh.op_item_create(item_data)
         >>> items = dbh.op_item_get_by_user(user_id, project_id, start, end)
-        >>> 
+        >>>
         >>> # Label operations (with caching)
         >>> labels = dbh.op_label_get_all(project_id, use_cache=True)
 
@@ -84,7 +85,7 @@ Operation Categories:
         - op_user_update: Update user info
         - op_user_update_password: Change password
         - op_total_number_of_users: Count users
-    
+
     **Project Operations** (12+ methods):
         - op_project_create: Create project
         - op_project_update: Update project
@@ -92,14 +93,14 @@ Operation Categories:
         - op_project_get_users: List project members
         - op_project_set_primary: Set primary project
         - op_project_stage: Setup project with defaults
-    
+
     **Item/Transaction Operations** (10+ methods):
         - op_item_create: Create expense/income
         - op_item_update: Update transaction
         - op_item_get: Get single item
         - op_item_get_by_user: Query user's items
         - op_item_delete: Remove transaction
-    
+
     **Label Operations** (10+ methods):
         - op_label_create: Create label/category
         - op_label_update: Update label
@@ -107,11 +108,11 @@ Operation Categories:
         - op_label_get_by_name: Find label by name
         - op_label_delete: Remove label
         - op_label_set_default: Set user's default label
-    
+
     **Session Operations** (5+ methods):
         - op_get_user_sessions: Get current session info
         - op_create_session: Create new session
-    
+
     **Permission Operations** (5+ methods):
         - op_user_project_permission_update: Update permissions
         - op_project_get_users: Get users with permissions
@@ -122,15 +123,15 @@ Caching Strategy:
         - Cached data: Complete label list
         - Cache invalidation: On project switch or force_refresh
         - Benefits: Reduces database queries, faster label lookups
-        
+
     Usage::
-    
+
         >>> # First call: Queries database
         >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
-        >>> 
+        >>>
         >>> # Subsequent calls: Uses cache
         >>> labels = dbh.op_label_get_all(project_id=1, use_cache=True)
-        >>> 
+        >>>
         >>> # Force refresh: Clears cache and reloads
         >>> labels = dbh.op_label_get_all(project_id=1, force_refresh=True)
 
@@ -141,7 +142,7 @@ Security:
         - Default salt: "fiwa_default_salt_2026"
         - No plain text passwords stored
         - Hash comparison for authentication
-    
+
     Session Management:
         - UUID-based session identifiers
         - Session expiration tracking
@@ -168,6 +169,7 @@ import uuid
 import json
 from datetime import datetime
 from datetime import timedelta
+
 
 class SQLLiteHandler:
     """SQLite database handler implementing all FiWa database operations.
@@ -269,6 +271,7 @@ class SQLLiteHandler:
         database.schema.sql: Complete database schema
         project_composer.ProjectComposer: Uses handler for label operations
     """
+
     def __init__(self, db_path=":memory:"):
         """Initialize SQLite database handler.
 
@@ -340,7 +343,7 @@ class SQLLiteHandler:
         salted_password = f"{password}{salt}"
 
         # Create SHA-256 hash
-        hash_object = hashlib.sha256(salted_password.encode('utf-8'))
+        hash_object = hashlib.sha256(salted_password.encode("utf-8"))
 
         return hash_object.hexdigest()
 
@@ -356,7 +359,7 @@ class SQLLiteHandler:
         if not schema_file.exists():
             raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
-        schema_sql = schema_file.read_text(encoding='utf-8')
+        schema_sql = schema_file.read_text(encoding="utf-8")
         self._cursor.executescript(schema_sql)
         self._connection.commit()
 
@@ -477,40 +480,48 @@ class SQLLiteHandler:
             The user_id of the created user, or None if creation failed
         """
         # Validate required fields
-        required_fields = ['first_name', 'last_name', 'username', 'email', 'password']
+        required_fields = ["first_name", "last_name", "username", "email", "password"]
         for field in required_fields:
             if not user_dict.get(field):
                 raise ValueError(f"Required field '{field}' is missing or empty")
 
         # Hash the password
-        password_hash = self.hash_password(user_dict['password'],
-                                           salt=self._pw_salt)
+        password_hash = self.hash_password(user_dict["password"], salt=self._pw_salt)
 
         # Generate unique identifier
         unique_identifier = str(uuid.uuid4())
 
         # Prepare values with defaults
-        first_name = user_dict['first_name']
-        last_name = user_dict['last_name']
-        username = user_dict['username']
-        email = user_dict['email']
-        birthday = user_dict.get('birthday', None)
-        max_projects = user_dict.get('max_projects', 3)
-        is_superuser = 1 if user_dict.get('is_superuser', False) else 0
-        scope = user_dict.get('scope', 'user:write')
-        activated = 1 if user_dict.get('activated', True) else 0
+        first_name = user_dict["first_name"]
+        last_name = user_dict["last_name"]
+        username = user_dict["username"]
+        email = user_dict["email"]
+        birthday = user_dict.get("birthday", None)
+        max_projects = user_dict.get("max_projects", 3)
+        is_superuser = 1 if user_dict.get("is_superuser", False) else 0
+        scope = user_dict.get("scope", "user:write")
+        activated = 1 if user_dict.get("activated", True) else 0
 
         # Construct query
         query = f"""
-            INSERT INTO p{self._db_salt}_users 
-            (first_name, last_name, username, birthday, email, password_hash, 
+            INSERT INTO p{self._db_salt}_users
+            (first_name, last_name, username, birthday, email, password_hash,
              activated, is_superuser, scope, max_projects, unique_identifier)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         params = [
-            first_name, last_name, username, birthday, email, password_hash,
-            activated, is_superuser, scope, max_projects, unique_identifier
+            first_name,
+            last_name,
+            username,
+            birthday,
+            email,
+            password_hash,
+            activated,
+            is_superuser,
+            scope,
+            max_projects,
+            unique_identifier,
         ]
 
         try:
@@ -546,15 +557,14 @@ class SQLLiteHandler:
             user_id if login successful, None otherwise
         """
         # Hash the provided password
-        password_hash = self.hash_password(password=password,
-                                           salt=self._pw_salt)
+        password_hash = self.hash_password(password=password, salt=self._pw_salt)
 
         self.load()
         # Check against both username and email fields
         result = self.execute_query(
-            f"""SELECT user_id FROM p{self._db_salt}_users 
+            f"""SELECT user_id FROM p{self._db_salt}_users
                 WHERE (username = ? OR email = ?) AND password_hash = ? AND activated = 1""",
-            [username, username, password_hash]
+            [username, username, password_hash],
         )
 
         # If no matching user is found, return None
@@ -571,16 +581,15 @@ class SQLLiteHandler:
 
         # Delete any existing sessions for this user (enforce single session)
         self.execute_query(
-            f"DELETE FROM p{self._db_salt}_session_table WHERE user_id = ?",
-            [user_id]
+            f"DELETE FROM p{self._db_salt}_session_table WHERE user_id = ?", [user_id]
         )
 
         # Insert new session
         self.execute_query(
-            f"""INSERT INTO p{self._db_salt}_session_table 
-                (user_id, session_start, session_uuid, session_type) 
+            f"""INSERT INTO p{self._db_salt}_session_table
+                (user_id, session_start, session_uuid, session_type)
                 VALUES (?, ?, ?, ?)""",
-            [user_id, now, session_uuid, session_type]
+            [user_id, now, session_uuid, session_type],
         )
 
         self.close()
@@ -590,7 +599,7 @@ class SQLLiteHandler:
             "user_id": user_id,
             "session_uuid": session_uuid,
             "session_start": now,
-            "session_type": session_type
+            "session_type": session_type,
         }
 
     def op_user_logout(self, session_uuid):
@@ -607,8 +616,7 @@ class SQLLiteHandler:
         # Delete the session with the given UUID
         try:
             self.execute_query(
-                f"DELETE FROM p{self._db_salt}_session_table WHERE session_uuid = ?",
-                [session_uuid]
+                f"DELETE FROM p{self._db_salt}_session_table WHERE session_uuid = ?", [session_uuid]
             )
             self.close()
             return True
@@ -628,12 +636,12 @@ class SQLLiteHandler:
         dt_now = datetime.utcnow()
 
         self.load()
-        result = self.execute_query(
-            f"""SELECT * FROM p{self._db_salt}_session_table"""
-        )
+        result = self.execute_query(f"""SELECT * FROM p{self._db_salt}_session_table""")
 
         if len(result) != 1:
-            print("Not allowed to have multiple sessions for one user, but found multiple sessions in the database. This should not happen.")
+            print(
+                "Not allowed to have multiple sessions for one user, but found multiple sessions in the database. This should not happen."
+            )
             self.close()
             return {}
 
@@ -663,10 +671,10 @@ class SQLLiteHandler:
                     "session_uuid": session_uuid,
                     "session_start": session_start,
                     "session_type": session_type,
-                    "is_logged_in": True
+                    "is_logged_in": True,
                 },
                 "user_info": user_info,
-                "project_info": project_info
+                "project_info": project_info,
             }
 
         return True
@@ -678,10 +686,10 @@ class SQLLiteHandler:
         """
         self.load()
         result = self.execute_query(
-            f"""SELECT user_id, first_name, last_name, username, email, birthday, 
-                activated, is_superuser, scope, max_projects, unique_identifier 
+            f"""SELECT user_id, first_name, last_name, username, email, birthday,
+                activated, is_superuser, scope, max_projects, unique_identifier
                 FROM p{self._db_salt}_users WHERE user_id = ?""",
-            [user_id]
+            [user_id],
         )
         self.close()
         if not result:
@@ -699,7 +707,7 @@ class SQLLiteHandler:
             "is_superuser": bool(row[7]),
             "scope": row[8],
             "max_projects": row[9],
-            "unique_identifier": row[10]
+            "unique_identifier": row[10],
         }
         return user_info
 
@@ -715,8 +723,7 @@ class SQLLiteHandler:
         """
         self.load()
         result = self.execute_query(
-            f"""SELECT max_projects FROM p{self._db_salt}_users WHERE user_id = ?""",
-            [user_id]
+            f"""SELECT max_projects FROM p{self._db_salt}_users WHERE user_id = ?""", [user_id]
         )
         self.close()
 
@@ -731,20 +738,21 @@ class SQLLiteHandler:
         """
         self.load()
         result = self.execute_query(
-            f"""SELECT p.project_id, p.name, p.description, p.created_at, 
-                p.currency_main, p.currency_list, p.project_hash, 
+            f"""SELECT p.project_id, p.name, p.description, p.created_at,
+                p.currency_main, p.currency_list, p.project_hash,
                 p.project_store, p.project_style,
                 upm.project_primary, upm.project_perm_model
-                FROM p{self._db_salt}_projects p 
-                JOIN p{self._db_salt}_user_project_map upm ON p.project_id = upm.project_id 
+                FROM p{self._db_salt}_projects p
+                JOIN p{self._db_salt}_user_project_map upm ON p.project_id = upm.project_id
                 WHERE upm.user_id = ?""",
-            [user_id]
+            [user_id],
         )
         self.close()
         if not result:
             return []
 
         import json
+
         project_list = []
         for row in result:
             project_info = {
@@ -758,7 +766,7 @@ class SQLLiteHandler:
                 "project_store": row[7],
                 "project_style": row[8],
                 "project_primary": bool(row[9]),
-                "project_perm_model": row[10]
+                "project_perm_model": row[10],
             }
             project_list.append(project_info)
         return project_list
@@ -769,9 +777,7 @@ class SQLLiteHandler:
         :return: List of user_ids
         """
         self.load()
-        result = self.execute_query(
-            f"""SELECT user_id FROM p{self._db_salt}_users"""
-        )
+        result = self.execute_query(f"""SELECT user_id FROM p{self._db_salt}_users""")
         self.close()
         return [row[0] for row in result] if result else []
 
@@ -797,32 +803,32 @@ class SQLLiteHandler:
         import json
 
         # Validate required fields
-        if not project_dict.get('name'):
+        if not project_dict.get("name"):
             raise ValueError("Project name is required")
 
         # Prepare values with defaults
-        name = project_dict['name']
-        description = project_dict.get('description', '')
-        created_at = project_dict.get('created_at', datetime.utcnow().isoformat())
-        currency_main = project_dict.get('currency_main', None)
-        currency_list = project_dict.get('currency_list', [])
-        project_style = project_dict.get('project_style', 'default')
-        project_staged = project_dict.get('project_staged', False)
-        project_activated = project_dict.get('project_activated', True)
+        name = project_dict["name"]
+        description = project_dict.get("description", "")
+        created_at = project_dict.get("created_at", datetime.utcnow().isoformat())
+        currency_main = project_dict.get("currency_main", None)
+        currency_list = project_dict.get("currency_list", [])
+        project_style = project_dict.get("project_style", "default")
+        project_staged = project_dict.get("project_staged", False)
+        project_activated = project_dict.get("project_activated", True)
 
         # Convert currency_list to JSON string for storage
-        currency_list_str = json.dumps(currency_list) if currency_list else '[]'
+        currency_list_str = json.dumps(currency_list) if currency_list else "[]"
 
         # Generate project hash from name, description, and currency_main
         hash_input = f"{name}|{description}|{currency_main or ''}"
-        project_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+        project_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
 
         # Check if user exists and get max_projects
         self.load()
         user_result = self.execute_query(
-            f"""SELECT user_id, max_projects FROM p{self._db_salt}_users 
+            f"""SELECT user_id, max_projects FROM p{self._db_salt}_users
                 WHERE user_id = ?""",
-            [user_id]
+            [user_id],
         )
 
         if not user_result:
@@ -833,41 +839,51 @@ class SQLLiteHandler:
 
         # Count current projects for this user
         current_projects = self.execute_query(
-            f"""SELECT COUNT(*) FROM p{self._db_salt}_user_project_map 
+            f"""SELECT COUNT(*) FROM p{self._db_salt}_user_project_map
                 WHERE user_id = ?""",
-            [user_id]
+            [user_id],
         )
         project_count = current_projects[0][0] if current_projects else 0
 
         if project_count >= max_projects:
             self.close()
-            raise ValueError(f"User {user_id} has reached the maximum number of projects ({max_projects})")
+            raise ValueError(
+                f"User {user_id} has reached the maximum number of projects ({max_projects})"
+            )
 
         # Prepare project_store with empty JSON
-        project_store = project_dict.get('project_store', '{}')
+        project_store = project_dict.get("project_store", "{}")
         if isinstance(project_store, dict):
             project_store = json.dumps(project_store)
 
         # Insert project
         query = f"""
-            INSERT INTO p{self._db_salt}_projects 
-            (name, 
-             description, 
-             created_at, 
-             currency_main, 
-             currency_list, 
+            INSERT INTO p{self._db_salt}_projects
+            (name,
+             description,
+             created_at,
+             currency_main,
+             currency_list,
              project_hash,
              project_style,
              project_staged,
-             project_activated, 
+             project_activated,
              project_store
              )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         params = [
-            name, description, created_at, currency_main, currency_list_str, project_hash,
-            project_style, project_staged, project_activated, project_store
+            name,
+            description,
+            created_at,
+            currency_main,
+            currency_list_str,
+            project_hash,
+            project_style,
+            project_staged,
+            project_activated,
+            project_store,
         ]
 
         try:
@@ -883,9 +899,7 @@ class SQLLiteHandler:
                 (user_id, project_id, created_at, project_perm_model, project_primary)
                 VALUES (?, ?, ?, ?, ?)
             """
-            map_params = [
-                user_id, project_id, datetime.utcnow().isoformat(), '111111', is_primary
-            ]
+            map_params = [user_id, project_id, datetime.utcnow().isoformat(), "111111", is_primary]
             self.execute_query(map_query, map_params)
 
             self.close()
@@ -913,13 +927,10 @@ class SQLLiteHandler:
 
         # first step: fetch the project by the project id:
         query = f"""
-        SELECT project_style, project_staged, project_activated 
+        SELECT project_style, project_staged, project_activated
         FROM p{self._db_salt}_projects WHERE project_id = ?"""
 
-        p0 = self.execute_query(
-            query,
-            [project_id]
-        )
+        p0 = self.execute_query(query, [project_id])
         self.close()
         # if we do not find the project, we return False
         if len(p0) != 1:
@@ -953,10 +964,7 @@ class SQLLiteHandler:
 
             # Create composer instance using factory method
             pc = ProjectComposer.create(
-                compose_type=p_style,
-                dbh=self,
-                project_id=project_id,
-                users=users
+                compose_type=p_style, dbh=self, project_id=project_id, users=users
             )
 
             # Compose Labels for the project
@@ -969,8 +977,8 @@ class SQLLiteHandler:
             # Mark project as staged
             self.load()
             update_query = f"""
-            UPDATE p{self._db_salt}_projects 
-            SET project_staged = 1 
+            UPDATE p{self._db_salt}_projects
+            SET project_staged = 1
             WHERE project_id = ?
             """
             self.execute_query(update_query, [project_id])
@@ -991,10 +999,7 @@ class SQLLiteHandler:
 
             # Create composer instance using factory method
             pc = ProjectComposer.create(
-                compose_type=p_style,
-                dbh=self,
-                project_id=project_id,
-                users=users
+                compose_type=p_style, dbh=self, project_id=project_id, users=users
             )
 
             # Compose Labels for the project
@@ -1021,7 +1026,7 @@ class SQLLiteHandler:
         import json
 
         # Validate required fields
-        project_id = project_dict.get('project_id')
+        project_id = project_dict.get("project_id")
         if not project_id:
             raise ValueError("Project ID is required for update")
 
@@ -1030,7 +1035,7 @@ class SQLLiteHandler:
         # Check if project exists
         existing = self.execute_query(
             f"""SELECT project_id FROM p{self._db_salt}_projects WHERE project_id = ?""",
-            [project_id]
+            [project_id],
         )
         if not existing:
             self.close()
@@ -1040,25 +1045,27 @@ class SQLLiteHandler:
         update_fields = []
         params = []
 
-        if 'name' in project_dict and project_dict['name']:
+        if "name" in project_dict and project_dict["name"]:
             update_fields.append("name = ?")
-            params.append(project_dict['name'])
+            params.append(project_dict["name"])
 
-        if 'description' in project_dict:
+        if "description" in project_dict:
             update_fields.append("description = ?")
-            params.append(project_dict['description'] if project_dict['description'] else '')
+            params.append(project_dict["description"] if project_dict["description"] else "")
 
-        if 'currency_main' in project_dict:
+        if "currency_main" in project_dict:
             update_fields.append("currency_main = ?")
-            params.append(project_dict['currency_main'])
+            params.append(project_dict["currency_main"])
 
-        if 'currency_list' in project_dict:
-            currency_list_str = json.dumps(project_dict['currency_list']) if project_dict['currency_list'] else '[]'
+        if "currency_list" in project_dict:
+            currency_list_str = (
+                json.dumps(project_dict["currency_list"]) if project_dict["currency_list"] else "[]"
+            )
             update_fields.append("currency_list = ?")
             params.append(currency_list_str)
 
-        if 'project_store' in project_dict:
-            project_store = project_dict['project_store']
+        if "project_store" in project_dict:
+            project_store = project_dict["project_store"]
             if isinstance(project_store, dict):
                 project_store = json.dumps(project_store)
             update_fields.append("project_store = ?")
@@ -1069,20 +1076,20 @@ class SQLLiteHandler:
             raise ValueError("No fields to update")
 
         # Generate new project hash if name, description, or currency_main changed
-        if any(k in project_dict for k in ['name', 'description', 'currency_main']):
+        if any(k in project_dict for k in ["name", "description", "currency_main"]):
             # Get current values for hash calculation
             current_data = self.execute_query(
-                f"""SELECT name, description, currency_main FROM p{self._db_salt}_projects 
+                f"""SELECT name, description, currency_main FROM p{self._db_salt}_projects
                     WHERE project_id = ?""",
-                [project_id]
+                [project_id],
             )
             if current_data:
-                current_name = project_dict.get('name', current_data[0][0])
-                current_desc = project_dict.get('description', current_data[0][1] or '')
-                current_curr = project_dict.get('currency_main', current_data[0][2] or '')
+                current_name = project_dict.get("name", current_data[0][0])
+                current_desc = project_dict.get("description", current_data[0][1] or "")
+                current_curr = project_dict.get("currency_main", current_data[0][2] or "")
 
                 hash_input = f"{current_name}|{current_desc}|{current_curr}"
-                project_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                project_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
 
                 update_fields.append("project_hash = ?")
                 params.append(project_hash)
@@ -1110,7 +1117,13 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to update project: {str(e)}")
 
-    def op_project_add_user(self, project_id: int, user_id: int, project_perm_model: str = '000000', project_primary: bool = False) -> bool:
+    def op_project_add_user(
+        self,
+        project_id: int,
+        user_id: int,
+        project_perm_model: str = "000000",
+        project_primary: bool = False,
+    ) -> bool:
         """
         Add a user to an existing project.
 
@@ -1128,7 +1141,7 @@ class SQLLiteHandler:
         # Check if project exists
         project_check = self.execute_query(
             f"""SELECT project_id FROM p{self._db_salt}_projects WHERE project_id = ?""",
-            [project_id]
+            [project_id],
         )
         if not project_check:
             self.close()
@@ -1136,8 +1149,7 @@ class SQLLiteHandler:
 
         # Check if user exists
         user_check = self.execute_query(
-            f"""SELECT user_id FROM p{self._db_salt}_users WHERE user_id = ?""",
-            [user_id]
+            f"""SELECT user_id FROM p{self._db_salt}_users WHERE user_id = ?""", [user_id]
         )
         if not user_check:
             self.close()
@@ -1145,9 +1157,9 @@ class SQLLiteHandler:
 
         # Check if user is already in the project
         existing = self.execute_query(
-            f"""SELECT id FROM p{self._db_salt}_user_project_map 
+            f"""SELECT id FROM p{self._db_salt}_user_project_map
                 WHERE user_id = ? AND project_id = ?""",
-            [user_id, project_id]
+            [user_id, project_id],
         )
         if existing:
             self.close()
@@ -1161,8 +1173,11 @@ class SQLLiteHandler:
                 VALUES (?, ?, ?, ?, ?)
             """
             map_params = [
-                user_id, project_id, datetime.utcnow().isoformat(),
-                project_perm_model, 1 if project_primary else 0
+                user_id,
+                project_id,
+                datetime.utcnow().isoformat(),
+                project_perm_model,
+                1 if project_primary else 0,
             ]
             self.execute_query(map_query, map_params)
             self.close()
@@ -1205,9 +1220,9 @@ class SQLLiteHandler:
         try:
             # Step 1: Verify the user is a member of the specified project
             membership_check = self.execute_query(
-                f"""SELECT id FROM p{self._db_salt}_user_project_map 
+                f"""SELECT id FROM p{self._db_salt}_user_project_map
                     WHERE user_id = ? AND project_id = ?""",
-                [user_id, project_id]
+                [user_id, project_id],
             )
 
             if not membership_check:
@@ -1254,7 +1269,7 @@ class SQLLiteHandler:
         self.load()
 
         query = f"""
-            SELECT 
+            SELECT
                 u.user_id,
                 u.username,
                 u.first_name,
@@ -1278,23 +1293,29 @@ class SQLLiteHandler:
 
         users = []
         for row in results:
-            users.append({
-                'user_id': row[0],
-                'username': row[1],
-                'first_name': row[2],
-                'last_name': row[3],
-                'email': row[4],
-                'project_perm_model': row[5],
-                'project_primary': bool(row[6]),
-                'joined_at': row[7]
-            })
+            users.append(
+                {
+                    "user_id": row[0],
+                    "username": row[1],
+                    "first_name": row[2],
+                    "last_name": row[3],
+                    "email": row[4],
+                    "project_perm_model": row[5],
+                    "project_primary": bool(row[6]),
+                    "joined_at": row[7],
+                }
+            )
 
         return users
 
-    def op_label_get_all(self, project_id: int, *,
-                         use_cache: bool = True,
-                         force_refresh: bool = False,
-                         user_id: int = None) -> list:
+    def op_label_get_all(
+        self,
+        project_id: int,
+        *,
+        use_cache: bool = True,
+        force_refresh: bool = False,
+        user_id: int = None,
+    ) -> list:
         """
         Get all labels for a specific project.
 
@@ -1314,12 +1335,12 @@ class SQLLiteHandler:
 
         self.load()
         result = self.execute_query(
-            f"""SELECT label_id, name, description, created_at, composite, 
+            f"""SELECT label_id, name, description, created_at, composite,
                 label_status, label_type, label_sub_type, label_owner
-                FROM p{self._db_salt}_labels 
+                FROM p{self._db_salt}_labels
                 WHERE project_id = ?
                 ORDER BY name""",
-            [project_id]
+            [project_id],
         )
         self.close()
 
@@ -1347,7 +1368,7 @@ class SQLLiteHandler:
         if user_id:
             self.load()
             defaults_query = f"""
-                SELECT label_id, label_type 
+                SELECT label_id, label_type
                 FROM p{self._db_salt}_user_label_defaults
                 WHERE user_id = ? AND project_id = ?
             """
@@ -1359,8 +1380,8 @@ class SQLLiteHandler:
 
             # Add is_user_default flag to each label
             for label in labels:
-                label['is_user_default'] = (
-                    user_default_map.get(label['label_type']) == label['label_id']
+                label["is_user_default"] = (
+                    user_default_map.get(label["label_type"]) == label["label_id"]
                 )
 
         if use_cache:
@@ -1388,10 +1409,10 @@ class SQLLiteHandler:
         self.load()
         result = self.execute_query(
             f"""SELECT label_id
-                FROM p{self._db_salt}_labels 
+                FROM p{self._db_salt}_labels
                 WHERE project_id = ? AND name = ?
                 LIMIT 1""",
-            [project_id, label_name]
+            [project_id, label_name],
         )
         self.close()
 
@@ -1420,27 +1441,27 @@ class SQLLiteHandler:
         import json
 
         # Validate required fields
-        if not label_dict.get('name'):
+        if not label_dict.get("name"):
             raise ValueError("Label name is required")
 
         # Prepare values with defaults
-        name = label_dict['name']
-        description = label_dict.get('description', '')
-        composite = label_dict.get('composite', [])
+        name = label_dict["name"]
+        description = label_dict.get("description", "")
+        composite = label_dict.get("composite", [])
         composite_str = json.dumps(composite)
-        label_status = label_dict.get('label_status', 2)  # Default: active
-        label_type = label_dict.get('label_type', 1)
-        label_sub_type = label_dict.get('label_sub_type', -2)  # Default: -2
-        label_owner = label_dict.get('label_owner', -1)  # Default: -1 (project-wide/common)
+        label_status = label_dict.get("label_status", 2)  # Default: active
+        label_type = label_dict.get("label_type", 1)
+        label_sub_type = label_dict.get("label_sub_type", -2)  # Default: -2
+        label_owner = label_dict.get("label_owner", -1)  # Default: -1 (project-wide/common)
         created_at = datetime.utcnow().isoformat()
 
         self.load()
 
         # Check if label with same name exists in this project
         existing = self.execute_query(
-            f"""SELECT label_id FROM p{self._db_salt}_labels 
+            f"""SELECT label_id FROM p{self._db_salt}_labels
                 WHERE name = ? AND project_id = ?""",
-            [name, project_id]
+            [name, project_id],
         )
 
         if existing:
@@ -1449,12 +1470,22 @@ class SQLLiteHandler:
 
         # Insert label with label_owner and label_sub_type
         query = f"""
-            INSERT INTO p{self._db_salt}_labels 
+            INSERT INTO p{self._db_salt}_labels
             (name, description, created_at, project_id, composite, label_owner, label_status, label_type, label_sub_type)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
-        params = [name, description, created_at, project_id, composite_str, label_owner, label_status, label_type, label_sub_type]
+        params = [
+            name,
+            description,
+            created_at,
+            project_id,
+            composite_str,
+            label_owner,
+            label_status,
+            label_type,
+            label_sub_type,
+        ]
 
         try:
             self.execute_query(query, params)
@@ -1501,7 +1532,7 @@ class SQLLiteHandler:
         # Check if label exists and get project_id for cache invalidation
         existing = self.execute_query(
             f"""SELECT label_id, project_id FROM p{self._db_salt}_labels WHERE label_id = ?""",
-            [label_id]
+            [label_id],
         )
 
         if not existing:
@@ -1514,34 +1545,33 @@ class SQLLiteHandler:
         update_fields = []
         params = []
 
-        if 'name' in label_dict and label_dict['name']:
+        if "name" in label_dict and label_dict["name"]:
             update_fields.append("name = ?")
-            params.append(label_dict['name'])
+            params.append(label_dict["name"])
 
-        if 'description' in label_dict:
+        if "description" in label_dict:
             update_fields.append("description = ?")
-            params.append(label_dict['description'])
+            params.append(label_dict["description"])
 
-        if 'composite' in label_dict:
+        if "composite" in label_dict:
             update_fields.append("composite = ?")
-            params.append(json.dumps(label_dict['composite']))
+            params.append(json.dumps(label_dict["composite"]))
 
-        if 'label_status' in label_dict:
+        if "label_status" in label_dict:
             update_fields.append("label_status = ?")
-            params.append(label_dict['label_status'])
+            params.append(label_dict["label_status"])
 
-        if 'label_type' in label_dict:
+        if "label_type" in label_dict:
             update_fields.append("label_type = ?")
-            params.append(label_dict['label_type'])
+            params.append(label_dict["label_type"])
 
-        if 'label_sub_type' in label_dict:
+        if "label_sub_type" in label_dict:
             update_fields.append("label_sub_type = ?")
-            params.append(label_dict['label_sub_type'])
+            params.append(label_dict["label_sub_type"])
 
-        if 'label_owner' in label_dict:
+        if "label_owner" in label_dict:
             update_fields.append("label_owner = ?")
-            params.append(label_dict['label_owner'])
-
+            params.append(label_dict["label_owner"])
 
         if not update_fields:
             self.close()
@@ -1575,7 +1605,9 @@ class SQLLiteHandler:
             self.close()
             raise Exception(f"Failed to update label: {str(e)}")
 
-    def op_label_set_default(self, label_id: int, project_id: int, label_type: int, user_id: int) -> bool:
+    def op_label_set_default(
+        self, label_id: int, project_id: int, label_type: int, user_id: int
+    ) -> bool:
         """
         Set a label as default for a specific user and label type.
         Ensures only one default label per user per label_type within a project.
@@ -1604,10 +1636,9 @@ class SQLLiteHandler:
             (user_id, project_id, label_id, label_type, created_at)
             VALUES (?, ?, ?, ?, ?)
         """
-        self.execute_query(insert_query, [
-            user_id, project_id, label_id, label_type,
-            datetime.utcnow().isoformat()
-        ])
+        self.execute_query(
+            insert_query, [user_id, project_id, label_id, label_type, datetime.utcnow().isoformat()]
+        )
 
         # Invalidate cache
         if project_id in self._label_cache:
@@ -1701,30 +1732,42 @@ class SQLLiteHandler:
         import json
 
         # Validate required fields
-        required_fields = ['item_uuid', 'name', 'price', 'price_final', 'currency',
-                          'currency_final', 'bought_date', 'bought_by_id',
-                          'bought_for_id', 'added_by_id', 'project_id']
+        required_fields = [
+            "item_uuid",
+            "name",
+            "price",
+            "price_final",
+            "currency",
+            "currency_final",
+            "bought_date",
+            "bought_by_id",
+            "bought_for_id",
+            "added_by_id",
+            "project_id",
+        ]
 
         for field in required_fields:
             if field not in item_dict:
                 raise ValueError(f"Required field '{field}' is missing")
 
         # Prepare values with defaults
-        item_uuid = item_dict['item_uuid']
-        name = item_dict['name']
-        note = item_dict.get('note', '')
-        price = item_dict['price']
-        price_final = item_dict['price_final']
-        currency = item_dict['currency']
-        currency_final = item_dict['currency_final']
-        bought_date = item_dict['bought_date']
-        bought_by_id = item_dict['bought_by_id']
-        bought_for_id = item_dict['bought_for_id']
-        added_by_id = item_dict['added_by_id']
-        project_id = item_dict['project_id']
-        exchange_rate = item_dict.get('exchange_rate', 1.0)
-        exchange_rate_date = item_dict.get('exchange_rate_date', datetime.now().strftime("%Y-%m-%d"))
-        tags = item_dict.get('tags', '[]')
+        item_uuid = item_dict["item_uuid"]
+        name = item_dict["name"]
+        note = item_dict.get("note", "")
+        price = item_dict["price"]
+        price_final = item_dict["price_final"]
+        currency = item_dict["currency"]
+        currency_final = item_dict["currency_final"]
+        bought_date = item_dict["bought_date"]
+        bought_by_id = item_dict["bought_by_id"]
+        bought_for_id = item_dict["bought_for_id"]
+        added_by_id = item_dict["added_by_id"]
+        project_id = item_dict["project_id"]
+        exchange_rate = item_dict.get("exchange_rate", 1.0)
+        exchange_rate_date = item_dict.get(
+            "exchange_rate_date", datetime.now().strftime("%Y-%m-%d")
+        )
+        tags = item_dict.get("tags", "[]")
 
         # Ensure tags is a JSON string
         if isinstance(tags, (list, dict)):
@@ -1735,19 +1778,20 @@ class SQLLiteHandler:
         # Verify project exists
         project_check = self.execute_query(
             f"""SELECT project_id FROM p{self._db_salt}_projects WHERE project_id = ?""",
-            [project_id]
+            [project_id],
         )
         if not project_check:
             self.close()
             raise ValueError(f"Project with ID {project_id} not found")
 
         # Verify users exist
-        for user_field, user_id in [('bought_by_id', bought_by_id),
-                                      ('bought_for_id', bought_for_id),
-                                      ('added_by_id', added_by_id)]:
+        for user_field, user_id in [
+            ("bought_by_id", bought_by_id),
+            ("bought_for_id", bought_for_id),
+            ("added_by_id", added_by_id),
+        ]:
             user_check = self.execute_query(
-                f"""SELECT user_id FROM p{self._db_salt}_users WHERE user_id = ?""",
-                [user_id]
+                f"""SELECT user_id FROM p{self._db_salt}_users WHERE user_id = ?""", [user_id]
             )
             if not user_check:
                 self.close()
@@ -1755,7 +1799,7 @@ class SQLLiteHandler:
 
         # Insert item
         query = f"""
-            INSERT INTO p{self._db_salt}_items 
+            INSERT INTO p{self._db_salt}_items
             (item_uuid, name, note, price, price_final, currency, currency_final,
              bought_date, bought_by_id, bought_for_id, added_by_id, project_id,
              exchange_rate, exchange_rate_date, tags)
@@ -1763,9 +1807,21 @@ class SQLLiteHandler:
         """
 
         params = [
-            item_uuid, name, note, price, price_final, currency, currency_final,
-            bought_date, bought_by_id, bought_for_id, added_by_id, project_id,
-            exchange_rate, exchange_rate_date, tags
+            item_uuid,
+            name,
+            note,
+            price,
+            price_final,
+            currency,
+            currency_final,
+            bought_date,
+            bought_by_id,
+            bought_for_id,
+            added_by_id,
+            project_id,
+            exchange_rate,
+            exchange_rate_date,
+            tags,
         ]
 
         try:
@@ -1806,16 +1862,14 @@ class SQLLiteHandler:
         try:
             # Verify the item exists and belongs to the project
             check_query = f"""
-                SELECT item_id FROM p{self._db_salt}_items 
+                SELECT item_id FROM p{self._db_salt}_items
                 WHERE item_id = ? AND project_id = ?
             """
             result = self.execute_query(check_query, [item_id, project_id])
 
             if not result:
                 self.close()
-                raise ValueError(
-                    f"Item with ID {item_id} not found in project {project_id}"
-                )
+                raise ValueError(f"Item with ID {item_id} not found in project {project_id}")
 
             # Delete the item
             delete_query = f"""
@@ -1857,9 +1911,9 @@ class SQLLiteHandler:
 
             # Verify the old password matches
             result = self.execute_query(
-                f"""SELECT user_id FROM p{self._db_salt}_users 
+                f"""SELECT user_id FROM p{self._db_salt}_users
                     WHERE user_id = ? AND password_hash = ?""",
-                [user_id, old_password_hash]
+                [user_id, old_password_hash],
             )
 
             if not result:
@@ -1872,10 +1926,10 @@ class SQLLiteHandler:
 
             # Update the password
             self.execute_query(
-                f"""UPDATE p{self._db_salt}_users 
-                    SET password_hash = ? 
+                f"""UPDATE p{self._db_salt}_users
+                    SET password_hash = ?
                     WHERE user_id = ?""",
-                [new_password_hash, user_id]
+                [new_password_hash, user_id],
             )
 
             self.close()
@@ -1894,15 +1948,16 @@ class SQLLiteHandler:
             "username": "Guest",
             "user_id": 0,
         }
-        p = [{
-            "project_id": 0,
-            "project_name": "Default Project",
-            "is_primary": True,
-            "users_in_project": [u],
-            "permissions": "",
-            "labels": []
-        }]
-
+        p = [
+            {
+                "project_id": 0,
+                "project_name": "Default Project",
+                "is_primary": True,
+                "users_in_project": [u],
+                "permissions": "",
+                "labels": [],
+            }
+        ]
 
         return {"users": u, "projects": p}
 

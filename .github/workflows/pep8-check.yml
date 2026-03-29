@@ -1,0 +1,65 @@
+# PEP 8 Compliance Check Workflow
+name: PEP 8 Check
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  pep8-check:
+    name: PEP 8 Compliance
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pycodestyle pylint black
+
+    - name: Check PEP 8 with pycodestyle
+      run: |
+        echo "========================================="
+        echo "PEP 8 Compliance Check (pycodestyle)"
+        echo "========================================="
+        pycodestyle --max-line-length=100 --statistics src/fiwa_cli/ || true
+        echo ""
+
+    - name: Check code quality with pylint
+      run: |
+        echo "========================================="
+        echo "Code Quality Check (pylint)"
+        echo "========================================="
+        pylint src/fiwa_cli/ --rcfile=.pylintrc --score=yes || true
+        echo ""
+
+    - name: Check code formatting with Black
+      run: |
+        echo "========================================="
+        echo "Code Formatting Check (Black)"
+        echo "========================================="
+        black --check --line-length 100 src/fiwa_cli/ || true
+        echo ""
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "========================================="
+        echo "PEP 8 Check Complete"
+        echo "========================================="
+        echo "✓ pycodestyle: Checks PEP 8 violations"
+        echo "✓ pylint: Checks code quality and PEP 8"
+        echo "✓ black: Checks code formatting"
+        echo ""
+        echo "Review the output above for any issues."
+        echo "Note: This job uses '|| true' to not fail the build,"
+        echo "allowing you to see all issues without blocking merges."

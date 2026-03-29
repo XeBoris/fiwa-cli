@@ -52,6 +52,7 @@ See Also:
     functions.project_composer: Project-specific label types
     settings: Main settings screen
 """
+
 from textual.widgets import Static, Button, Input, DataTable
 from textual.containers import Vertical, Horizontal, Container, Grid, ScrollableContainer
 from textual.app import ComposeResult
@@ -61,6 +62,7 @@ from datetime import datetime
 
 from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.functions.project_composer import ProjectComposer
+
 
 class LabelEditorModal(ModalScreen):
     """Modal screen for editing label name, description, and status.
@@ -118,7 +120,15 @@ class LabelEditorModal(ModalScreen):
     #
     # """
 
-    def __init__(self, label_id: int, label_name: str, label_description: str, current_status: int, *args, **kwargs):
+    def __init__(
+        self,
+        label_id: int,
+        label_name: str,
+        label_description: str,
+        current_status: int,
+        *args,
+        **kwargs,
+    ):
         """Initialize the label editor modal.
 
         Args:
@@ -144,19 +154,39 @@ class LabelEditorModal(ModalScreen):
             yield Static("Edit Label", classes="modal-title")
 
             yield Static("Label Name *", classes="form-label")
-            yield Input(value=self.label_name, id="label-name-input", placeholder="Enter label name")
+            yield Input(
+                value=self.label_name, id="label-name-input", placeholder="Enter label name"
+            )
 
             yield Static("Description", classes="form-label")
-            yield Input(value=self.label_description, id="label-description-input", placeholder="Enter description")
+            yield Input(
+                value=self.label_description,
+                id="label-description-input",
+                placeholder="Enter description",
+            )
 
             yield Static("Status *", classes="form-label")
             with Grid(classes="status-buttons"):
-                active_classes = "status-button status-button-selected" if self.current_status == 2 else "status-button"
-                deactivated_classes = "status-button status-button-selected" if self.current_status == 1 else "status-button"
-                deleted_classes = "status-button status-button-selected" if self.current_status == 0 else "status-button"
+                active_classes = (
+                    "status-button status-button-selected"
+                    if self.current_status == 2
+                    else "status-button"
+                )
+                deactivated_classes = (
+                    "status-button status-button-selected"
+                    if self.current_status == 1
+                    else "status-button"
+                )
+                deleted_classes = (
+                    "status-button status-button-selected"
+                    if self.current_status == 0
+                    else "status-button"
+                )
 
                 yield Button("✓ Active", id="status-active", classes=active_classes, flat=True)
-                yield Button("◐ Deactivate", id="status-deactivated", classes=deactivated_classes, flat=True)
+                yield Button(
+                    "◐ Deactivate", id="status-deactivated", classes=deactivated_classes, flat=True
+                )
                 yield Button("✗ Delete", id="status-deleted", classes=deleted_classes, flat=True)
 
             with Grid(classes="action-buttons"):
@@ -185,7 +215,11 @@ class LabelEditorModal(ModalScreen):
         self.selected_status = status
 
         # Update button styling
-        for status_id, status_value in [("status-active", 2), ("status-deactivated", 1), ("status-deleted", 0)]:
+        for status_id, status_value in [
+            ("status-active", 2),
+            ("status-deactivated", 1),
+            ("status-deleted", 0),
+        ]:
             try:
                 button = self.query_one(f"#{status_id}", Button)
                 if status_value == status:
@@ -206,12 +240,13 @@ class LabelEditorModal(ModalScreen):
 
         # Return the updated data
         result = {
-            'label_id': self.label_id,
-            'name': name,
-            'description': description,
-            'label_status': self.selected_status
+            "label_id": self.label_id,
+            "name": name,
+            "description": description,
+            "label_status": self.selected_status,
         }
         self.dismiss(result)
+
 
 class LabelManagementForm(Vertical):
     """Form widget for managing all labels in a project.
@@ -318,6 +353,7 @@ class LabelManagementForm(Vertical):
             >>>     'deleted_labels': 0
             >>> }
         """
+
         def __init__(self, changes_summary: dict) -> None:
             """Initialize LabelsModified message.
 
@@ -333,6 +369,7 @@ class LabelManagementForm(Vertical):
         Posted when user clicks "Create New Label" button.
         Parent screen typically switches to CreateLabelForm.
         """
+
         pass
 
     def __init__(self, *args, **kwargs):
@@ -373,7 +410,6 @@ class LabelManagementForm(Vertical):
             else:
                 self.app.log(f"No project found with id {project_id}")
 
-
         # Load labels from database
         if project_id > 0:
 
@@ -381,17 +417,23 @@ class LabelManagementForm(Vertical):
                 dbh = self.app._config["dbh"]
                 # Force refresh to bypass cache and get latest data from database
                 # Pass user_id to get user-specific default information
-                self._labels = dbh.op_label_get_all(project_id, use_cache=False, force_refresh=True, user_id=user_id)
+                self._labels = dbh.op_label_get_all(
+                    project_id, use_cache=False, force_refresh=True, user_id=user_id
+                )
             except Exception as e:
                 self.app.log(f"Error loading labels: {e}")
                 self._labels = []
 
         # Sort labels by Type (ascending), then Status (descending - Active first), then Name (ascending)
-        self._labels.sort(key=lambda x: (
-            x.get('label_type', 0),           # Type: 0, 1, 2
-            -x.get('label_status', 0),        # Status: 2 (Active), 1 (Deactivated), 0 (Deleted) - negative for descending
-            x.get('name', '').lower()         # Name: alphabetically
-        ))
+        self._labels.sort(
+            key=lambda x: (
+                x.get("label_type", 0),  # Type: 0, 1, 2
+                -x.get(
+                    "label_status", 0
+                ),  # Status: 2 (Active), 1 (Deactivated), 0 (Deleted) - negative for descending
+                x.get("name", "").lower(),  # Name: alphabetically
+            )
+        )
 
         # Header:
         yield Static("Label Management", classes="form-title")
@@ -401,7 +443,6 @@ class LabelManagementForm(Vertical):
             yield Static(f"Currently Editing: {current_name}", classes="current-project-header")
         else:
             yield Static("No Project Loaded", classes="current-project-header")
-
 
         with ScrollableContainer(id="form-content"):
             # Labels table
@@ -416,7 +457,7 @@ class LabelManagementForm(Vertical):
                     dbh = self.app._config["dbh"]
                     project_users = dbh.op_project_get_users(project_id)
                     for user in project_users:
-                        user_map[user.get('user_id')] = user.get('username', 'Unknown')
+                        user_map[user.get("user_id")] = user.get("username", "Unknown")
                     self.app.log(f"Loaded {len(user_map)} users for label owner mapping")
                 except Exception as e:
                     self.app.log(f"Error loading project users: {e}")
@@ -424,29 +465,33 @@ class LabelManagementForm(Vertical):
             # Populate table with existing labels
             # Note: We store label_id as the row key for internal reference
             for label in self._labels:
-                status_text = self._get_status_text(label['label_status'])
-                label_type_text = self._get_action_type(label['label_type'])
+                status_text = self._get_status_text(label["label_status"])
+                label_type_text = self._get_action_type(label["label_type"])
 
                 # Get label owner text
-                label_owner_id = label.get('label_owner', -1)
+                label_owner_id = label.get("label_owner", -1)
                 if label_owner_id == -1:
                     owner_text = "Common"
                 else:
                     owner_text = user_map.get(label_owner_id, f"User {label_owner_id}")
 
                 # Get default indicator (user-specific)
-                is_default = label.get('is_user_default', False)
+                is_default = label.get("is_user_default", False)
                 default_text = "⭐" if is_default else ""
 
                 # Add row with plain text (no background colors)
                 table.add_row(
-                    label['name'],
-                    label['description'][:30] + '...' if len(label['description']) > 30 else label['description'],
+                    label["name"],
+                    (
+                        label["description"][:30] + "..."
+                        if len(label["description"]) > 30
+                        else label["description"]
+                    ),
                     status_text,
                     label_type_text,
                     owner_text,
                     default_text,
-                    key=f"label-id-{label['label_id']}"  # Store label_id in the row key
+                    key=f"label-id-{label['label_id']}",  # Store label_id in the row key
                 )
 
             yield table
@@ -458,11 +503,7 @@ class LabelManagementForm(Vertical):
 
     def _get_status_text(self, status: int) -> str:
         """Convert status code to text."""
-        status_map = {
-            0: "Mark for Deletion",
-            1: "Deactivated",
-            2: "Active"
-        }
+        status_map = {0: "Mark for Deletion", 1: "Deactivated", 2: "Active"}
         return status_map.get(status, "Unknown")
 
     def _get_action_type(self, status: int) -> str:
@@ -481,7 +522,7 @@ class LabelManagementForm(Vertical):
                 compose_type=project_style,
                 dbh=dbh,
                 project_id=self.app.app_state["project_id"],
-                users=[]
+                users=[],
             )
             status_map = pc.get_label_map()
             return status_map.get(status, "Unknown")
@@ -538,7 +579,7 @@ class LabelManagementForm(Vertical):
             return
 
         # Find the label to get all data
-        label = next((l for l in self._labels if l['label_id'] == label_id), None)
+        label = next((l for l in self._labels if l["label_id"] == label_id), None)
         if not label:
             self.app.notify(f"Label ID {label_id} not found", severity="error")
             return
@@ -548,42 +589,45 @@ class LabelManagementForm(Vertical):
             self._handle_default_toggle(label_id, label, table, row_index)
         else:
             # Open label editor for other columns
-            label_name = label['name']
-            label_description = label['description']
-            current_status = label.get('label_status', 2)
+            label_name = label["name"]
+            label_description = label["description"]
+            current_status = label.get("label_status", 2)
 
-            self.app.log(f"Row clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}")
+            self.app.log(
+                f"Row clicked - Row: {row_index}, Column: {col_index}, Label ID: {label_id}, Label: {label_name}"
+            )
 
             # Open label editor modal (clicking any cell in the row opens the editor)
             self.app.push_screen(
                 LabelEditorModal(label_id, label_name, label_description, current_status),
                 callback=lambda result: self._handle_label_update(
                     label_id, result, table, row_index
-                )
+                ),
             )
 
-
-    def _handle_label_update(self, label_id: int, result: dict | None, table: DataTable, row_index: int) -> None:
+    def _handle_label_update(
+        self, label_id: int, result: dict | None, table: DataTable, row_index: int
+    ) -> None:
         """Handle the label update from the modal."""
         if result is None:
             # User cancelled
             return
 
         # Find the label
-        label = next((l for l in self._labels if l['label_id'] == label_id), None)
+        label = next((l for l in self._labels if l["label_id"] == label_id), None)
         if not label:
             self.app.notify(f"Label ID {label_id} not found", severity="error")
             return
 
         # Get old values
-        old_name = label['name']
-        old_description = label['description']
-        old_status = label.get('label_status', 2)
+        old_name = label["name"]
+        old_description = label["description"]
+        old_status = label.get("label_status", 2)
 
         # Get new values from result
-        new_name = result.get('name', old_name)
-        new_description = result.get('description', old_description)
-        new_status = result.get('label_status', old_status)
+        new_name = result.get("name", old_name)
+        new_description = result.get("description", old_description)
+        new_status = result.get("label_status", old_status)
 
         # Check if anything changed
         changes = []
@@ -592,7 +636,9 @@ class LabelManagementForm(Vertical):
         if new_description != old_description:
             changes.append(f"description updated")
         if new_status != old_status:
-            changes.append(f"status: {self._get_status_text(old_status)} → {self._get_status_text(new_status)}")
+            changes.append(
+                f"status: {self._get_status_text(old_status)} → {self._get_status_text(new_status)}"
+            )
 
         if not changes:
             self.app.notify("No changes made", severity="info")
@@ -604,24 +650,24 @@ class LabelManagementForm(Vertical):
         try:
             dbh = self.app._config["dbh"]
             update_data = {
-                'name': new_name,
-                'description': new_description,
-                'label_status': new_status
+                "name": new_name,
+                "description": new_description,
+                "label_status": new_status,
             }
             dbh.op_label_update(label_id, update_data)
             self.app.log(f"Successfully saved label {label_id} to database")
 
             # Update in memory after successful database save
-            label['name'] = new_name
-            label['description'] = new_description
-            label['label_status'] = new_status
+            label["name"] = new_name
+            label["description"] = new_description
+            label["label_status"] = new_status
 
             # Track the modification (for reference/undo feature if needed later)
             if label_id not in self._modified_labels:
                 self._modified_labels[label_id] = {}
-            self._modified_labels[label_id]['name'] = new_name
-            self._modified_labels[label_id]['description'] = new_description
-            self._modified_labels[label_id]['label_status'] = new_status
+            self._modified_labels[label_id]["name"] = new_name
+            self._modified_labels[label_id]["description"] = new_description
+            self._modified_labels[label_id]["label_status"] = new_status
 
             # Update table display
             from textual.coordinate import Coordinate
@@ -632,23 +678,24 @@ class LabelManagementForm(Vertical):
 
             # Update Description (column 1)
             table.move_cursor(row=row_index, column=1)
-            desc_display = new_description[:30] + "..." if len(new_description) > 30 else new_description
+            desc_display = (
+                new_description[:30] + "..." if len(new_description) > 30 else new_description
+            )
             table.update_cell_at(Coordinate(row_index, 1), desc_display)
 
             # Update Status (column 2)
             table.move_cursor(row=row_index, column=2)
             table.update_cell_at(Coordinate(row_index, 2), self._get_status_text(new_status))
 
-            self.app.notify(
-                f"Label saved: {', '.join(changes)}",
-                severity="information"
-            )
+            self.app.notify(f"Label saved: {', '.join(changes)}", severity="information")
 
         except Exception as e:
             self.app.notify(f"Error saving label: {str(e)}", severity="error")
             self.app.log(f"Database update error for label {label_id}: {e}")
 
-    def _handle_default_toggle(self, label_id: int, label: dict, table: DataTable, row_index: int) -> None:
+    def _handle_default_toggle(
+        self, label_id: int, label: dict, table: DataTable, row_index: int
+    ) -> None:
         """Handle toggling the default status of a label for the current user.
 
         Args:
@@ -666,13 +713,13 @@ class LabelManagementForm(Vertical):
         try:
             dbh = self.app._config["dbh"]
             project_users = dbh.op_project_get_users(project_id)
-            current_user = next((u for u in project_users if u['user_id'] == user_id), None)
+            current_user = next((u for u in project_users if u["user_id"] == user_id), None)
 
             if not current_user:
                 self.app.notify("You are not a member of this project", severity="error")
                 return
 
-            perm_model = current_user.get('project_perm_model', '000000')
+            perm_model = current_user.get("project_perm_model", "000000")
 
             # Check if user has Project (position 4) or Manage (position 5) permission
             # if len(perm_model) < 6 or \
@@ -686,15 +733,17 @@ class LabelManagementForm(Vertical):
             #     return
 
             # Get current default status for THIS USER
-            current_default = label.get('is_user_default', False)
+            current_default = label.get("is_user_default", False)
             new_default = not current_default
-            label_type = label.get('label_type', 0)
-            label_name = label.get('name', 'Unknown')
+            label_type = label.get("label_type", 0)
+            label_name = label.get("name", "Unknown")
 
             # If setting as default, use op_label_set_default
             if new_default:
                 dbh.op_label_set_default(label_id, project_id, label_type, user_id)
-                self.app.log(f"Set label {label_id} ({label_name}) as default for user {user_id}, type {label_type}")
+                self.app.log(
+                    f"Set label {label_id} ({label_name}) as default for user {user_id}, type {label_type}"
+                )
             else:
                 # If unsetting default, remove from user_label_defaults table
                 dbh.op_label_unset_default(project_id, label_type, user_id)
@@ -702,22 +751,26 @@ class LabelManagementForm(Vertical):
 
             # Update in-memory labels for THIS USER
             # Reload labels with user_id to get fresh default info
-            self._labels = dbh.op_label_get_all(project_id, use_cache=False, force_refresh=True, user_id=user_id)
+            self._labels = dbh.op_label_get_all(
+                project_id, use_cache=False, force_refresh=True, user_id=user_id
+            )
 
             # Re-sort labels
-            self._labels.sort(key=lambda x: (
-                x.get('label_type', 0),
-                -x.get('label_status', 0),
-                x.get('name', '').lower()
-            ))
+            self._labels.sort(
+                key=lambda x: (
+                    x.get("label_type", 0),
+                    -x.get("label_status", 0),
+                    x.get("name", "").lower(),
+                )
+            )
 
             # Update ALL rows in the table to reflect changes
             from textual.coordinate import Coordinate
 
             for idx, lbl in enumerate(self._labels):
-                if lbl['label_type'] == label_type:
+                if lbl["label_type"] == label_type:
                     # Update Default column (column 5) for all labels of this type
-                    is_default = lbl.get('is_user_default', False)
+                    is_default = lbl.get("is_user_default", False)
                     default_symbol = "⭐" if is_default else ""
                     try:
                         table.update_cell_at(Coordinate(idx, 5), default_symbol)
@@ -727,11 +780,14 @@ class LabelManagementForm(Vertical):
 
             # Show notification
             if new_default:
-                self.app.notify(f"Set '{label_name}' as YOUR default for {self._get_action_type(label_type)}",
-                              severity="information")
+                self.app.notify(
+                    f"Set '{label_name}' as YOUR default for {self._get_action_type(label_type)}",
+                    severity="information",
+                )
             else:
-                self.app.notify(f"Removed YOUR default status from '{label_name}'",
-                              severity="information")
+                self.app.notify(
+                    f"Removed YOUR default status from '{label_name}'", severity="information"
+                )
 
         except Exception as e:
             self.app.notify(f"Error toggling default: {str(e)}", severity="error")

@@ -39,7 +39,8 @@ See Also:
 from fiwa_cli.functions.handler_api import HandlerApi
 from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
 
-class Handler():
+
+class Handler:
     """Factory class for creating database backend handlers.
 
     This factory pattern allows runtime selection of the database backend
@@ -72,6 +73,7 @@ class Handler():
         The factory ensures both handler types implement the same
         interface (op_* methods), allowing seamless backend switching.
     """
+
     def __init__(self, method):
         """Initialize the handler factory with backend method.
 
@@ -82,7 +84,6 @@ class Handler():
             >>> handler = Handler(method="sqlite")
         """
         self._method = method
-
 
     def load(self):
         """Load and return the appropriate database handler instance.
@@ -104,4 +105,3 @@ class Handler():
             return SQLLiteHandler(self)
         else:
             raise NotImplementedError(f"Handler method '{self._method}' is not implemented.")
-

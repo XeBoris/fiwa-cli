@@ -48,6 +48,7 @@ See Also:
     settings: Main settings screen
     functions.handler_sqllite: Database operations for projects and users
 """
+
 from textual.widgets import Static, Button, Input, TextArea, Checkbox, Label, Rule, Switch
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
 from textual.app import ComposeResult
@@ -92,22 +93,15 @@ def translate_permissions(permission_string: str) -> str:
         The function pads short strings with zeros to ensure 6 characters.
         Extra characters beyond position 5 are ignored.
     """
-    permission_map = {
-        0: "Read",
-        1: "Create",
-        2: "Update",
-        3: "Delete",
-        4: "Project",
-        5: "Manage"
-    }
+    permission_map = {0: "Read", 1: "Create", 2: "Update", 3: "Delete", 4: "Project", 5: "Manage"}
 
     # Ensure string is 6 characters, pad with zeros if needed
-    perms = permission_string.ljust(6, '0')
+    perms = permission_string.ljust(6, "0")
 
     # Collect enabled permissions
     enabled = []
     for idx, flag in enumerate(perms[:6]):
-        if flag == '1':
+        if flag == "1":
             enabled.append(permission_map[idx])
 
     # Return formatted string
@@ -222,6 +216,7 @@ class ModifyProjectForm(Vertical):
                 >>>     name = message.project_data['name']
                 >>>     self.notify(f"Project '{name}' updated!")
         """
+
         def __init__(self, project_data: dict) -> None:
             self.project_data = project_data
             super().__init__()
@@ -234,7 +229,9 @@ class ModifyProjectForm(Vertical):
         project_id = self.app.app_state.get("project_id", 0)
         user_id = self.app.app_state.get("user_id", -1)
 
-        self.app.log(f"ModifyProjectForm.compose() called: project_id={project_id}, user_id={user_id}")
+        self.app.log(
+            f"ModifyProjectForm.compose() called: project_id={project_id}, user_id={user_id}"
+        )
 
         # Get project details from database
         project_info = None
@@ -275,7 +272,9 @@ class ModifyProjectForm(Vertical):
                     currency_list_parsed = json.loads(currency_list_raw)
                 else:
                     currency_list_parsed = currency_list_raw
-                current_currency_list = ", ".join(currency_list_parsed) if currency_list_parsed else ""
+                current_currency_list = (
+                    ", ".join(currency_list_parsed) if currency_list_parsed else ""
+                )
             except (json.JSONDecodeError, TypeError, ValueError) as e:
                 self.app.log(f"Error parsing currency_list: {e}")
                 current_currency_list = ""
@@ -299,7 +298,7 @@ class ModifyProjectForm(Vertical):
                     placeholder="Enter project name",
                     id="project-name",
                     max_length=24,
-                    value=project_info.get("project_name", "") if project_info else ""
+                    value=project_info.get("project_name", "") if project_info else "",
                 )
 
                 yield Static("Description (128 characters)", classes="form-label")
@@ -311,15 +310,19 @@ class ModifyProjectForm(Vertical):
             with Horizontal(id="form-currency-section"):
                 with Vertical(id="form-currency-section-main"):
                     yield Static("Main Currency *", classes="form-label")
-                    yield Input(placeholder="e.g., USD",
-                                id="currency-main",
-                                max_length=3,
-                                value=current_currency_main)
+                    yield Input(
+                        placeholder="e.g., USD",
+                        id="currency-main",
+                        max_length=3,
+                        value=current_currency_main,
+                    )
                 with Vertical(id="form-currency-section-additional"):
                     yield Static("Additional Currencies (comma-separated)", classes="form-label")
-                    yield Input(placeholder="e.g., USD, EUR, JPY",
-                                id="currency-list",
-                                value=current_currency_list)
+                    yield Input(
+                        placeholder="e.g., USD, EUR, JPY",
+                        id="currency-list",
+                        value=current_currency_list,
+                    )
 
             with Horizontal(id="form-month-section"):
                 with Vertical(id="form-month-start-section"):
@@ -328,14 +331,14 @@ class ModifyProjectForm(Vertical):
                         placeholder="1-28",
                         id="month-start",
                         type="integer",
-                        value=str(current_month_start)
+                        value=str(current_month_start),
                     )
                 with Vertical(id="form-month-info-section"):
                     yield Static("ℹ Info", classes="form-label")
                     yield Static(
                         "Defines which day of the month starts a new monthly period.\n"
                         "E.g., if set to 15, monthly reports run from 15th to 14th.",
-                        classes="info-text"
+                        classes="info-text",
                     )
 
             with Vertical(id="form-user-section"):
@@ -357,12 +360,12 @@ class ModifyProjectForm(Vertical):
 
                 if project_users:
                     for user in project_users:
-                        username = user.get('username', 'Unknown')
-                        user_id_val = user.get('user_id', 0)
-                        first_name = user.get('first_name', '')
-                        last_name = user.get('last_name', '')
-                        permission = user.get('project_perm_model', '000000')
-                        is_primary = user.get('project_primary', False)
+                        username = user.get("username", "Unknown")
+                        user_id_val = user.get("user_id", 0)
+                        first_name = user.get("first_name", "")
+                        last_name = user.get("last_name", "")
+                        permission = user.get("project_perm_model", "000000")
+                        is_primary = user.get("project_primary", False)
 
                         # Format display name
                         display_name = f"{username} "
@@ -384,7 +387,7 @@ class ModifyProjectForm(Vertical):
                             yield Button(
                                 "edit",
                                 id=f"edit-perm-{user_id_val}",
-                                classes="edit-permission-button"
+                                classes="edit-permission-button",
                             )
 
                 else:
@@ -536,19 +539,21 @@ class ModifyProjectForm(Vertical):
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
                 else:
                     currency_list = currency_list_str if currency_list_str else []
-            except:
+            except Exception:
                 currency_list = []
 
             # Update app_state with complete project information
-            self.app.app_state.update({
-                "project_names": project_names,
-                "project_ids": project_ids,
-                "project_name": current_project.get("project_name", "Unknown"),
-                "project_style": current_project.get("project_style", "default"),
-                "project_store": project_store,
-                "current_project_currency_main": current_project.get("currency_main", "USD"),
-                "current_project_currency_list": currency_list,
-            })
+            self.app.app_state.update(
+                {
+                    "project_names": project_names,
+                    "project_ids": project_ids,
+                    "project_name": current_project.get("project_name", "Unknown"),
+                    "project_style": current_project.get("project_style", "default"),
+                    "project_store": project_store,
+                    "current_project_currency_main": current_project.get("currency_main", "USD"),
+                    "current_project_currency_list": currency_list,
+                }
+            )
 
             self.app.log(f"Reloaded project {project_id} into app_state:")
             self.app.log(f"  - Name: {current_project.get('project_name')}")
@@ -559,6 +564,7 @@ class ModifyProjectForm(Vertical):
             # Refresh header to reflect changes immediately
             try:
                 from fiwa_cli.components.header import FiwaHeader
+
                 header = self.app.query_one(FiwaHeader)
                 header.project_id = project_id
                 header.project_ids = project_ids
@@ -571,6 +577,7 @@ class ModifyProjectForm(Vertical):
         except Exception as e:
             self.app.log(f"Error reloading project into app_state: {e}")
             import traceback
+
             self.app.log(f"Traceback: {traceback.format_exc()}")
 
     def _show_permission_dialog(self, user_id: int) -> None:
@@ -581,22 +588,22 @@ class ModifyProjectForm(Vertical):
         try:
             dbh = self.app._config["dbh"]
             project_users = dbh.op_project_get_users(project_id)
-            user = next((u for u in project_users if u['user_id'] == user_id), None)
+            user = next((u for u in project_users if u["user_id"] == user_id), None)
 
             if not user:
                 self.app.notify("User not found", severity="error")
                 return
 
-            current_permissions = user.get('project_perm_model', '000000')
-            username = user.get('username', 'Unknown')
-            is_primary = user.get('project_primary', False)
+            current_permissions = user.get("project_perm_model", "000000")
+            username = user.get("username", "Unknown")
+            is_primary = user.get("project_primary", False)
             # Show the dialog
             dialog = UserPermissionsDialog(
                 user_id=user_id,
                 username=username,
                 project_id=project_id,
                 current_permissions=current_permissions,
-                is_primary=is_primary
+                is_primary=is_primary,
             )
 
             self.app.push_screen(dialog, self._handle_permission_result)
@@ -631,16 +638,16 @@ class ModifyProjectForm(Vertical):
 
             # Get users already in the project
             project_users = dbh.op_project_get_users(project_id)
-            project_user_ids = {user['user_id'] for user in project_users}
+            project_user_ids = {user["user_id"] for user in project_users}
 
             # Filter to only users NOT in the project
             available_users = [
                 {
-                    'user_id': row[0],
-                    'username': row[1],
-                    'first_name': row[2],
-                    'last_name': row[3],
-                    'email': row[4]
+                    "user_id": row[0],
+                    "username": row[1],
+                    "first_name": row[2],
+                    "last_name": row[3],
+                    "email": row[4],
                 }
                 for row in all_users
                 if row[0] not in project_user_ids
@@ -651,10 +658,7 @@ class ModifyProjectForm(Vertical):
                 return
 
             # Show the dialog
-            dialog = UserAddDialog(
-                project_id=project_id,
-                available_users=available_users
-            )
+            dialog = UserAddDialog(project_id=project_id, available_users=available_users)
 
             self.app.push_screen(dialog, self._handle_add_user_result)
 
@@ -672,6 +676,7 @@ class ModifyProjectForm(Vertical):
 # ============================================================================
 # UserPermissionsDialog Widget
 # ============================================================================
+
 
 class UserPermissionsDialog(ModalScreen):
     """Modal dialog for editing user permissions.
@@ -696,7 +701,7 @@ class UserPermissionsDialog(ModalScreen):
         project_id: int,
         current_permissions: str = "000000",
         is_primary: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.user_id = user_id
@@ -714,7 +719,7 @@ class UserPermissionsDialog(ModalScreen):
 
             with Vertical(id="permission-list"):
                 # Parse current permissions (6-character string like "110000")
-                perms = list(self.current_permissions.ljust(6, '0'))
+                perms = list(self.current_permissions.ljust(6, "0"))
 
                 # Permission definitions
                 permissions = [
@@ -723,18 +728,18 @@ class UserPermissionsDialog(ModalScreen):
                     ("U", "Update", "Edit existing expenses"),
                     ("D", "Delete", "Remove expenses"),
                     ("P", "Project", "Edit project details (Name, Description)"),
-                    ("M", "Manage", "Manage other users (Add/Remove/Change Permissions)")
+                    ("M", "Manage", "Manage other users (Add/Remove/Change Permissions)"),
                 ]
 
                 for idx, (code, title, description) in enumerate(permissions):
-                    is_checked = perms[idx] == '1'
+                    is_checked = perms[idx] == "1"
 
                     with Vertical(classes="permission-row"):
                         yield Checkbox(
                             f"{code} ({title})",
                             value=is_checked,
                             id=f"perm-{idx}",
-                            classes="permission-checkbox"
+                            classes="permission-checkbox",
                         )
                     yield Static(description, classes="permission-description")
 
@@ -748,11 +753,12 @@ class UserPermissionsDialog(ModalScreen):
                     _disb = False
                 yield Static(_text, classes="primary-description")
 
-                yield Switch(id="primary-switch",
-                             value=self.is_primary,
-                             classes="primary-switch",
-                             disabled=_disb)  # Disable switch if already primary
-
+                yield Switch(
+                    id="primary-switch",
+                    value=self.is_primary,
+                    classes="primary-switch",
+                    disabled=_disb,
+                )  # Disable switch if already primary
 
             with Horizontal(id="dialog-buttons"):
                 yield Button("OK", id="dialog-ok", variant="success")
@@ -777,14 +783,14 @@ class UserPermissionsDialog(ModalScreen):
             try:
                 checkbox = self.query_one(f"#perm-{idx}", Checkbox)
                 permission_string += "1" if checkbox.value else "0"
-            except:
+            except Exception:
                 permission_string += "0"
 
         # Check primary switch
         try:
             primary_switch = self.query_one("#primary-switch", Switch)
             is_primary = primary_switch.value
-        except:
+        except Exception:
             is_primary = self.is_primary  # fallback to original value if switch not found
 
         # Update in database
@@ -817,6 +823,7 @@ class UserPermissionsDialog(ModalScreen):
 # UserAddDialog Widget
 # ============================================================================
 
+
 class UserAddDialog(ModalScreen):
     """Modal dialog for adding users to a project.
 
@@ -829,12 +836,7 @@ class UserAddDialog(ModalScreen):
         ("escape", "cancel", "Cancel"),
     ]
 
-    def __init__(
-        self,
-        project_id: int,
-        available_users: list[dict],
-        **kwargs
-    ):
+    def __init__(self, project_id: int, available_users: list[dict], **kwargs):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.available_users = available_users
@@ -845,18 +847,17 @@ class UserAddDialog(ModalScreen):
         with ScrollableContainer(id="add-user-dialog"):
             yield Static("Add Users to Project", classes="dialog-title")
             yield Static(
-                f"{len(self.available_users)} user(s) available",
-                classes="dialog-subtitle"
+                f"{len(self.available_users)} user(s) available", classes="dialog-subtitle"
             )
 
             with ScrollableContainer(id="available-users-list"):
                 if self.available_users:
                     for user in self.available_users:
-                        user_id = user['user_id']
-                        username = user['username']
-                        first_name = user.get('first_name', '')
-                        last_name = user.get('last_name', '')
-                        email = user.get('email', '')
+                        user_id = user["user_id"]
+                        username = user["username"]
+                        first_name = user.get("first_name", "")
+                        last_name = user.get("last_name", "")
+                        email = user.get("email", "")
 
                         # Format display name
                         display_name = username
@@ -866,10 +867,7 @@ class UserAddDialog(ModalScreen):
                             display_name += f" - {email}"
 
                         yield Checkbox(
-                            display_name,
-                            value=False,
-                            id=f"user-{user_id}",
-                            classes="user-checkbox"
+                            display_name, value=False, id=f"user-{user_id}", classes="user-checkbox"
                         )
                 else:
                     yield Static("No available users", classes="empty-message")
@@ -896,12 +894,12 @@ class UserAddDialog(ModalScreen):
         # Collect selected checkboxes
         selected_users = []
         for user in self.available_users:
-            user_id = user['user_id']
+            user_id = user["user_id"]
             try:
                 checkbox = self.query_one(f"#user-{user_id}", Checkbox)
                 if checkbox.value:
                     selected_users.append(user)
-            except:
+            except Exception:
                 pass
 
         if not selected_users:
@@ -917,8 +915,8 @@ class UserAddDialog(ModalScreen):
             added_user_list = []  # Track successfully added users for L-Account creation
 
             for user in selected_users:
-                user_id = user['user_id']
-                username = user['username']
+                user_id = user["user_id"]
+                username = user["username"]
 
                 # Check if user already exists (safety check)
                 check_query = f"""
@@ -940,7 +938,9 @@ class UserAddDialog(ModalScreen):
                 dbh.execute_query(insert_query, [user_id, self.project_id, "100000", 0])
                 added_count += 1
                 added_user_list.append({"user_id": user_id, "username": username})
-                self.app.log(f"Added user {user_id} to project {self.project_id} with Read permissions")
+                self.app.log(
+                    f"Added user {user_id} to project {self.project_id} with Read permissions"
+                )
 
             dbh.close()
 
@@ -955,7 +955,7 @@ class UserAddDialog(ModalScreen):
                         compose_type=project_style,
                         dbh=dbh,
                         project_id=self.project_id,
-                        users=added_user_list
+                        users=added_user_list,
                     )
 
                     # Create L-Accounts for the new users
@@ -967,14 +967,12 @@ class UserAddDialog(ModalScreen):
                     self.app.log(f"Warning: Failed to create L-Accounts for new users: {e}")
                     # Don't fail the entire operation, just log the warning
                     self.app.notify(
-                        f"Users added but L-Account creation failed: {str(e)}",
-                        severity="warning"
+                        f"Users added but L-Account creation failed: {str(e)}", severity="warning"
                     )
 
             if added_count > 0:
                 self.app.notify(
-                    f"Successfully added {added_count} user(s) to project",
-                    severity="information"
+                    f"Successfully added {added_count} user(s) to project", severity="information"
                 )
                 self.dismiss(True)
             else:
@@ -985,5 +983,3 @@ class UserAddDialog(ModalScreen):
             self.app.notify(f"Failed to add users: {str(e)}", severity="error")
             self.app.log(f"Error adding users: {e}")
             self.dismiss(False)
-
-

@@ -47,7 +47,15 @@ See Also:
     inputs_repl_expenses: Recurring expense replication
     components.item_input_form: Core expense input widget
 """
-from textual.containers import Vertical, Horizontal, ScrollableContainer, Grid, VerticalScroll, Container
+
+from textual.containers import (
+    Vertical,
+    Horizontal,
+    ScrollableContainer,
+    Grid,
+    VerticalScroll,
+    Container,
+)
 from textual.widgets import Static, Button, Select
 from textual.app import ComposeResult
 
@@ -223,9 +231,10 @@ class InputsScreen(ReactiveScreen):
         self._current_month = datetime.date.today().month
         try:
             self._month_start = json.loads(self.app.app_state["project_store"])
-        except:
+        except Exception:
             self._month_start = {}
         self._month_start = int(self._month_start.get("month_start", "1"))
+
     # DEFAULT_CSS = ""
 
     def compose(self) -> ComposeResult:
@@ -252,30 +261,39 @@ class InputsScreen(ReactiveScreen):
             user=self.app.app_state["user_name"],
             projects=self.app.app_state["project_names"],
             project_id=self.app.app_state["project_id"],
-            project_ids=self.app.app_state["project_ids"]
+            project_ids=self.app.app_state["project_ids"],
         )
 
         with Container(id="container-body"):
             with ScrollableContainer(id="container-sidebar"):
                 if self.app.app_state["is_logged_in"] is True:
                     yield Static("Quick Actions", classes="menu-section")
-                    yield Button("New",
-                                 id="new-item-button",
-                                 classes="sidebar-menu-button",
-                                 compact=True, flat=True)
-                    yield Button("Edit",
-                                 id="edit-item-button",
-                                 classes="sidebar-menu-button",
-                                 compact=True, flat=True)
+                    yield Button(
+                        "New",
+                        id="new-item-button",
+                        classes="sidebar-menu-button",
+                        compact=True,
+                        flat=True,
+                    )
+                    yield Button(
+                        "Edit",
+                        id="edit-item-button",
+                        classes="sidebar-menu-button",
+                        compact=True,
+                        flat=True,
+                    )
 
                     yield Static("Period", classes="menu-section")
 
                     # Week/Month picker widget (includes dropdown and navigation)
                     yield WeekMonthWidget(id="reports-date-picker")
-                    yield Button("Replicate",
-                                 id="replicate-button",
-                                 classes="sidebar-menu-button",
-                                 compact=True, flat=True)
+                    yield Button(
+                        "Replicate",
+                        id="replicate-button",
+                        classes="sidebar-menu-button",
+                        compact=True,
+                        flat=True,
+                    )
                 # Always show Back button
                 yield Button("Back", id="back-button", variant="primary")
 
@@ -283,7 +301,6 @@ class InputsScreen(ReactiveScreen):
             with ScrollableContainer(id="inputs-content-area"):
                 # Load the EditExpenseView by default
                 yield EditExpenseView()
-
 
     def on_mount(self) -> None:
         """Called when the inputs screen is mounted.
@@ -323,7 +340,6 @@ class InputsScreen(ReactiveScreen):
             self.app.log("WeekMonthWidget initialized")
         except Exception as e:
             self.app.log(f"Could not initialize WeekMonthWidget: {e}")
-
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle sidebar button clicks for navigation and form selection.
@@ -392,8 +408,10 @@ class InputsScreen(ReactiveScreen):
         if message.month is not None:
             self._current_month = message.month
 
-        self.app.log(f"WeekMonthWidget period changed: {message.period_type} " +
-                    f"Year {message.year}, Week {message.week}, Month {message.month}")
+        self.app.log(
+            f"WeekMonthWidget period changed: {message.period_type} "
+            + f"Year {message.year}, Week {message.week}, Month {message.month}"
+        )
 
         # Update app_state and refresh data tables
         self._update_app_state_period()
@@ -466,12 +484,11 @@ class InputsScreen(ReactiveScreen):
                 edit_view = self.query_one(EditExpenseView)
                 edit_view.refresh_tables()
                 self.app.log("EditExpenseView tables refreshed successfully")
-            except:
+            except Exception:
                 self.app.log("EditExpenseView not currently displayed, skipping refresh")
 
         except Exception as e:
             self.app.log(f"Error handling ItemCreated message: {e}")
-
 
     def _return_to_main_screen(self) -> None:
         """Return to the main application screen.
@@ -490,7 +507,6 @@ class InputsScreen(ReactiveScreen):
                 self.app.pop_screen()
         except Exception as e:
             self.app.log(f"Error returning to main screen: {e}")
-
 
     def _update_app_state_period(self) -> None:
         """Update app_state with current period selection.
@@ -519,25 +535,26 @@ class InputsScreen(ReactiveScreen):
             if self._current_period_type == "week":
                 # Calculate week boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
+
                 tc = TimeClass(country_code="DE")
                 week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
-                period_start = week_info['week_beg']
-                period_end = week_info['week_end']
+                period_start = week_info["week_beg"]
+                period_end = week_info["week_end"]
                 period_end += datetime.timedelta(days=1)  # Include the end date in the range
                 period_label = f"{self._current_year} Week {self._current_week}"
             else:  # month
                 # Calculate month boundaries
                 from fiwa_cli.functions.compute_time import TimeClass
+
                 tc = TimeClass(country_code="DE")
 
-                month_info = tc.cmp_month_by_number(self._current_year,
-                                                    self._current_month,
-                                                    self._month_start
-                                                    )
+                month_info = tc.cmp_month_by_number(
+                    self._current_year, self._current_month, self._month_start
+                )
 
-                period_start = month_info['month_beg']
-                period_end = month_info['month_end']
+                period_start = month_info["month_beg"]
+                period_end = month_info["month_end"]
                 period_label = f"{self._current_year} {month_info['month_name']}"
 
             # Update app_state with period information
@@ -549,7 +566,9 @@ class InputsScreen(ReactiveScreen):
             self.app.app_state["current_period_end"] = period_end
             self.app.app_state["current_period_label"] = period_label
 
-            self.app.log(f"Updated app_state period: {period_label} ({period_start} to {period_end})")
+            self.app.log(
+                f"Updated app_state period: {period_label} ({period_start} to {period_end})"
+            )
 
             # Refresh the data tables with new period data
             self._refresh_data_tables()

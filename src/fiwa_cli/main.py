@@ -34,6 +34,7 @@ See Also:
     fiwa_cli.screens: Application screen modules
     fiwa_cli.components: Reusable UI components
 """
+
 from typing import Any, Dict
 from pathlib import Path
 
@@ -45,6 +46,7 @@ from fiwa_cli.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handl
 from fiwa_cli.components.header import FiwaHeader
 
 import datetime
+
 
 class MyApp(App):
     """Main Textual application for FiWa financial tracking.
@@ -132,20 +134,23 @@ class MyApp(App):
 
     # Single reactive dictionary that will trigger UI updates when changed
     # This contains all shared state across the application
-    app_state = reactive({
-        "user_name": "Guest",
-        "user_id": "user_id",
-        "session_uuid": "No session",
-        "session_start": None,
-        "is_logged_in": False,
-        "project_names": ["No Projects"],
-        "project_ids": [0],
-        "project_id": 0,  # Primary project ID
-        "meta_info": {"today": datetime.datetime.today().isoformat(),
-                      "focus_week": datetime.datetime.today().isocalendar()[1],
-                      "focus_month": datetime.datetime.today().month,
-                      },
-    })
+    app_state = reactive(
+        {
+            "user_name": "Guest",
+            "user_id": "user_id",
+            "session_uuid": "No session",
+            "session_start": None,
+            "is_logged_in": False,
+            "project_names": ["No Projects"],
+            "project_ids": [0],
+            "project_id": 0,  # Primary project ID
+            "meta_info": {
+                "today": datetime.datetime.today().isoformat(),
+                "focus_week": datetime.datetime.today().isocalendar()[1],
+                "focus_month": datetime.datetime.today().month,
+            },
+        }
+    )
 
     def __init__(self, config: Dict[str, Any] | None = None, mode: str = "terminal") -> None:
         """Initialize the FiWa application.
@@ -210,32 +215,17 @@ class MyApp(App):
         u = self.app._config["dbh"].op_get_user_sessions()
 
         # ...existing code...
-        self.app_state["user_name"] = u.get("user_info", {}).get(
-            "username", "Guest"
-        )
+        self.app_state["user_name"] = u.get("user_info", {}).get("username", "Guest")
         self.app_state["user_id"] = u.get("user_info", {}).get("user_id", -1)
-        self.app_state["user_scope"] = u.get("user_info", {}).get(
-            "scope", "user:write"
-        )
-        self.app_state["session_uuid"] = u.get("session_info", {}).get(
-            "session_uuid", "No session"
-        )
-        self.app_state["session_start"] = u.get("session_info", {}).get(
-            "session_start", None
-        )
-        self.app_state["is_logged_in"] = u.get("session_info", {}).get(
-            "is_logged_in", False
-        )
+        self.app_state["user_scope"] = u.get("user_info", {}).get("scope", "user:write")
+        self.app_state["session_uuid"] = u.get("session_info", {}).get("session_uuid", "No session")
+        self.app_state["session_start"] = u.get("session_info", {}).get("session_start", None)
+        self.app_state["is_logged_in"] = u.get("session_info", {}).get("is_logged_in", False)
         self.app_state["home_path"] = self._config.get("_data_directory", "")
         self.app_state["abs_path"] = self._config.get("_abs_path", "")
-        self.app_state["css_form"] = self._config.get("style", {}).get(
-            "form", "handsome"
-        )
+        self.app_state["css_form"] = self._config.get("style", {}).get("form", "handsome")
         # todo: theme switching not fully implemented
-        self.app_state["css_theme"] = self._config.get("style", {}).get(
-            "theme", "textual-light"
-        )
-
+        self.app_state["css_theme"] = self._config.get("style", {}).get("theme", "textual-light")
 
         # Process project information
         project_info = u.get("project_info", [])
@@ -246,24 +236,23 @@ class MyApp(App):
 
             # Find the primary project ID
             primary_project = next(
-                (p for p in project_info if p.get("project_primary", False)),
-                None
+                (p for p in project_info if p.get("project_primary", False)), None
             )
             primary_project_id = (
-                primary_project["project_id"] if primary_project
+                primary_project["project_id"]
+                if primary_project
                 else (project_ids[0] if project_ids else 0)
             )
             primary_project_name = (
-                primary_project["project_name"] if primary_project
+                primary_project["project_name"]
+                if primary_project
                 else (project_names[0] if project_names else "No Projects")
             )
             primary_project_style = (
-                primary_project["project_style"] if primary_project
-                else "default"
+                primary_project["project_style"] if primary_project else "default"
             )
             primary_project_store = (
-                primary_project.get("project_store", {}) if primary_project
-                else {}
+                primary_project.get("project_store", {}) if primary_project else {}
             )
 
             self.app_state["project_ids"] = project_ids
@@ -276,11 +265,12 @@ class MyApp(App):
             # Load currency information for the primary project
             if primary_project:
                 import json
+
                 currency_main = primary_project.get("currency_main", "USD")
                 currency_list_str = primary_project.get("currency_list", "[]")
                 try:
                     currency_list = json.loads(currency_list_str) if currency_list_str else []
-                except:
+                except Exception:
                     currency_list = []
 
                 self.app_state["current_project_currency_main"] = currency_main
@@ -402,13 +392,12 @@ class MyApp(App):
                 str(self._log_file_path),
                 maxBytes=10 * 1024 * 1024,  # 10 MB
                 backupCount=5,
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
             # Set log format
             formatter = logging.Formatter(
-                fmt='%(asctime)s - %(levelname)-8s - %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                fmt="%(asctime)s - %(levelname)-8s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
             )
             handler.setFormatter(formatter)
 
@@ -434,11 +423,12 @@ class MyApp(App):
         except Exception as e:
             print(f"✗ Warning: Could not setup file logging: {e}")
             import traceback
+
             traceback.print_exc()
             # Create a dummy logger so code doesn't break
             import logging
-            self.file_log = logging.getLogger("fiwa_dummy")
 
+            self.file_log = logging.getLogger("fiwa_dummy")
 
     def compose(self) -> ComposeResult:
         """Create the main application layout and child widgets.
@@ -471,23 +461,23 @@ class MyApp(App):
             user=self.app_state["user_name"],
             projects=self.app_state["project_names"],
             project_id=self.app_state["project_id"],
-            project_ids=self.app_state["project_ids"]
+            project_ids=self.app_state["project_ids"],
         )
         c_user = self.app_state.get("user_name", "Guest")
         c_project = self.app_state.get("project_name", "No Project")
-        #yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
+        # yield Static(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}",
         #             id="main_body")
         m = """
-     _____ _                                
-    |  ___(_)_ __   __ _ _ __   ___ ___    
+     _____ _
+    |  ___(_)_ __   __ _ _ __   ___ ___
     | |_  | | '_ \\ / _` | '_ \\ / __/ _ \\
     |  _| | | | | | (_| | | | | (_|  __/
     |_|   |_|_|_|_|\\__,_|_| |_|\\___\\___|
-                     __        __    _       _               
-                     \\ \\      / /_ _| |_ ___| |__   ___ _ __ 
+                     __        __    _       _
+                     \\ \\      / /_ _| |_ ___| |__   ___ _ __
                       \\ \\ /\\ / / _` | __/ __| '_ \\ / _ \\ '__|
-                       \\ V  V / (_| | || (__| | | |  __/ |   
-                        \\_/\\_/ \\__,_|\\__\\___|_| |_|\\___|_|           
+                       \\ V  V / (_| | || (__| | | |  __/ |
+                        \\_/\\_/ \\__,_|\\__\\___|_| |_|\\___|_|
 """
         yield Static(m)
         yield Static(id="user_session_info")  # Will be updated reactively
@@ -596,7 +586,9 @@ class MyApp(App):
             # session_widget.update(f"{self.app_state['user_name']} - {self.app_state['session_uuid']}")
             c_project = self.app_state.get("project_name", "No Project")
             main_body = self.query_one("#main_body", Static)
-            main_body.update(f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}")
+            main_body.update(
+                f"Welcome {c_user} to the FiWa CLI Application!\nCurrent Project: {c_project}"
+            )
         except Exception:
             # Widget might not be ready yet
             pass
@@ -626,7 +618,6 @@ class MyApp(App):
             Navigation is handled via keyboard shortcuts and the menu.
         """
         # from screens.base import LoginScreen
-
 
         # elif event.button.id == "login_button":
         #     # Check if already logged in
@@ -665,6 +656,7 @@ class MyApp(App):
         if is_logged_in:
             # Perform logout using shared utility
             from fiwa_cli.functions.logout_util import perform_logout
+
             logout_success = perform_logout(self)
 
             if logout_success:
@@ -704,6 +696,7 @@ class MyApp(App):
             fiwa_cli.screens.menu.MenuScreen: Menu screen implementation
         """
         from fiwa_cli.screens.menu import MenuScreen
+
         self.push_screen(MenuScreen())
 
     def action_open_settings(self) -> None:
@@ -719,6 +712,7 @@ class MyApp(App):
             fiwa_cli.screens.settings.SettingsScreen: Settings screen implementation
         """
         from fiwa_cli.screens.settings import SettingsScreen
+
         self.push_screen(SettingsScreen())
 
     def action_open_expenses(self) -> None:
@@ -734,6 +728,7 @@ class MyApp(App):
             fiwa_cli.screens.inputs.InputsScreen: Inputs screen implementation
         """
         from fiwa_cli.screens.inputs import InputsScreen
+
         self.push_screen(InputsScreen())
 
     def action_open_reports(self) -> None:
@@ -749,6 +744,7 @@ class MyApp(App):
             fiwa_cli.screens.reports.ReportsScreen: Reports screen implementation
         """
         from fiwa_cli.screens.reports import ReportsScreen
+
         self.push_screen(ReportsScreen())
 
     def action_select_project(self) -> None:
@@ -765,8 +761,8 @@ class MyApp(App):
             fiwa_cli.screens.project_selector.ProjectSelectorScreen: Project selector
         """
         from fiwa_cli.screens.project_selector import ProjectSelectorScreen
-        self.push_screen(ProjectSelectorScreen())
 
+        self.push_screen(ProjectSelectorScreen())
 
 
 def main():
@@ -843,7 +839,6 @@ def main():
 
     _mode, _conf = handle_args()
 
-
     abs_path = get_abs_path()  # the abs path to your package installation!
 
     if _mode == "init":
@@ -852,14 +847,16 @@ def main():
         exit(0)
 
     elif _mode == "run":
-        if 'user' in _conf and _conf['user'] is not None:
+        if "user" in _conf and _conf["user"] is not None:
             print(f"Running FiWa as user: {_conf['user']}")
             pw = getpass.getpass(prompt=f"Enter password for user {_conf['user']}: ")
-            _conf['password'] = pw
+            _conf["password"] = pw
         else:
             print("No user specified. Running FiWa without user authentication.")
 
-        config = setup_fiwa(abs_path=abs_path, config=_conf)  # Initialize FiWa with the loaded config
+        config = setup_fiwa(
+            abs_path=abs_path, config=_conf
+        )  # Initialize FiWa with the loaded config
         app = MyApp(config=config)
 
         # Get log file path from app's configuration
@@ -875,11 +872,10 @@ def main():
         finally:
             # On exit, log the shutdown
             print(f"App closed. Logs saved to: {log_file}")
-        
+
         exit(0)
 
     exit()
-
 
 
 if __name__ == "__main__":

@@ -119,6 +119,7 @@ See Also:
     components.item_input_form.ItemInputForm: Core input/edit widget
     reports_basic.BasicReportForm: Similar tabbed expense display
 """
+
 from textual.containers import VerticalScroll, Vertical
 from textual.widgets import Static, TabbedContent, TabPane, DataTable
 from textual.app import ComposeResult
@@ -127,6 +128,7 @@ from fiwa_cli.components.item_input_form import ItemInputForm
 
 from fiwa_cli.functions.loader import load_dynamic_css
 import json
+
 
 class EditExpenseView(VerticalScroll):
     """Tabbed expense editing interface with per-user DataTables.
@@ -286,12 +288,14 @@ class EditExpenseView(VerticalScroll):
         # Create tabbed content with one tab per user
         with TabbedContent():
             for user in project_users:
-                with TabPane(f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"):
+                with TabPane(
+                    f"{user['first_name']} {user['last_name']}", id=f"tab-user-{user['user_id']}"
+                ):
                     # Create DataTable for this user's items
                     table = DataTable(id=f"items-table-{user['user_id']}")
 
                     # Add columns and store the keys
-                    #col_id = table.add_column("ID")
+                    # col_id = table.add_column("ID")
                     col_name = table.add_column("Name", width=15)
                     col_price = table.add_column("Price")
                     col_currency = table.add_column("Currency")
@@ -305,24 +309,26 @@ class EditExpenseView(VerticalScroll):
                     table.cursor_type = "row"
 
                     # Fetch items for this user
-                    items = self._get_user_items(user['user_id'], project_id)
+                    items = self._get_user_items(user["user_id"], project_id)
                     for item in items:
                         # Extract date only (remove time if present)
-                        date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
+                        date_str = (
+                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                        )
 
                         # Get transaction label name (already extracted in _get_user_items)
                         label_names = item.get("label_d", "")
 
                         # Add row with all price information
                         table.add_row(
-                            #str(item['item_id']),
-                            item['name'],
+                            # str(item['item_id']),
+                            item["name"],
                             f"{item['price']:.2f}",  # Original price
-                            item['currency'],  # Original currency
+                            item["currency"],  # Original currency
                             f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
                             label_names,  # Show transaction label name
-                            key=str(item['item_id'])  # Use item_id as row key
+                            key=str(item["item_id"]),  # Use item_id as row key
                         )
 
                     # Sort by Date column by default (descending - newest first)
@@ -362,7 +368,7 @@ class EditExpenseView(VerticalScroll):
         Returns:
             List of item dictionaries with name, bought_date, price_final, and currency
         """
-#        try:
+        #        try:
         dbh = self.app._config.get("dbh")
         if not dbh:
             return []
@@ -375,52 +381,47 @@ class EditExpenseView(VerticalScroll):
         start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
         end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
 
-        self.app.log(f"EditExpenseView: Fetching items for user {user_id}, project {project_id}, " +
-                    f"period: {start_date_str} to {end_date_str}")
+        self.app.log(
+            f"EditExpenseView: Fetching items for user {user_id}, project {project_id}, "
+            + f"period: {start_date_str} to {end_date_str}"
+        )
 
         # Query ALL items for this user in the current period (no LIMIT)
         # Filter by bought_for_id to show expenses that belong to this user
         # (their share), regardless of who physically paid (bought_by_id)
         dbh.load()
         query = f"""
-            SELECT item_id, name, bought_date, price, currency, price_final, currency_final, 
+            SELECT item_id, name, bought_date, price, currency, price_final, currency_final,
                    bought_by_id, note, exchange_rate, exchange_rate_date, tags
             FROM p{dbh._db_salt}_items
-            WHERE bought_for_id = ? 
+            WHERE bought_for_id = ?
             AND project_id = ?
             AND bought_date >= ?
             AND bought_date < ?
             ORDER BY bought_date DESC
         """
 
-        results = dbh.execute_query(query, [
-            user_id,
-            project_id,
-            start_date_str,
-            end_date_str
-        ])
+        results = dbh.execute_query(query, [user_id, project_id, start_date_str, end_date_str])
 
         self.app.log(f"EditExpenseView: Found {len(results)} items for user {user_id} in period")
 
         # Fetch all project users once for label owner mapping
         project_users = self._get_project_users(project_id)
-        user_map = {u['user_id']: u['username'] for u in project_users}
+        user_map = {u["user_id"]: u["username"] for u in project_users}
         self.app.log(f"User map for label owners: {user_map}")
 
         # Get all labels for the project to build label map
         labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
-        label_map = {l['label_id']: l for l in labels}
+        label_map = {l["label_id"]: l for l in labels}
 
         # Get ProjectComposer instance for tag parsing
         from fiwa_cli.functions.project_composer import ProjectComposer
+
         project_style = self.app.app_state.get("project_style", "default")
 
         try:
             pc = ProjectComposer.create(
-                compose_type=project_style,
-                dbh=dbh,
-                project_id=project_id,
-                users=[]
+                compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
             )
         except Exception as e:
             self.app.log(f"Error creating ProjectComposer: {e}")
@@ -436,7 +437,7 @@ class EditExpenseView(VerticalScroll):
                 parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
             else:
                 # Fallback: empty parsed tags
-                parsed_tags = {'c': '', 't': '', 'b': '', 'm': '', 's': []}
+                parsed_tags = {"c": "", "t": "", "b": "", "m": "", "s": []}
 
             # Extract transaction label name
             # transaction_label_name = ""
@@ -447,22 +448,24 @@ class EditExpenseView(VerticalScroll):
             #     else:
             #         transaction_label_name = f"Unknown Label {parsed_tags['transaction_id']}"
 
-            items.append({
-                'item_id': row[0],
-                'name': row[1],
-                'bought_date': row[2],
-                'price': row[3],
-                'currency': row[4],
-                'price_final': row[5],
-                'currency_final': row[6],
-                'bought_by_id': row[7],
-                'note': row[8],
-                'exchange_rate': row[9],
-                'exchange_rate_date': row[10],
-                'tags': tags_raw,
-                # 'parsed_tags': parsed_tags,
-                'label_d': parsed_tags["m"]  # Transaction label name for display
-            })
+            items.append(
+                {
+                    "item_id": row[0],
+                    "name": row[1],
+                    "bought_date": row[2],
+                    "price": row[3],
+                    "currency": row[4],
+                    "price_final": row[5],
+                    "currency_final": row[6],
+                    "bought_by_id": row[7],
+                    "note": row[8],
+                    "exchange_rate": row[9],
+                    "exchange_rate_date": row[10],
+                    "tags": tags_raw,
+                    # 'parsed_tags': parsed_tags,
+                    "label_d": parsed_tags["m"],  # Transaction label name for display
+                }
+            )
 
         dbh.close()
         self.app.log(f"Returning {len(items)} items with enriched label details")
@@ -517,31 +520,35 @@ class EditExpenseView(VerticalScroll):
                     table.clear()
 
                     # Fetch new items for the current period
-                    items = self._get_user_items(user['user_id'], project_id)
+                    items = self._get_user_items(user["user_id"], project_id)
 
                     # Add rows to the table
                     for item in items:
                         # Extract date only (remove time if present)
-                        date_str = str(item['bought_date']).split()[0] if item['bought_date'] else ""
+                        date_str = (
+                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                        )
 
                         # Get transaction label name (already extracted in _get_user_items)
                         label_names = str(item["label_d"])
 
                         table.add_row(
-                            #str(item['item_id']),
-                            item['name'],
+                            # str(item['item_id']),
+                            item["name"],
                             f"{item['price']:.2f}",  # Original price
-                            item['currency'],  # Original currency
+                            item["currency"],  # Original currency
                             f"{item['price_final']:.2f}",  # Converted price in main currency
                             date_str,
                             label_names,
-                            key=str(item['item_id'])
+                            key=str(item["item_id"]),
                         )
 
                     # Sort by Date column by default (descending - newest first)
                     # Get the last column key (Date column is the 6th column, index 5)
                     if table.columns:
-                        date_column_key = list(table.columns.keys())[5]  # Date is the 6th column (index 5)
+                        date_column_key = list(table.columns.keys())[
+                            5
+                        ]  # Date is the 6th column (index 5)
                         table.sort(date_column_key, reverse=True)
 
                     self.app.log(f"Refreshed table for user {user['user_id']}: {len(items)} items")
@@ -629,25 +636,24 @@ class EditExpenseView(VerticalScroll):
 
             row = results[0]
             return {
-                'item_id': row[0],
-                'item_uuid': row[1],
-                'name': row[2],
-                'note': row[3],
-                'price': row[4],
-                'price_final': row[5],
-                'currency': row[6],
-                'currency_final': row[7],
-                'bought_date': row[8],
-                'bought_by_id': row[9],
-                'bought_for_id': row[10],
-                'added_by_id': row[11],
-                'project_id': row[12],
-                'exchange_rate': row[13],
-                'exchange_rate_date': row[14],
-                'tags': row[15]
+                "item_id": row[0],
+                "item_uuid": row[1],
+                "name": row[2],
+                "note": row[3],
+                "price": row[4],
+                "price_final": row[5],
+                "currency": row[6],
+                "currency_final": row[7],
+                "bought_date": row[8],
+                "bought_by_id": row[9],
+                "bought_for_id": row[10],
+                "added_by_id": row[11],
+                "project_id": row[12],
+                "exchange_rate": row[13],
+                "exchange_rate_date": row[14],
+                "tags": row[15],
             }
 
         except Exception as e:
             self.app.log(f"Error fetching item {item_id}: {e}")
             return None
-

@@ -1,4 +1,5 @@
 """Dashboard screen - financial overview."""
+
 from textual.screen import ModalScreen
 from textual.containers import Vertical
 from textual.widgets import Static, Button
@@ -46,7 +47,7 @@ class DashboardScreen(ModalScreen):
                 "• Recent transactions\n"
                 "• Monthly spending\n"
                 "• Budget status",
-                id="dashboard-content"
+                id="dashboard-content",
             )
             yield Button("Close", id="close-button", variant="primary")
 

@@ -110,6 +110,7 @@ def faker_users(dbh, num_users=10):
         Production databases should use secure passwords.
     """
     from faker import Faker
+
     fake = Faker()
 
     for i in range(num_users):
@@ -117,7 +118,7 @@ def faker_users(dbh, num_users=10):
             _superu = True
         else:
             _superu = False
-        _projects_max = 3 #if i == 0 else 2  # First user can have more projects
+        _projects_max = 3  # if i == 0 else 2  # First user can have more projects
 
         _f = {
             "first_name": fake.first_name(),
@@ -129,12 +130,13 @@ def faker_users(dbh, num_users=10):
             "max_projects": _projects_max,
             "is_superuser": _superu,  # 10% chance to be superuser
             "scope": "user:write",
-            "activated": True
+            "activated": True,
         }
         print(_f)
         dbh.op_user_create(_f)
 
     print(f"Created {num_users} fake users.")
+
 
 def faker_user_login(user, password, dbh):
     """Test user authentication with fake credentials.
@@ -164,6 +166,7 @@ def faker_user_login(user, password, dbh):
             print(f"Login failed for {user}: Invalid credentials")
     except Exception as e:
         print(f"Error during login for {user}: {str(e)}")
+
 
 def faker_projects(dbh):
     """Populate the database with fake projects for testing.
@@ -201,6 +204,7 @@ def faker_projects(dbh):
     """
     from faker import Faker
     import random
+
     fake = Faker()
 
     # Get all user IDs from the database
@@ -217,7 +221,7 @@ def faker_projects(dbh):
 
     for user_id in user_ids:
         # Generate random currency data
-        currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD']
+        currencies = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"]
         main_currency = random.choice(currencies)
         currency_list = random.sample(currencies, k=random.randint(1, 3))
 
@@ -225,7 +229,7 @@ def faker_projects(dbh):
             "name": f"Project {fake.word().capitalize()} {fake.word().capitalize()}",
             "description": fake.sentence(),
             "currency_main": main_currency,
-            "currency_list": currency_list
+            "currency_list": currency_list,
         }
 
         try:
@@ -249,7 +253,7 @@ def faker_projects(dbh):
     print("\n=== Phase 2: Adding 2 more projects for user 1 ===")
     if 1 in user_projects:
         for i in range(2):
-            currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD']
+            currencies = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"]
             main_currency = random.choice(currencies)
             currency_list = random.sample(currencies, k=random.randint(1, 3))
 
@@ -257,7 +261,7 @@ def faker_projects(dbh):
                 "name": f"Project {fake.word().capitalize()} {fake.word().capitalize()}",
                 "description": fake.sentence(),
                 "currency_main": main_currency,
-                "currency_list": currency_list
+                "currency_list": currency_list,
             }
 
             try:
@@ -275,7 +279,7 @@ def faker_projects(dbh):
     # Phase 3: Add one more project for user 2
     print("\n=== Phase 3: Adding 1 more project for user 2 ===")
     if 2 in user_projects:
-        currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD']
+        currencies = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"]
         main_currency = random.choice(currencies)
         currency_list = random.sample(currencies, k=random.randint(1, 3))
 
@@ -283,7 +287,7 @@ def faker_projects(dbh):
             "name": f"Project {fake.word().capitalize()} {fake.word().capitalize()}",
             "description": fake.sentence(),
             "currency_main": main_currency,
-            "currency_list": currency_list
+            "currency_list": currency_list,
         }
 
         try:
@@ -301,8 +305,15 @@ def faker_projects(dbh):
     if 1 in user_projects and len(user_projects[1]) >= 2 and 2 in user_ids:
         second_project_of_user1 = user_projects[1][1]  # Index 1 is the second project
         try:
-            dbh.op_project_add_user(project_id=second_project_of_user1, user_id=2, project_perm_model='000000', project_primary=False)
-            print(f"Successfully added user 2 to project {second_project_of_user1} (user 1's second project)")
+            dbh.op_project_add_user(
+                project_id=second_project_of_user1,
+                user_id=2,
+                project_perm_model="000000",
+                project_primary=False,
+            )
+            print(
+                f"Successfully added user 2 to project {second_project_of_user1} (user 1's second project)"
+            )
         except ValueError as e:
             print(f"Could not add user 2 to project {second_project_of_user1}: {e}")
         except Exception as e:
@@ -313,8 +324,15 @@ def faker_projects(dbh):
     if 1 in user_projects and len(user_projects[1]) >= 1 and 3 in user_ids:
         first_project_of_user1 = user_projects[1][0]  # Index 0 is the first project
         try:
-            dbh.op_project_add_user(project_id=first_project_of_user1, user_id=3, project_perm_model='000000', project_primary=False)
-            print(f"Successfully added user 3 to project {first_project_of_user1} (user 1's first project)")
+            dbh.op_project_add_user(
+                project_id=first_project_of_user1,
+                user_id=3,
+                project_perm_model="000000",
+                project_primary=False,
+            )
+            print(
+                f"Successfully added user 3 to project {first_project_of_user1} (user 1's first project)"
+            )
         except ValueError as e:
             print(f"Could not add user 3 to project {first_project_of_user1}: {e}")
         except Exception as e:
@@ -331,6 +349,7 @@ def faker_projects(dbh):
 
     print(f"All project IDs: {all_project_ids}")
     return all_project_ids
+
 
 def faker_labels(dbh, project_ids=[]):
     """Create label structures for projects.
@@ -353,9 +372,8 @@ def faker_labels(dbh, project_ids=[]):
     """
     from faker import Faker
     import random
+
     fake = Faker()
-
-
 
     if not project_ids:
         print("No projects found in database. Please create projects first.")
@@ -370,7 +388,7 @@ def faker_labels(dbh, project_ids=[]):
                 "description": fake.sentence(),
                 "label_status": random.choice([1, 2]),  # Inactive or Active
                 "label_type": random.choice([0, 1, 2]),  # Random label type
-                "composite": []
+                "composite": [],
             }
 
             try:
@@ -383,6 +401,7 @@ def faker_labels(dbh, project_ids=[]):
                 print(f"Error creating label for project {project_id}: {e}")
 
     print(f"\nCreated {label_count} fake labels across {len(project_ids)} projects.")
+
 
 def faker_items(dbh, project_ids=[], items_per_project=10):
     """Generate fake transaction items for projects.
@@ -419,20 +438,61 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
 
     # Grocery store names
     grocery_stores = [
-        "Walmart", "Kroger", "Costco", "Albertsons", "Whole Foods",
-        "Trader Joe's", "Safeway", "Publix", "Aldi", "Lidl",
-        "Target", "Wegmans", "H-E-B", "Meijer", "Food Lion"
+        "Walmart",
+        "Kroger",
+        "Costco",
+        "Albertsons",
+        "Whole Foods",
+        "Trader Joe's",
+        "Safeway",
+        "Publix",
+        "Aldi",
+        "Lidl",
+        "Target",
+        "Wegmans",
+        "H-E-B",
+        "Meijer",
+        "Food Lion",
     ]
 
     # Grocery item names (realistic grocery products)
     grocery_items = [
-        "Milk", "Bread", "Eggs", "Butter", "Cheese", "Yogurt",
-        "Chicken Breast", "Ground Beef", "Salmon Fillet", "Bacon",
-        "Apples", "Bananas", "Oranges", "Tomatoes", "Lettuce", "Carrots",
-        "Rice", "Pasta", "Cereal", "Oatmeal", "Flour", "Sugar",
-        "Coffee", "Tea", "Orange Juice", "Soda", "Water Bottles",
-        "Toilet Paper", "Paper Towels", "Dish Soap", "Laundry Detergent",
-        "Frozen Pizza", "Ice Cream", "Chips", "Cookies", "Crackers"
+        "Milk",
+        "Bread",
+        "Eggs",
+        "Butter",
+        "Cheese",
+        "Yogurt",
+        "Chicken Breast",
+        "Ground Beef",
+        "Salmon Fillet",
+        "Bacon",
+        "Apples",
+        "Bananas",
+        "Oranges",
+        "Tomatoes",
+        "Lettuce",
+        "Carrots",
+        "Rice",
+        "Pasta",
+        "Cereal",
+        "Oatmeal",
+        "Flour",
+        "Sugar",
+        "Coffee",
+        "Tea",
+        "Orange Juice",
+        "Soda",
+        "Water Bottles",
+        "Toilet Paper",
+        "Paper Towels",
+        "Dish Soap",
+        "Laundry Detergent",
+        "Frozen Pizza",
+        "Ice Cream",
+        "Chips",
+        "Cookies",
+        "Crackers",
     ]
 
     item_count = 0
@@ -450,7 +510,7 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
                 print(f"No users found for project {project_id}, skipping...")
                 continue
 
-            user_ids = [user['user_id'] for user in project_users]
+            user_ids = [user["user_id"] for user in project_users]
             print(f"Found {len(user_ids)} user(s) for project {project_id}: {user_ids}")
         except Exception as e:
             print(f"Error getting users for project {project_id}: {e}")
@@ -462,10 +522,12 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
             try:
                 # Check if Groceries label exists
                 all_labels = dbh.op_label_get_all(project_id)
-                groceries_label = next((label for label in all_labels if label['name'].lower() == 'groceries'), None)
+                groceries_label = next(
+                    (label for label in all_labels if label["name"].lower() == "groceries"), None
+                )
 
                 if groceries_label:
-                    groceries_label_id = groceries_label['label_id']
+                    groceries_label_id = groceries_label["label_id"]
                     print(f"Found existing 'Groceries' label (ID: {groceries_label_id})")
                 else:
                     # Create Groceries label
@@ -474,7 +536,7 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
                         "description": "Food and household items from grocery stores",
                         "label_status": 2,  # Active
                         "label_type": 1,  # Account type
-                        "composite": []
+                        "composite": [],
                     }
                     groceries_label_id = dbh.op_label_create(label_data, project_id)
                     print(f"Created 'Groceries' label (ID: {groceries_label_id})")
@@ -488,10 +550,10 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
         # Get project currency information
         try:
             project_info = dbh.op_project_get_info(user_ids[0])
-            project_data = next((p for p in project_info if p['project_id'] == project_id), None)
-            main_currency = project_data.get('currency_main', 'USD') if project_data else 'USD'
+            project_data = next((p for p in project_info if p["project_id"] == project_id), None)
+            main_currency = project_data.get("currency_main", "USD") if project_data else "USD"
         except Exception:
-            main_currency = 'USD'
+            main_currency = "USD"
 
         # Create grocery items for this project
         for i in range(items_per_project):
@@ -534,12 +596,14 @@ def faker_items(dbh, project_ids=[], items_per_project=10):
                 "project_id": project_id,
                 "exchange_rate": 1.0,
                 "exchange_rate_date": datetime.now().strftime("%Y-%m-%d"),
-                "tags": json.dumps(tags)  # Store as JSON string
+                "tags": json.dumps(tags),  # Store as JSON string
             }
 
             try:
                 item_id = dbh.op_item_create(item_data)
-                print(f"  Created item {item_id}: {item_data['name']} - ${price} - Bought by user {bought_by_user} for user {bought_for_user}")
+                print(
+                    f"  Created item {item_id}: {item_data['name']} - ${price} - Bought by user {bought_by_user} for user {bought_for_user}"
+                )
                 item_count += 1
             except ValueError as e:
                 print(f"  Could not create item for project {project_id}: {e}")

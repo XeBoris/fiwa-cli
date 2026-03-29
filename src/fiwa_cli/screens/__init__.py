@@ -1,4 +1,5 @@
 """Screens package for FiWa application."""
+
 from fiwa_cli.screens.menu import MenuScreen
 from fiwa_cli.screens.project_selector import ProjectSelectorScreen
 from fiwa_cli.screens.dashboard import DashboardScreen

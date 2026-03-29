@@ -8,7 +8,6 @@ from datetime import datetime
 from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.screens.password_update_modal import PasswordUpdateModal
 
-
 """User modification interface for FiWa CLI.
 
 This module provides a role-based interface for modifying user information.
@@ -194,6 +193,7 @@ class ModifyUserForm(Vertical):
             >>>     user = message.user_data
             >>>     self.notify(f"User {user['username']} updated!")
         """
+
         def __init__(self, user_data: dict) -> None:
             """Initialize UserModified message.
 
@@ -229,7 +229,9 @@ class ModifyUserForm(Vertical):
         if not self._is_admin:
             self._selected_user_id = self._current_user_id
 
-        self.app.log(f"ModifyUserForm: user_id={self._current_user_id}, scope={user_scope}, is_admin={self._is_admin}")
+        self.app.log(
+            f"ModifyUserForm: user_id={self._current_user_id}, scope={user_scope}, is_admin={self._is_admin}"
+        )
 
         yield Static("Modify User", classes="form-title")
 
@@ -254,26 +256,26 @@ class ModifyUserForm(Vertical):
 
                 self._all_users = [
                     {
-                        'user_id': row[0],
-                        'username': row[1],
-                        'first_name': row[2],
-                        'last_name': row[3],
-                        'email': row[4]
+                        "user_id": row[0],
+                        "username": row[1],
+                        "first_name": row[2],
+                        "last_name": row[3],
+                        "email": row[4],
                     }
                     for row in result
                 ]
 
                 # Create options for Select widget
                 options = [
-                    (f"{user['username']} ({user['first_name']} {user['last_name']})", str(user['user_id']))
+                    (
+                        f"{user['username']} ({user['first_name']} {user['last_name']})",
+                        str(user["user_id"]),
+                    )
                     for user in self._all_users
                 ]
 
                 yield Select(
-                    options=options,
-                    prompt="Choose a user...",
-                    id="user-select",
-                    allow_blank=False
+                    options=options, prompt="Choose a user...", id="user-select", allow_blank=False
                 )
 
             except Exception as e:
@@ -290,9 +292,15 @@ class ModifyUserForm(Vertical):
                 # User form fields will be populated after mounting
                 # For admin: show placeholder until user selects from dropdown
                 # For regular user: will load via on_mount
-                yield Static("Please select a user from the dropdown above" if self._is_admin else "Loading your user information...",
-                           id="placeholder-message",
-                           classes="placeholder-message")
+                yield Static(
+                    (
+                        "Please select a user from the dropdown above"
+                        if self._is_admin
+                        else "Loading your user information..."
+                    ),
+                    id="placeholder-message",
+                    classes="placeholder-message",
+                )
 
         with Grid(id="action-buttons"):
             yield Button("Update User", id="user-update-button")
@@ -325,35 +333,29 @@ class ModifyUserForm(Vertical):
 
             # First Name
             fields.append(Static("First Name *", classes="form-label"))
-            fields.append(Input(
-                value=user_data[1] or "",
-                id="user-first-name",
-                placeholder="Enter first name"
-            ))
+            fields.append(
+                Input(
+                    value=user_data[1] or "", id="user-first-name", placeholder="Enter first name"
+                )
+            )
 
             # Last Name
             fields.append(Static("Last Name *", classes="form-label"))
-            fields.append(Input(
-                value=user_data[2] or "",
-                id="user-last-name",
-                placeholder="Enter last name"
-            ))
+            fields.append(
+                Input(value=user_data[2] or "", id="user-last-name", placeholder="Enter last name")
+            )
 
             # Username
             fields.append(Static("Username *", classes="form-label"))
-            fields.append(Input(
-                value=user_data[3] or "",
-                id="user-username",
-                placeholder="Enter username"
-            ))
+            fields.append(
+                Input(value=user_data[3] or "", id="user-username", placeholder="Enter username")
+            )
 
             # Email
             fields.append(Static("Email *", classes="form-label"))
-            fields.append(Input(
-                value=user_data[5] or "",
-                id="user-email",
-                placeholder="Enter email address"
-            ))
+            fields.append(
+                Input(value=user_data[5] or "", id="user-email", placeholder="Enter email address")
+            )
 
             # Birthday (optional) - only editable by admin
             # Convert birthday to string if it exists, handle None/empty values
@@ -365,58 +367,78 @@ class ModifyUserForm(Vertical):
             if self._is_admin:
                 # Admin can edit birthday
                 fields.append(Static("Birthday (YYYY-MM-DD) * (Admin Only)", classes="form-label"))
-                fields.append(Input(
-                    value=birthday_value,
-                    id="user-birthday",
-                    placeholder="YYYY-MM-DD"
-                ))
+                fields.append(
+                    Input(value=birthday_value, id="user-birthday", placeholder="YYYY-MM-DD")
+                )
             else:
                 # Regular user can only view birthday
                 display_birthday = birthday_value if birthday_value else "Not set"
-                fields.append(Static(f"Birthday: {display_birthday} (Contact admin to change)",
-                                   classes="info-label"))
+                fields.append(
+                    Static(
+                        f"Birthday: {display_birthday} (Contact admin to change)",
+                        classes="info-label",
+                    )
+                )
 
             # Scope
             fields.append(Static("Scope *", classes="form-label"))
-            fields.append(Input(
-                value=user_data[10] or "user:write",
-                id="user-scope",
-                placeholder="user:write, admin:full, etc."
-            ))
+            fields.append(
+                Input(
+                    value=user_data[10] or "user:write",
+                    id="user-scope",
+                    placeholder="user:write, admin:full, etc.",
+                )
+            )
 
             # Max Projects (only editable by admin)
             if self._is_admin:
                 fields.append(Static("Maximum Projects * (Admin Only)", classes="form-label"))
-                fields.append(Input(
-                    value=str(user_data[11] or 3),
-                    id="user-max-projects",
-                    placeholder="Number of allowed projects"
-                ))
+                fields.append(
+                    Input(
+                        value=str(user_data[11] or 3),
+                        id="user-max-projects",
+                        placeholder="Number of allowed projects",
+                    )
+                )
             else:
-                fields.append(Static(f"Maximum Projects: {user_data[11]} (Contact admin to change)",
-                                   classes="info-label"))
+                fields.append(
+                    Static(
+                        f"Maximum Projects: {user_data[11]} (Contact admin to change)",
+                        classes="info-label",
+                    )
+                )
 
             # Unique Identifier (read-only)
             fields.append(Static("Unique Identifier (Cannot be changed)", classes="form-label"))
-            fields.append(Static(
-                user_data[12] or "N/A",
-                id="user-unique-identifier-display",
-                classes="readonly-field"
-            ))
+            fields.append(
+                Static(
+                    user_data[12] or "N/A",
+                    id="user-unique-identifier-display",
+                    classes="readonly-field",
+                )
+            )
 
             # Is Superuser (admin only)
             if self._is_admin:
-                fields.append(Static(f"Superuser Status: {'Yes' if user_data[9] else 'No'}",
-                                   classes="info-label"))
+                fields.append(
+                    Static(
+                        f"Superuser Status: {'Yes' if user_data[9] else 'No'}", classes="info-label"
+                    )
+                )
 
             # Activated status (admin only)
             if self._is_admin:
-                fields.append(Static(f"Account Status: {'Active' if user_data[8] else 'Inactive'}",
-                                   classes="info-label"))
+                fields.append(
+                    Static(
+                        f"Account Status: {'Active' if user_data[8] else 'Inactive'}",
+                        classes="info-label",
+                    )
+                )
 
             # Created at
-            fields.append(Static(f"Account Created: {user_data[7] or 'Unknown'}",
-                               classes="info-label"))
+            fields.append(
+                Static(f"Account Created: {user_data[7] or 'Unknown'}", classes="info-label")
+            )
 
         except Exception as e:
             self.app.notify(f"Error loading user data: {str(e)}", severity="error")
@@ -445,7 +467,9 @@ class ModifyUserForm(Vertical):
             # Check if form already has widgets (reload case)
             existing_widgets = list(form_area.query("Input, Static"))
 
-            if existing_widgets and any(w.id and w.id.startswith("user-") for w in existing_widgets):
+            if existing_widgets and any(
+                w.id and w.id.startswith("user-") for w in existing_widgets
+            ):
                 # Form already loaded - update existing widget values instead of recreating
                 self._update_form_values(user_id)
             else:
@@ -489,22 +513,22 @@ class ModifyUserForm(Vertical):
             # Update Input widgets
             try:
                 self.query_one("#user-first-name", Input).value = user_data[1] or ""
-            except:
+            except Exception:
                 pass
 
             try:
                 self.query_one("#user-last-name", Input).value = user_data[2] or ""
-            except:
+            except Exception:
                 pass
 
             try:
                 self.query_one("#user-username", Input).value = user_data[3] or ""
-            except:
+            except Exception:
                 pass
 
             try:
                 self.query_one("#user-email", Input).value = user_data[5] or ""
-            except:
+            except Exception:
                 pass
 
             # Birthday - only update if admin (regular users don't have input field)
@@ -515,19 +539,19 @@ class ModifyUserForm(Vertical):
                     if user_data[4]:
                         birthday_value = str(user_data[4]).split()[0] if user_data[4] else ""
                     self.query_one("#user-birthday", Input).value = birthday_value
-                except:
+                except Exception:
                     pass
 
             try:
                 self.query_one("#user-scope", Input).value = user_data[10] or "user:write"
-            except:
+            except Exception:
                 pass
 
             # Update max_projects if it exists (admin only)
             if self._is_admin:
                 try:
                     self.query_one("#user-max-projects", Input).value = str(user_data[11] or 3)
-                except:
+                except Exception:
                     pass
 
             self.app.log(f"Updated form values for user {user_id}")
@@ -611,7 +635,7 @@ class ModifyUserForm(Vertical):
             if self._is_admin:
                 try:
                     birthday = self.query_one("#user-birthday", Input).value.strip()
-                except:
+                except Exception:
                     pass
 
             # Validate required fields
@@ -638,11 +662,11 @@ class ModifyUserForm(Vertical):
 
             # Build update dict
             update_data = {
-                'first_name': first_name,
-                'last_name': last_name,
-                'username': username,
-                'email': email,
-                'scope': scope
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": username,
+                "email": email,
+                "scope": scope,
             }
 
             # Add birthday if provided
@@ -650,7 +674,7 @@ class ModifyUserForm(Vertical):
                 # Validate date format
                 try:
                     datetime.strptime(birthday, "%Y-%m-%d")
-                    update_data['birthday'] = birthday
+                    update_data["birthday"] = birthday
                 except ValueError:
                     self.app.notify("Invalid birthday format. Use YYYY-MM-DD", severity="error")
                     return
@@ -663,7 +687,7 @@ class ModifyUserForm(Vertical):
                     if max_projects < 1:
                         self.app.notify("Max projects must be at least 1", severity="error")
                         return
-                    update_data['max_projects'] = max_projects
+                    update_data["max_projects"] = max_projects
                 except ValueError:
                     self.app.notify("Max projects must be a valid number", severity="error")
                     return

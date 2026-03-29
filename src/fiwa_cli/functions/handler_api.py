@@ -52,6 +52,7 @@ See Also:
     handler.Handler: Factory for creating handlers
 """
 
+
 class HandlerApi:
     """API-based database handler for remote backend communication.
 
@@ -104,6 +105,7 @@ class HandlerApi:
     See Also:
         handler_sqllite.SQLLiteHandler: Reference implementation
     """
+
     def __init__(self, handler):
         """Initialize API handler with parent handler reference.
 
@@ -171,4 +173,3 @@ class HandlerApi:
             Placeholder implementation - delegates to handler.
         """
         return self.handler.delete(*args, **kwargs)
-

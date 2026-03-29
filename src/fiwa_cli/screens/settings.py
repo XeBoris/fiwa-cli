@@ -34,6 +34,7 @@ See Also:
     settings_user_new: User creation form
     settings_user_modify: User modification form
 """
+
 from textual.screen import ModalScreen, Screen
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Container
 from textual.widgets import Static, Button
@@ -140,60 +141,74 @@ class SettingsScreen(ReactiveScreen):
             user=self.app.app_state["user_name"],
             projects=self.app.app_state["project_names"],
             project_id=self.app.app_state["project_id"],
-            project_ids=self.app.app_state["project_ids"]
+            project_ids=self.app.app_state["project_ids"],
         )
-        #yield Static("Settings", id="settings-title")
-        #yield Static(str(self.app.app_state["is_logged_in"]), id="login-status")
+        # yield Static("Settings", id="settings-title")
+        # yield Static(str(self.app.app_state["is_logged_in"]), id="login-status")
         # Add create project button
         with Container(id="container-body"):
             with ScrollableContainer(id="container-sidebar"):
                 if self.app.app_state["is_logged_in"] is True:
                     yield Static("Project Management", classes="menu-section")
-                    yield Button("+ Create Project",
-                                 id="create-project-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
-                    yield Button("= Modify Project",
-                                 id="modify-project-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
+                    yield Button(
+                        "+ Create Project",
+                        id="create-project-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
+                    yield Button(
+                        "= Modify Project",
+                        id="modify-project-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
 
                     yield Static("Label Management", classes="menu-section")
-                    yield Button("+ Create Label",
-                                 id="create-label-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
-                    yield Button("= Manage Labels",
-                                 id="manage-labels-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
+                    yield Button(
+                        "+ Create Label",
+                        id="create-label-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
+                    yield Button(
+                        "= Manage Labels",
+                        id="manage-labels-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
 
                     yield Static("User Management", classes="menu-section")
-                    yield Button("+ Create User",
-                                 id="create-user-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
-                    yield Button("= Modify User",
-                                 id="modify-user-button",
-                                 classes="sidebar-menu-button",
-                                 variant="default")
-                    yield Button("Back", id="menu-back-button",
-                                 classes="sidebar-menu-button",
-                                 variant="primary",
-                                 flat=True)
+                    yield Button(
+                        "+ Create User",
+                        id="create-user-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
+                    yield Button(
+                        "= Modify User",
+                        id="modify-user-button",
+                        classes="sidebar-menu-button",
+                        variant="default",
+                    )
+                    yield Button(
+                        "Back",
+                        id="menu-back-button",
+                        classes="sidebar-menu-button",
+                        variant="primary",
+                        flat=True,
+                    )
                 else:
                     yield Static("Please login to access settings", classes="menu-section")
 
                     # Always show Back button
-                    yield Button("Back", id="menu-back-button",
-                                 variant="primary")
+                    yield Button("Back", id="menu-back-button", variant="primary")
 
             # Right content area
             with ScrollableContainer(id="settings-content-area"):
                 yield Static("Select an option from the menu", id="content-display")
                 m = """
- ____       _   _   _                 
-/ ___|  ___| |_| |_(_)_ __   __ _ ___ 
+ ____       _   _   _
+/ ___|  ___| |_| |_(_)_ __   __ _ ___
 \___ \ / _ \ __| __| | '_ \ / _` / __|
  ___) |  __/ |_| |_| | | | | (_| \__ \\
 |____/ \___|\__|\__|_|_| |_|\__, |___/
@@ -227,7 +242,9 @@ class SettingsScreen(ReactiveScreen):
         elif event.button.id == "modify-user-button":
             self.show_modify_user_form()
         elif event.button.id == "currency-settings-button":
-            self.show_content("Currency Settings", "Currency configuration interface coming soon...")
+            self.show_content(
+                "Currency Settings", "Currency configuration interface coming soon..."
+            )
         elif event.button.id == "create-label-button":
             self.show_create_label_form()
         elif event.button.id == "manage-labels-button":
@@ -238,15 +255,16 @@ class SettingsScreen(ReactiveScreen):
             # Clear confirmation and show default message
             self.show_content("Settings", "Select an option from the menu")
 
-
     def show_content(self, title: str, message: str) -> None:
         """Update the content area with new information."""
         content_area = self.query_one("#settings-content-area", ScrollableContainer)
         content_area.remove_children()
-        content_area.mount(Static(f"[bold]{title}[/bold]\n\n{message}",
-                                  # id="content-display"
-                                  )
-                           )
+        content_area.mount(
+            Static(
+                f"[bold]{title}[/bold]\n\n{message}",
+                # id="content-display"
+            )
+        )
 
     def show_create_project_form(self) -> None:
         """Show the create project form in the content area."""
@@ -298,7 +316,9 @@ class SettingsScreen(ReactiveScreen):
         form.on_mount()
         content_area.mount(form)
 
-    def on_create_project_form_project_created(self, message: CreateProjectForm.ProjectCreated) -> None:
+    def on_create_project_form_project_created(
+        self, message: CreateProjectForm.ProjectCreated
+    ) -> None:
         """
         Handle the ProjectCreated message from CreateProjectForm.
         Creates the project in the database and updates app_state.
@@ -329,18 +349,16 @@ class SettingsScreen(ReactiveScreen):
             project_info = dbh.op_project_get_info(user_id)
 
             # Finish project setup based on style:
-            compose_users =[
-                {"user_id": user_id,
-                 "username": self.app.app_state.get("user_name", "Unknown")}
+            compose_users = [
+                {"user_id": user_id, "username": self.app.app_state.get("user_name", "Unknown")}
             ]
 
-            pc = ProjectComposer.create(compose_type=project_style,
-                                        dbh=dbh,
-                                        project_id=project_id,
-                                        users=compose_users)
+            pc = ProjectComposer.create(
+                compose_type=project_style, dbh=dbh, project_id=project_id, users=compose_users
+            )
 
-            pc.build()            # prepare the project
-            pc.compose_accounts() # prepare the default accounts
+            pc.build()  # prepare the project
+            pc.compose_accounts()  # prepare the default accounts
 
             # Extract project data for app_state
             project_names = []
@@ -364,7 +382,9 @@ class SettingsScreen(ReactiveScreen):
                 if primary_project_id == 0:
                     primary_project_id = project_id
                     # Find the newly created project details
-                    new_project = next((p for p in project_info if p["project_id"] == project_id), None)
+                    new_project = next(
+                        (p for p in project_info if p["project_id"] == project_id), None
+                    )
                     if new_project:
                         primary_project_style = new_project.get("project_style", "default")
                         primary_project_name = new_project.get("project_name", "No Project")
@@ -384,7 +404,7 @@ class SettingsScreen(ReactiveScreen):
             self.notify(
                 f"Project '{message.project_data['name']}' created successfully! "
                 f"You can now select it from the project menu.",
-                severity="information"
+                severity="information",
             )
 
             # Show success message
@@ -392,7 +412,7 @@ class SettingsScreen(ReactiveScreen):
                 "Project Created",
                 f"Successfully created: {message.project_data['name']}\n\n"
                 f"Project ID: {project_id}\n"
-                f"You can now switch to this project using the project selector."
+                f"You can now switch to this project using the project selector.",
             )
 
         except ValueError as e:
@@ -400,7 +420,9 @@ class SettingsScreen(ReactiveScreen):
         except Exception as e:
             self.notify(f"Error creating project: {str(e)}", severity="error")
 
-    def on_modify_project_form_project_modified(self, message: ModifyProjectForm.ProjectModified) -> None:
+    def on_modify_project_form_project_modified(
+        self, message: ModifyProjectForm.ProjectModified
+    ) -> None:
         """Handle the ProjectModified message from ModifyProjectForm."""
         self.notify(f"Project '{message.project_data['name']}' updated!", severity="information")
 
@@ -411,7 +433,7 @@ class SettingsScreen(ReactiveScreen):
 
         if current_project_id in project_ids:
             idx = project_ids.index(current_project_id)
-            project_names[idx] = message.project_data['name']
+            project_names[idx] = message.project_data["name"]
             self.app.app_state["project_names"] = project_names
 
         # Show confirmation with OK button
@@ -427,11 +449,25 @@ class SettingsScreen(ReactiveScreen):
         content_area.mount(confirmation_widget)
 
         # Now mount children to the attached container
-        confirmation_widget.mount(Static(f"[bold green]✓ Project Updated Successfully[/bold green]\n", classes="success-message"))
+        confirmation_widget.mount(
+            Static(
+                f"[bold green]✓ Project Updated Successfully[/bold green]\n",
+                classes="success-message",
+            )
+        )
         confirmation_widget.mount(Static(f"Project Name: {project_data['name']}", classes="detail"))
-        confirmation_widget.mount(Static(f"Description: {project_data.get('description', 'N/A')}", classes="detail"))
-        confirmation_widget.mount(Static(f"Main Currency: {project_data.get('currency_main', 'N/A')}", classes="detail"))
-        confirmation_widget.mount(Static(f"Currency List: {', '.join(project_data.get('currency_list', []))}", classes="detail"))
+        confirmation_widget.mount(
+            Static(f"Description: {project_data.get('description', 'N/A')}", classes="detail")
+        )
+        confirmation_widget.mount(
+            Static(f"Main Currency: {project_data.get('currency_main', 'N/A')}", classes="detail")
+        )
+        confirmation_widget.mount(
+            Static(
+                f"Currency List: {', '.join(project_data.get('currency_list', []))}",
+                classes="detail",
+            )
+        )
         confirmation_widget.mount(Static("\n"))
         confirmation_widget.mount(Button("OK", id="confirmation-ok-button", variant="success"))
 
@@ -440,17 +476,21 @@ class SettingsScreen(ReactiveScreen):
         self.notify(f"User '{message.user_data['username']}' created!", severity="information")
         self.show_content("User Created", f"Successfully created: {message.user_data['username']}")
 
-    def on_label_management_form_labels_modified(self, message: LabelManagementForm.LabelsModified) -> None:
+    def on_label_management_form_labels_modified(
+        self, message: LabelManagementForm.LabelsModified
+    ) -> None:
         """Handle the LabelsModified message from LabelManagementForm."""
         summary = message.changes_summary
         self.notify(
             f"Label changes saved: {summary['new_labels']} new, {summary['modified_labels']} modified",
-            severity="information"
+            severity="information",
         )
         # Reload the form to show updated data
         self.show_label_management_form()
 
-    def on_label_management_form_new_label_requested(self, message: LabelManagementForm.NewLabelRequested) -> None:
+    def on_label_management_form_new_label_requested(
+        self, message: LabelManagementForm.NewLabelRequested
+    ) -> None:
         """Handle the NewLabelRequested message from LabelManagementForm."""
         # Switch to the CreateLabelForm
         self.show_create_label_form()
@@ -486,7 +526,9 @@ class SettingsScreen(ReactiveScreen):
 
         current_login_state = self.app.app_state.get("is_logged_in", False)
         if self._last_login_state != current_login_state:
-            self.app.log(f"Login state changed from {self._last_login_state} to {current_login_state}")
+            self.app.log(
+                f"Login state changed from {self._last_login_state} to {current_login_state}"
+            )
             self._last_login_state = current_login_state
             try:
                 self._rebuild_sidebar()
@@ -514,22 +556,16 @@ class SettingsScreen(ReactiveScreen):
         if is_logged_in is True:
             self.app.log("Mounting logged-in menu items")
             sidebar.mount(Static("Project Management", classes="menu-section"))
-            sidebar.mount(Button("+ Create Project", id="create-project-button",
-                         variant="default"))
-            sidebar.mount(Button("= Modify Project", id="modify-project-button",
-                         variant="default"))
+            sidebar.mount(Button("+ Create Project", id="create-project-button", variant="default"))
+            sidebar.mount(Button("= Modify Project", id="modify-project-button", variant="default"))
 
             sidebar.mount(Static("Label Management", classes="menu-section"))
-            sidebar.mount(Button("+ Create Label", id="create-label-button",
-                         variant="default"))
-            sidebar.mount(Button("= Manage Labels", id="manage-labels-button",
-                         variant="default"))
+            sidebar.mount(Button("+ Create Label", id="create-label-button", variant="default"))
+            sidebar.mount(Button("= Manage Labels", id="manage-labels-button", variant="default"))
 
             sidebar.mount(Static("User Management", classes="menu-section"))
-            sidebar.mount(Button("+ Create User", id="create-user-button",
-                         variant="default"))
-            sidebar.mount(Button("= Modify User", id="modify-user-button",
-                         variant="default"))
+            sidebar.mount(Button("+ Create User", id="create-user-button", variant="default"))
+            sidebar.mount(Button("= Modify User", id="modify-user-button", variant="default"))
         else:
             self.app.log("Mounting logged-out message")
             sidebar.mount(Static("Please login to access settings", classes="menu-section"))

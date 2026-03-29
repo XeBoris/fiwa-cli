@@ -49,6 +49,7 @@ See Also:
     screens.menu.MenuScreen: Navigation menu opened from header
     components.calendar_picker.CalendarWidget: Date picker modal
 """
+
 from typing import List
 
 from textual.widgets import Static, Button
@@ -293,11 +294,13 @@ class FiwaHeader(Static):
         """
         self.refresh()
 
-    def __init__(self,
-                 user: str = "Guest",
-                 projects: List = [],
-                 project_id: int = 0,
-                 project_ids: List[int] = [0]) -> None:
+    def __init__(
+        self,
+        user: str = "Guest",
+        projects: List = [],
+        project_id: int = 0,
+        project_ids: List[int] = [0],
+    ) -> None:
         """Initialize the FiWa header component.
 
         Args:
@@ -401,15 +404,14 @@ class FiwaHeader(Static):
         """
         if event.button.id == "header-menu-button":
             from fiwa_cli.screens.menu import MenuScreen
+
             self.app.push_screen(MenuScreen())
         elif event.button.id == "calendar-button":
             from fiwa_cli.components.calendar_picker import CalendarWidget
-            self.app.push_screen(CalendarWidget(
-                                        initial_date=None,
-                                        margin=(3, 0, 0, 15),
-                                        week_starts_monday=True
-                                 ),
-                                 callback=self._handle_date_selected
+
+            self.app.push_screen(
+                CalendarWidget(initial_date=None, margin=(3, 0, 0, 15), week_starts_monday=True),
+                callback=self._handle_date_selected,
             )
 
     def _handle_date_selected(self, selected_date) -> None:
@@ -438,7 +440,9 @@ class FiwaHeader(Static):
                 self.app.app_state["selected_date"] = selected_date.strftime('%Y-%m-%d')
         """
         if selected_date:
-            self.app.notify(f"Selected date: {selected_date.strftime('%Y-%m-%d')}", severity="information")
+            self.app.notify(
+                f"Selected date: {selected_date.strftime('%Y-%m-%d')}", severity="information"
+            )
             # You can do more with the selected date here
             # For example, store it in app_state or trigger other actions
             # self.app.app_state["selected_date"] = selected_date.strftime('%Y-%m-%d')
