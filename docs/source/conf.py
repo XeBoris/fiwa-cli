@@ -10,10 +10,21 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../../src'))
 
+# Read version from pyproject.toml
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    import tomli as tomllib  # Python 3.10 and earlier
+
+with open(os.path.abspath('../../pyproject.toml'), 'rb') as f:
+    pyproject = tomllib.load(f)
+    version = pyproject['project']['version']
+    release = version
+
 project = 'FiWa-CLI'
 copyright = '2026, Boris Bauermeister'
 author = 'Boris Bauermeister'
-release = '0.1.0'
+# version and release are now set from pyproject.toml above
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

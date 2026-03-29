@@ -157,6 +157,10 @@ def handle_args() -> [str, Dict[str, Any]]:
             $ python main.py run --user alice --path ~/my-fiwa
             Enter password for user alice: ********
 
+        Show version:
+            $ python main.py --version
+            FiWa CLI version 0.2.0
+
     Raises:
         SystemExit: If required arguments are missing or invalid
 
@@ -167,7 +171,35 @@ def handle_args() -> [str, Dict[str, Any]]:
     """
     import argparse
 
+    # Read version from pyproject.toml
+    try:
+        try:
+            import tomllib  # Python 3.11+
+        except ImportError:
+            import tomli as tomllib  # Python 3.10 and earlier
+
+        pyproject_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..", "..", "..", "pyproject.toml"
+        )
+        pyproject_path = os.path.normpath(pyproject_path)
+
+        with open(pyproject_path, 'rb') as f:
+            pyproject = tomllib.load(f)
+            app_version = pyproject['project']['version']
+    except Exception:
+        app_version = "unknown"
+
     parser = argparse.ArgumentParser(description="FiWa CLI Application")
+
+    # Add --version argument
+    parser.add_argument(
+        "--version",
+        action='version',
+        version=f'FiWa CLI version {app_version}',
+        help="Show program version and exit"
+    )
+
     subparsers = parser.add_subparsers(
         dest="mode",
         help="Available modes",
