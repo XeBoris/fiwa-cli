@@ -106,7 +106,8 @@ class MenuScreen(ModalScreen):
             self._perform_logout()
             self.dismiss()
         else:
-            self.app.notify(f"Selected: {event.option.prompt}")
+            # Unhandled menu option - just dismiss
+            self.app.log(f"Unhandled menu option: {option_id} with prompt: {event.option.prompt}")
             self.dismiss()
 
     def _perform_logout(self) -> None:

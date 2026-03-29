@@ -311,6 +311,12 @@ class CalendarWidget(ModalScreen):
             - height: Set to 15 terminal rows
             - margin: Set to self._margin if provided
         """
+        # Log to custom file logger (self.app.file_log)
+        try:
+            self.app.file_log.info(f"CalendarWidget mounted - displaying {self.display_date.strftime('%B %Y')}")
+        except:
+            pass  # Logging is not critical
+
         # Get the container widget
         container = self.query_one(Container)
 
@@ -856,6 +862,7 @@ class CalendarWidget(ModalScreen):
             month_display = self.query_one("#month-year-display", Static)
             month_display.update(month_year)
             self.app.log(f"✓ Updated month display to: {month_year}")
+            self.app.file_log.info(f"Updated month display to: {month_year}")
         except Exception as e:
             self.app.log(f"✗ Error updating month display: {e}")
 

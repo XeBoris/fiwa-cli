@@ -14,7 +14,8 @@ except PackageNotFoundError:
 
 __author__ = "Boris Bauermeister"
 
-# Import main components for easy access
-from fiwa_cli.main import MyApp, main
+# Don't import main components here to avoid circular import issues
+# when running with `python -m fiwa_cli.main`
+# Users should import directly: from fiwa_cli.main import MyApp, main
 
-__all__ = ["MyApp", "main", "__version__", "__author__"]
+__all__ = ["__version__", "__author__"]
