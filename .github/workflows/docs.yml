@@ -46,7 +46,7 @@ jobs:
         fi
 
     - name: Upload documentation artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: documentation-html
         path: docs/build/html/
