@@ -1,4 +1,150 @@
-"""Item input form component - reusable form for adding/editing items (transactions)."""
+"""Item input form component - comprehensive expense/transaction editor.
+
+This module provides the core form component for creating and editing
+financial transactions (expenses/income). It's a reusable modal form
+used throughout the application for all transaction input operations.
+
+The form handles:
+    - New expense creation
+    - Existing expense editing
+    - Cost sharing between multiple users
+    - Label/category selection with dynamic tabs
+    - Exchange rate management
+    - Date selection
+    - Input validation and sanitization
+    - Confirmation workflow with preview
+
+Key Features:
+    - **Dual mode**: Create new or edit existing transactions
+    - **Cost sharing**: Split expenses between users with percentages
+    - **Label selection**: Tabbed interface for label categories
+    - **Default labels**: Automatic assignment if user doesn't select
+    - **Exchange rates**: Manual or automatic currency conversion
+    - **Validation**: Comprehensive input checking
+    - **Confirmation**: Preview before database commit
+    - **Sanitization**: Input cleaning for security
+
+Classes:
+    ItemInputForm: Main expense input form modal
+    ItemConfirmationModal: Preview and confirmation dialog
+    DeleteConfirmationModal: Delete confirmation dialog
+
+Functions:
+    sanitize_string: Input sanitization utility
+
+Form Fields:
+    **Basic Information**:
+        - Item Name (required): Transaction description
+        - Price (required): Amount in original currency
+        - Currency: 3-letter code (USD, EUR, etc.)
+        - Purchase Date: When transaction occurred
+
+    **User Assignment**:
+        - Bought By: Who made the purchase
+        - Bought For: Who the expense is for (supports cost sharing)
+        - Share Percentage: Split costs among users (must total 100%)
+
+    **Exchange Rate** (optional):
+        - Exchange Rate: Conversion rate to main currency
+        - Exchange Rate Date: When rate applies
+        - Auto-calculated if not provided
+
+    **Categorization**:
+        - Count Label: Transaction counting category
+        - Transaction Label: Type (fixed, variable, daily, revenue)
+        - Account Label: Bank/payment method
+        - Main Label: Primary category (groceries, rent, etc.)
+        - Secondary Labels: Additional tags (multiple selection)
+
+    **Additional**:
+        - Notes: Free text for comments
+
+Workflow:
+    **Creating New Expense**:
+        1. User opens form (edit_mode=False)
+        2. User fills required fields (name, price, date)
+        3. User optionally selects labels (or uses defaults)
+        4. User optionally shares cost with other users
+        5. User clicks Save
+        6. Form validates all inputs
+        7. Confirmation modal shows preview
+        8. User confirms
+        9. Expense saved to database
+        10. ItemCreated message posted
+
+    **Editing Existing Expense**:
+        1. Form opens with item_data (edit_mode=True)
+        2. All fields pre-filled from database
+        3. User modifies fields
+        4. User clicks Save
+        5. Validation runs
+        6. Confirmation shows changes
+        7. User confirms
+        8. Database updated
+        9. Modal closes
+
+Label Selection:
+    The form provides a sophisticated tabbed label selector:
+        - Dynamically created tabs based on project style
+        - Each label type group gets its own tab
+        - Radio button selection within each tab
+        - Default labels auto-selected if user doesn't choose
+        - Owner-based coloring for user vs. common labels
+
+Cost Sharing:
+    Users can split expenses among project members:
+        - Add multiple "Bought For" users with percentages
+        - Visual sliders or input fields for percentages
+        - Validation ensures total equals 100%
+        - Each user sees their portion in their expense view
+        - Uses liability accounts for shared portions
+
+Default Label Behavior:
+    If user doesn't select labels:
+        - Count label: User's default or first available
+        - Transaction label: User's default for transaction type
+        - Account label: User's liability account (if sharing) or default
+        - Main label: User's default for main category
+        - Secondary labels: None
+
+Validation Rules:
+    - Name: Required, max 100 characters
+    - Price: Required, must be positive number
+    - Currency: Required, exactly 3 letters
+    - Date: Required, valid date format
+    - Exchange rate: If provided, must be positive
+    - Share percentages: Must total 100% if cost sharing
+    - Labels: Auto-assigned if not selected
+
+Example:
+    Creating new expense::
+
+        >>> from fiwa_cli.components.item_input_form import ItemInputForm
+        >>> form = ItemInputForm(edit_mode=False)
+        >>> result = await self.app.push_screen_wait(form)
+        >>> if result:
+        >>>     print(f"Created expense: {result['item_id']}")
+
+    Editing existing expense::
+
+        >>> item_data = {
+        >>>     'item_id': 42,
+        >>>     'item_uuid': 'abc-123',
+        >>>     'name': 'Groceries',
+        >>>     'price': 85.00,
+        >>>     'currency': 'USD',
+        >>>     # ... other fields
+        >>> }
+        >>> form = ItemInputForm(edit_mode=True, item_data=item_data)
+        >>> result = await self.app.push_screen_wait(form)
+
+See Also:
+    screens.inputs_insert_expense: Wrapper for new expense creation
+    screens.inputs_edit_expense: Expense editing interface
+    functions.project_composer.ProjectComposer: Label management
+    functions.handler_sqllite.op_item_create: Database creation
+    functions.handler_sqllite.op_item_update: Database update
+"""
 from textual.widgets import Static, Button, Input, Select, Label, SelectionList, Switch, Placeholder
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
 from textual.app import ComposeResult
@@ -21,37 +167,69 @@ def sanitize_string(
     allowed_chars: str = r'a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"',
     allow_internal_spaces: bool = True
 ) -> tuple[str, bool]:
-    """
-    Sanitize and validate a string by removing invalid characters and trimming spaces.
+    """Sanitize and validate string input by removing invalid characters.
 
     This function ensures that:
-    - Leading and trailing spaces are removed
-    - Only allowed characters are present in the string
-    - First and last characters are not spaces (after trimming)
+        - Leading and trailing spaces are removed
+        - Only allowed characters are present in the string
+        - First and last characters are not spaces (after trimming)
 
     Args:
         text: The input string to sanitize
-        allowed_chars: Regex character set of allowed characters (default: a-z, A-Z, 0-9,
-                      and common punctuation marks like . , - _ : ; ! ? ( ) [ ] @ # $ % & + = ' ")
-        allow_internal_spaces: Whether to allow spaces within the string (default: True)
+        allowed_chars: Regex character set of allowed characters
+            Default allows: a-z, A-Z, 0-9, spaces, and common punctuation
+            (. , - _ : ; ! ? ( ) [ ] @ # $ % & + = ' ")
+        allow_internal_spaces: Whether to allow spaces within the string
+            Default: True
 
     Returns:
-        A tuple of (sanitized_string, was_modified):
-        - sanitized_string: The cleaned string with invalid characters removed and spaces trimmed
-        - was_modified: Boolean indicating if the string was changed during sanitization
+        Tuple of (sanitized_string, was_modified):
+            - sanitized_string: Cleaned string with invalid chars removed
+            - was_modified: True if string was changed during sanitization
 
     Examples:
-        >>> sanitize_string("  Hello World!  ")
-        ("Hello World!", True)
+        Remove leading/trailing spaces::
 
-        >>> sanitize_string("Hello World!")
-        ("Hello World!", False)
+            >>> sanitize_string("  Hello World!  ")
+            ("Hello World!", True)
 
-        >>> sanitize_string("Product-Name_123", allowed_chars=r'a-zA-Z0-9\-\_')
-        ("Product-Name_123", False)
+        No changes needed::
 
-        >>> sanitize_string("Test<script>alert()</script>")
-        ("Testscriptalert", True)
+            >>> sanitize_string("Hello World!")
+            ("Hello World!", False)
+
+        Restrict to alphanumeric and hyphens::
+
+            >>> sanitize_string("Product-Name_123", allowed_chars=r'a-zA-Z0-9\-\_')
+            ("Product-Name_123", False)
+
+        Remove script tags::
+
+            >>> sanitize_string("Test<script>alert()</script>")
+            ("Testscriptalert", True)
+
+        Empty input::
+
+            >>> sanitize_string("")
+            ("", False)
+
+        Only whitespace::
+
+            >>> sanitize_string("   ")
+            ("", True)
+
+    Security:
+        This function prevents injection attacks by removing potentially
+        dangerous characters. Use it for all user text inputs that will
+        be stored in the database or displayed in the UI.
+
+    Note:
+        The function performs two sanitization passes:
+            1. Strip leading/trailing whitespace
+            2. Filter out non-allowed characters
+
+        This ensures clean, safe strings suitable for database storage
+        and UI display.
     """
     if not text:
         return ("", False)

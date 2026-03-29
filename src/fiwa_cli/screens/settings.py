@@ -1,4 +1,39 @@
-"""Settings screen - configure application settings."""
+"""Settings screen - configure application settings.
+
+This module provides the main settings interface for FiWa CLI, allowing users
+to manage projects, labels, and users. The screen features a sidebar menu
+with navigation and a main content area that displays different forms.
+
+The settings screen is organized into three main sections:
+    - Project Management: Create and modify projects
+    - Label Management: Create and manage expense labels/categories
+    - User Management: Create and modify user accounts
+
+Key Features:
+    - Reactive sidebar that updates based on login state
+    - Dynamic content area that loads different forms
+    - Project creation with custom styles and currencies
+    - Label management with categories and defaults
+    - User permission management
+
+Classes:
+    SettingsScreen: Main settings screen with sidebar navigation
+
+Example:
+    Opening the settings screen::
+
+        >>> from fiwa_cli.screens.settings import SettingsScreen
+        >>> self.app.push_screen(SettingsScreen())
+
+    Or using keyboard shortcut 'S' from main screen.
+
+See Also:
+    settings_project_new: Project creation form
+    settings_project_modify: Project modification form
+    settings_label_page: Label management interface
+    settings_user_new: User creation form
+    settings_user_modify: User modification form
+"""
 from textual.screen import ModalScreen, Screen
 from textual.containers import Vertical, Horizontal, ScrollableContainer, Container
 from textual.widgets import Static, Button
@@ -20,7 +55,78 @@ from .base import ReactiveScreen
 
 
 class SettingsScreen(ReactiveScreen):
-    """Settings screen - configure application settings."""
+    """Main settings screen with sidebar navigation and content area.
+
+    This screen provides a centralized interface for all application settings
+    and configurations. It features a reactive sidebar menu that adapts to
+    the user's login state and a dynamic content area that displays various
+    forms and interfaces.
+
+    The screen is divided into two main areas:
+        - **Left sidebar**: Navigation menu with setting categories
+        - **Right content area**: Active form or information display
+
+    Attributes:
+        _last_login_state (bool): Cached login state to detect changes
+        _mounted (bool): Flag indicating if screen is fully mounted
+
+    Message Handlers:
+        - ProjectCreated: Handles new project creation
+        - ProjectModified: Handles project updates
+        - UserCreated: Handles new user creation
+        - LabelsModified: Handles label changes
+        - NewLabelRequested: Handles request to create new label
+        - LabelCreated: Handles new label creation
+
+    Layout Structure:
+        Container (container-body)
+        ├── ScrollableContainer (container-sidebar)
+        │   ├── Static (menu sections)
+        │   ├── Button (menu items)
+        │   └── Button (Back)
+        └── ScrollableContainer (settings-content-area)
+            └── Dynamic content (forms/displays)
+
+    Sidebar Menu Items (when logged in):
+        **Project Management**
+            - + Create Project: Opens project creation form
+            - = Modify Project: Opens project modification form
+
+        **Label Management**
+            - + Create Label: Opens label creation form
+            - = Manage Labels: Opens label management interface
+
+        **User Management**
+            - + Create User: Opens user creation form
+            - = Modify User: Opens user modification form
+
+        **Navigation**
+            - Back: Returns to main screen
+
+    Example:
+        Basic usage::
+
+            >>> from fiwa_cli.screens.settings import SettingsScreen
+            >>> self.app.push_screen(SettingsScreen())
+
+        From keyboard shortcut::
+
+            # User presses 'S' key
+            # Settings screen opens automatically
+
+    Note:
+        The sidebar automatically rebuilds when the user logs in or out,
+        showing appropriate options based on authentication status.
+
+        All forms are mounted dynamically in the content area, allowing
+        for clean separation of concerns and easy maintenance.
+
+    See Also:
+        base.ReactiveScreen: Base class with reactive state watching
+        settings_project_new.CreateProjectForm: Project creation
+        settings_project_modify.ModifyProjectForm: Project editing
+        settings_label_page.LabelManagementForm: Label management
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

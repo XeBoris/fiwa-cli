@@ -49,6 +49,12 @@ syntax = [
     "textual[syntax]",
 ]
 
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints"
+]
+
 [project.scripts]
 fiwa = "fiwa_cli.main:main"
 

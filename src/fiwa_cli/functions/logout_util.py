@@ -1,16 +1,101 @@
-"""Logout utility - Centralized logout logic for FiWa CLI."""
+"""Centralized logout functionality for FiWa CLI.
+
+This module provides shared logout logic used across the application to
+ensure consistent session cleanup and state reset behavior regardless of
+where logout is initiated (menu, settings, keyboard shortcut).
+
+The logout utility:
+    - Clears user session in database
+    - Resets app_state to default values
+    - Preserves application-level configuration
+    - Returns to main screen
+    - Shows success/error notifications
+
+Key Functions:
+    - **perform_logout()**: Complete logout workflow
+    - **return_to_main_screen()**: Screen stack cleanup
+
+Design Rationale:
+    Centralized logout prevents code duplication and ensures that logout
+    behaves consistently whether initiated from:
+        - Menu (press M → Logout)
+        - Settings (user management)
+        - Keyboard (press Q with logout)
+        - LoginScreen modal
+
+Example:
+    Using perform_logout::
+
+        >>> from fiwa_cli.functions.logout_util import perform_logout
+        >>>
+        >>> # From menu or any screen
+        >>> success = perform_logout(self.app)
+        >>> if success:
+        >>>     # User logged out, returned to main screen
+        >>>     pass
+
+    Complete logout flow::
+
+        >>> # User clicks "Logout" in menu
+        >>> perform_logout(self.app)
+        >>> # 1. Clears session in database
+        >>> # 2. Resets app_state to defaults
+        >>> # 3. Shows "Logout successful!" notification
+        >>> # 4. Returns to main screen
+        >>> # 5. Returns True
+
+See Also:
+    screens.menu.MenuScreen: Uses perform_logout for menu logout
+    screens.base.LoginScreen: Has own perform_logout (includes modal dismissal)
+    main.MyApp: Keyboard bindings for quit with logout
+"""
 
 
 def perform_logout(app) -> bool:
-    """Perform logout operation - can be called from anywhere in the app.
+    """Perform complete logout operation with session cleanup and state reset.
 
-    This is the centralized logout logic used by menu.py and other components.
+    This is the centralized logout logic used throughout the application.
+    It handles database session invalidation, app_state reset, and
+    navigation back to the main screen.
+
+    The logout process:
+        1. Retrieves session_uuid from app_state
+        2. Preserves application-level config (abs_path, css_form, css_theme)
+        3. Calls op_user_logout() to clear session in database
+        4. Resets app_state to default "logged out" values
+        5. Restores preserved application config
+        6. Shows success notification
+        7. Schedules return to main screen
+        8. Returns True
 
     Args:
-        app: The main application instance
+        app: The main application instance (MyApp)
+            Must have:
+                - _config: Config dict with "dbh" (database handler)
+                - app_state: Reactive state dict
+                - notify(): Notification method
+                - log(): Logging method
+                - call_after_refresh(): Deferred execution
 
     Returns:
-        True if logout was successful, False otherwise
+        bool: True if logout successful, False if failed
+
+    Side Effects:
+        - Updates database: session.is_logged_in = False
+        - Resets app_state to default values (user_name="Guest", etc.)
+        - Preserves abs_path, css_form, css_theme
+        - Shows success/error notification
+        - Schedules return_to_main_screen()
+        - Logs all operations
+
+    Example:
+        Successful logout::
+
+            >>> success = perform_logout(app)
+            >>> # Database session cleared
+            >>> # app_state reset to defaults
+            >>> # Returns to main screen
+            >>> # success = True
     """
     try:
         # Get database handler
@@ -65,10 +150,30 @@ def perform_logout(app) -> bool:
 
 
 def return_to_main_screen(app) -> None:
-    """Pop all screens to return to the main screen.
+    """Pop all screens from stack to return to main application screen.
+
+    Cleans up the screen stack by removing all screens except the base
+    main screen. This is typically called after logout to provide a
+    clean starting state.
 
     Args:
-        app: The main application instance
+        app: The main application instance (MyApp)
+            Must have:
+                - screen_stack: List of active screens
+                - pop_screen(): Method to remove top screen
+                - log(): Logging method
+
+    Side Effects:
+        - Pops all screens except the base screen (len=1)
+        - Logs navigation or any errors
+
+    Example:
+        After logout::
+
+            >>> # Screen stack: [MainScreen, SettingsScreen, MenuScreen]
+            >>> return_to_main_screen(app)
+            >>> # Pops all except MainScreen
+            >>> # User sees clean main screen
     """
     try:
         # Pop all screens except the main screen

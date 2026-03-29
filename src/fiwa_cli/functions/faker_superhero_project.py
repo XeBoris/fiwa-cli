@@ -1,3 +1,128 @@
+"""Superhero-themed sample project generator for FiWa CLI.
+
+This module creates a complete, realistic test environment featuring
+superhero users (Batman and Superman) with a shared expense tracking
+project. It's used for demonstrations, testing, and as a template for
+new installations.
+
+The superhero project includes:
+    - 4 users: Admin, Superman, Batman, Spiderman
+    - 1 shared project with both Batman and Superman
+    - Complete label structure (ExpenseTracker style)
+    - Realistic transaction history (groceries, income, savings)
+    - Cost sharing between users
+    - Time-series data from Nov 2024 to present
+
+Key Functions:
+    - **generate_superhero_data()**: Create users
+    - **generate_superhero_project()**: Create shared project
+    - **create_groceries()**: Generate grocery expenses
+    - **create_personal_supplies()**: Generate personal supply purchases
+    - **create_books()**: Generate book purchases
+    - **generate_income_data()**: Generate income streams
+    - **generate_savings_data()**: Generate savings transactions
+
+Users Created:
+    1. **Armin Admin**:
+       - Username: admin
+       - Password: admin123
+       - Scope: admin:write
+       - Role: Administrator
+
+    2. **Clark Kent (Superman)**:
+       - Username: superman
+       - Password: abc
+       - Scope: user:write
+       - Income: Monthly on 26th
+       - Savings: Monthly on 27th
+
+    3. **Bruce Wayne (Batman)**:
+       - Username: batman
+       - Password: abc
+       - Scope: user:write
+       - Income: Monthly on 25th and 26th (Wayne Enterprises + Inheritance)
+       - Savings: Monthly on 27th
+
+    4. **Peter Parker (Spiderman)**:
+       - Username: spiderman
+       - Password: abc
+       - Scope: user:write
+
+Project Created:
+    - Name: "Superhero Shared Expenses"
+    - Description: "Expense tracking for the Justice League"
+    - Currency: USD (main), EUR and GBP (additional)
+    - Style: ExpenseTracker
+    - Members: Batman (owner), Superman
+    - Month start: 1st of month
+
+Data Generated:
+    **Groceries** (Batman and Superman):
+        - 1-8 shopping trips per week (Poisson distribution)
+        - Average: $100/week, max: $150/week
+        - Stores: Walmart, Kroger, Costco, Whole Foods, etc.
+        - Date range: Nov 1, 2024 to present
+
+    **Personal Supplies** (Batman and Superman):
+        - 1-3 purchases per week
+        - Average: $50/week, max: $100/week
+        - Items: Toiletries, cleaning supplies, etc.
+        - Date range: Nov 1, 2024 to present
+
+    **Books** (Batman and Superman):
+        - Less frequent (lower Poisson λ)
+        - Various genres and vendors
+        - Date range: Nov 1, 2024 to present
+
+    **Income** (Monthly):
+        - Batman: Wayne Enterprises (25th), Inheritance (26th)
+        - Superman: Daily Planet salary (26th)
+        - Date range: Nov 1, 2024 to present
+
+    **Savings** (Monthly):
+        - Both users: Regular savings on 27th
+        - After income received
+        - Date range: Nov 1, 2024 to present
+
+Example:
+    Generate complete superhero environment::
+
+        >>> from fiwa_cli.functions.faker_superhero_project import *
+        >>> from fiwa_cli.functions.handler_sqllite import SQLLiteHandler
+        >>>
+        >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
+        >>>
+        >>> # Create users
+        >>> users = generate_superhero_data(dbh)
+        >>> # Returns: {"admin": 1, "superman": 2, "batman": 3, "spiderman": 4}
+        >>>
+        >>> # Create project with data
+        >>> project_id = generate_superhero_project(dbh, users)
+        >>> # Creates project and populates with transactions
+
+    Standalone data generation::
+
+        >>> # Generate only groceries
+        >>> create_groceries(
+        >>>     dbh=dbh,
+        >>>     project_id=1,
+        >>>     user_id=3,  # Batman
+        >>>     bought_by_id=3,
+        >>>     start_date=datetime(2024, 11, 1)
+        >>> )
+
+Use Cases:
+    - **Demo data**: Show FiWa features to new users
+    - **Testing**: Comprehensive test dataset
+    - **Development**: Quick environment setup
+    - **Documentation**: Examples in guides
+    - **Template**: Pattern for real project setup
+
+See Also:
+    db_faker: Generic faker utilities
+    handler_sqllite.SQLLiteHandler: Database operations
+    project_composer.ProjectExpenseTracker: Label structure
+"""
 from typing import List, Optional
 import uuid
 import json
@@ -7,15 +132,36 @@ from datetime import datetime, timedelta
 import numpy as np
 
 def generate_superhero_data(dbh):
-    """
-    We create 4 users:
-    - Admin User (Armin Admin) - superuser with admin:write scope
-    - Clark Kent (Superman) - regular user with user:write scope
-    - Bruce Wayne (Batman) - regular user with user:write scope
-    - Peter Parker (Spiderman) - regular user with user:write scope
+    """Create superhero users in the database.
 
-    :param dbh:
-    :return:
+    Creates 4 users with superhero identities:
+        - Armin Admin (superuser)
+        - Clark Kent / Superman
+        - Bruce Wayne / Batman
+        - Peter Parker / Spiderman
+
+    Args:
+        dbh: Database handler instance (SQLLiteHandler)
+
+    Returns:
+        dict: User mapping with keys "admin", "superman", "batman", "spiderman"
+            and values as user_id from database
+
+    Side Effects:
+        - Creates 4 user records in database
+        - Hashes passwords
+        - Prints user creation info
+
+    Example:
+        >>> users = generate_superhero_data(dbh)
+        >>> users["batman"]  # User ID for Batman
+        3
+        >>> users["superman"]  # User ID for Superman
+        2
+
+    Note:
+        Passwords are simple for testing (abc, admin123).
+        Batman and Superman get max_projects=3.
     """
     ret = {}
 

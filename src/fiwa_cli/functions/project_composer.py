@@ -1,10 +1,159 @@
+"""Project composer system for project-specific business logic.
+
+This module provides an extensible framework for defining project-specific
+behavior, labels, and business rules. Different project types (ExpenseTracker,
+Vacation, etc.) can have different label structures, transaction types, and
+validation rules.
+
+The composer pattern allows:
+    - Project-type-specific label structures
+    - Custom transaction categorization
+    - Flexible account hierarchies
+    - Tag string parsing and generation
+    - Default label assignment logic
+    - Extensible project types via subclassing
+
+Key Classes:
+    - **ProjectComposer**: Abstract base class defining the interface
+    - **ProjectExpenseTracker**: Expense tracking project implementation
+    - **ProjectVacation**: Vacation planning project implementation
+
+Supported Project Types:
+    - **ExpenseTracker**: Daily expense and income tracking
+      - Label types: Count, Transaction, Account, Main, Secondary
+      - Transaction types: Fixed, Variable, Daily, Revenue
+      - Account types: Checking, Savings, Credit, Cash, Liability
+      - Main categories: Groceries, Personal Supplies, Books, etc.
+
+    - **Vacation**: Vacation and travel planning (future)
+      - Custom labels for travel categories
+      - Accommodation, transport, activities, etc.
+
+Factory Pattern:
+    Use ProjectComposer.create() to instantiate the correct subclass::
+
+        >>> composer = ProjectComposer.create(
+        >>>     compose_type="ExpenseTracker",
+        >>>     dbh=database_handler,
+        >>>     project_id=1,
+        >>>     users=project_users
+        >>> )
+        >>> composer.compose_accounts()
+        >>> label_map = composer.get_label_map()
+
+Tag String Format:
+    Labels are stored as compact strings in the database:
+        Format: "count_transaction_account_main_[secondary1,secondary2,...]"
+        Example: "1_2_5_8_[12,15,18]"
+
+    The composer provides:
+        - parse_tag_string(): String → Dictionary
+        - format_tag_string(): Dictionary → String
+
+Example:
+    Creating project-specific labels::
+
+        >>> from fiwa_cli.functions.project_composer import ProjectComposer
+        >>>
+        >>> # Create composer for ExpenseTracker project
+        >>> pc = ProjectComposer.create(
+        >>>     compose_type="ExpenseTracker",
+        >>>     dbh=dbh,
+        >>>     project_id=1,
+        >>>     users=[{"user_id": 1, "username": "batman"}]
+        >>> )
+        >>>
+        >>> # Create labels for the project
+        >>> pc.build()
+        >>>
+        >>> # Get label type mapping
+        >>> label_map = pc.get_label_map()
+        >>> # Returns: {0: "Balance", 1: "Transaction", 2: "Account", ...}
+
+    Parsing tag strings::
+
+        >>> # ExpenseTracker instance
+        >>> pc = ProjectComposer.create("ExpenseTracker", dbh, 1, [])
+        >>>
+        >>> # Parse database tag string
+        >>> tag_string = "1_2_5_8_[12,15]"
+        >>> tag_dict = pc.parse_tag_string(tag_string)
+        >>> # Returns: {
+        >>> #   'count': 1,
+        >>> #   'transaction': 2,
+        >>> #   'account': 5,
+        >>> #   'main': 8,
+        >>> #   'secondary': [12, 15]
+        >>> # }
+        >>>
+        >>> # Format back to string
+        >>> tag_string = pc.format_tag_string(tag_dict)
+        >>> # Returns: "1_2_5_8_[12,15]"
+
+See Also:
+    functions.handler_sqllite: Database operations for labels
+    screens.settings_label_page: Label management interface
+    components.item_input_form: Uses composers for label selection
+"""
 from abc import ABC, abstractmethod
 
 
 class ProjectComposer(ABC):
-    """
-    Abstract base class for project composers.
-    Each composer defines the structure and labels for a specific project type.
+    """Abstract base class for project-type-specific composers.
+
+    Each composer defines the structure, labels, and business rules for
+    a specific project type (e.g., ExpenseTracker, Vacation). Subclasses
+    implement project-specific label creation and logic.
+
+    The composer pattern enables:
+        - Type-safe project creation
+        - Consistent label structures
+        - Project-specific validation
+        - Tag parsing and formatting
+        - Default label assignment
+
+    Class Attributes:
+        COMPOSERS (dict): Registry of available composer types
+            Format: {compose_type: class_name}
+            Example: {"ExpenseTracker": "ProjectExpenseTracker"}
+
+    Instance Attributes:
+        dbh: Database handler instance
+        project_id: ID of the project
+        users: List of project users
+        name: Project type name (set by subclass)
+
+    Abstract Methods:
+        Subclasses must implement:
+            - compose_labels(): Create action/category labels
+            - compose_accounts(): Create account-related labels
+
+    Factory Method:
+        Use ProjectComposer.create() instead of direct instantiation
+        to automatically get the correct subclass.
+
+    Example:
+        Defining a new project type::
+
+            >>> class ProjectVacation(ProjectComposer):
+            >>>     def compose_labels(self):
+            >>>         # Create vacation-specific labels
+            >>>         self.dbh.op_label_create({
+            >>>             'name': 'Accommodation',
+            >>>             'label_type': 3,
+            >>>             # ...
+            >>>         })
+            >>>
+            >>>     def compose_accounts(self):
+            >>>         # Create vacation-specific accounts
+            >>>         pass
+            >>>
+            >>> # Register in COMPOSERS
+            >>> ProjectComposer.COMPOSERS["Vacation"] = "ProjectVacation"
+
+    See Also:
+        ProjectExpenseTracker: Expense tracking implementation
+        ProjectVacation: Vacation planning implementation
     """
 
     # Registry of available composers
@@ -14,13 +163,16 @@ class ProjectComposer(ABC):
     }
 
     def __init__(self, dbh=None, project_id=None, users=[]):
-        """
-        Initialize the project composer.
+        """Initialize the project composer.
 
         Args:
-            dbh: Database handler instance
-            project_id: ID of the project
-            users: List of users in the project
+            dbh: Database handler instance (SQLLiteHandler)
+            project_id: ID of the project this composer manages
+            users: List of user dicts for the project
+
+        Note:
+            The name attribute should be set by subclasses to identify
+            the project type.
         """
         self.dbh = dbh
         self.project_id = project_id

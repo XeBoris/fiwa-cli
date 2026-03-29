@@ -1,4 +1,76 @@
-"""Replicate Expenses View - Replicate fixed costs to the next month."""
+"""Recurring expense replication tool for FiWa CLI.
+
+This module provides functionality for projecting recurring (fixed) expenses
+from one month to the next. It helps users quickly create next month's
+expenses by copying existing fixed costs with updated dates.
+
+The replication tool is designed for:
+    - Monthly recurring expenses (rent, subscriptions, insurance)
+    - Batch expense creation for upcoming months
+    - Time-saving for predictable, regular expenses
+    - Date and exchange rate updating
+
+Key Features:
+    - Displays fixed expenses from selected month
+    - Per-user tabbed interface
+    - Selectable expense rows (checkbox per item)
+    - One-click date projection to next month
+    - Preview before database write
+    - Batch creation workflow
+    - Duplicate prevention (checks for existing items)
+
+Workflow:
+    1. User selects current month in period picker
+    2. Replication view shows all fixed expenses
+    3. User selects which expenses to replicate
+    4. User clicks "Update to Next Month"
+    5. Dates projected forward, preview shown with highlighting
+    6. User clicks "Write to Database"
+    7. New expenses created for next month
+
+Classes:
+    ReplicateExpensesView: Main replication interface with tabs and tables
+
+Transaction Types Supported:
+    Only "fixed" transactions are replicated:
+        - Label type 1, sub_type 0 (fixed expenses)
+        - Examples: Rent, mortgage, subscriptions, insurance
+
+    Variable and daily expenses are NOT replicated as they're
+    not predictable or consistent month-to-month.
+
+Example:
+    Mounting the view::
+
+        >>> from fiwa_cli.screens.inputs_repl_expenses import ReplicateExpensesView
+        >>> view = ReplicateExpensesView()
+        >>> content_area.mount(view)
+
+    Typical workflow::
+
+        >>> # User in InputsScreen
+        >>> # Selects "March 2026" in period picker
+        >>> # Clicks "Replicate" button
+        >>> # ReplicateExpensesView opens
+        >>> # Shows:
+        >>> #   - Rent: $1500 (March 1)
+        >>> #   - Netflix: $15 (March 1)
+        >>> #   - Insurance: $200 (March 1)
+        >>> # User selects all 3 items (checkboxes)
+        >>> # User clicks "Update to Next Month"
+        >>> # Preview shows (highlighted):
+        >>> #   - Rent: $1500 (April 1)
+        >>> #   - Netflix: $15 (April 1)
+        >>> #   - Insurance: $200 (April 1)
+        >>> # User clicks "Write to Database"
+        >>> # 3 new expenses created for April
+        >>> # Notification: "3 expenses replicated"
+
+See Also:
+    inputs: Main inputs screen that launches this view
+    inputs_insert_expense: Creating individual new expenses
+    components.item_input_form: Core expense input widget
+"""
 from textual.containers import Vertical, ScrollableContainer, Horizontal
 from textual.widgets import Static, TabbedContent, TabPane, DataTable, Button, Checkbox
 from textual.app import ComposeResult
@@ -9,13 +81,129 @@ import uuid
 
 
 class ReplicateExpensesView(Vertical):
-    """View for replicating fixed expenses to the next month.
+    """View for replicating fixed expenses to upcoming months.
 
-    Shows fixed costs for the selected month in a tab-based view (one tab per user).
-    Users can update dates to next month and write replicated items to database.
+    This widget provides a tabbed interface (one tab per user) showing
+    all fixed expenses from the selected month. Users can select which
+    expenses to replicate, preview them with updated dates, and write
+    them to the database in batch.
+
+    The replication process:
+        1. Display fixed expenses from current month
+        2. User selects expenses to replicate (via row selection)
+        3. User clicks "Update to Next Month"
+        4. Dates incremented by one month, preview shown
+        5. User clicks "Write to Database"
+        6. New expenses created with next month's dates
+
+    Attributes:
+        _updated_items (dict): Stores projected items per user
+            Format: {user_id: [item_dicts]}
+        _selected_items (dict): Tracks selected state per user
+            Format: {user_id: {item_id: bool}}
+
+    DataTable Structure (per user tab):
+        Columns:
+            - Select: Checkbox (✓) to mark for replication
+            - Name: Expense name
+            - Cost: Final price in main currency
+            - Label: Main category label
+            - Account: Bank/account label
+            - Date: Current expense date
+            - Replicate: Checkbox (initially all checked)
+
+        Row Types:
+            - Original rows (key: "orig-{item_id}"): Current month expenses
+            - Updated rows (key: "updated-{item_id}"): Next month preview
+              (shown after "Update to Next Month", highlighted)
+
+    Buttons:
+        - **Update to Next Month**: Projects dates forward, shows preview
+        - **Write to Database**: Creates new expenses (only if updated)
+
+    Validation:
+        - Only works in "month" period mode (shows warning if week mode)
+        - Prevents duplicates: Checks if item already exists in target month
+        - Requires at least one expense selected
+        - Only replicates "fixed" transaction type (sub_type=0)
+
+    Date Projection Logic:
+        For each selected expense:
+            - Current date: 2026-03-15
+            - Next month date: 2026-04-15
+            - Exchange rate date also updated
+
+        Handles edge cases:
+            - March 31 → April 30 (month has fewer days)
+            - Leap year adjustments
+
+    Example:
+        Basic usage::
+
+            >>> view = ReplicateExpensesView()
+            >>> content_area.mount(view)
+
+        Replicating March rent to April::
+
+            >>> # March 2026 selected in period picker
+            >>> # View shows fixed expenses:
+            >>> #   ✓ Rent  $1500  Housing  Bank of America  2026-03-01  [✓]
+            >>> # User clicks row to select
+            >>> # User clicks "Update to Next Month"
+            >>> # Preview row appears (highlighted):
+            >>> #   ✓ Rent  $1500  Housing  Bank of America  2026-04-01  [✓]
+            >>> # User clicks "Write to Database"
+            >>> # New rent expense created for April 1
+            >>> # Notification: "1 expense(s) replicated successfully"
+
+        Handling multiple users::
+
+            >>> # Project with Batman and Superman
+            >>> # Tab 1: Batman's fixed expenses (rent, insurance)
+            >>> # Tab 2: Superman's fixed expenses (fortress maintenance)
+            >>> # Each user can independently select and replicate
+
+    Performance:
+        - Lazy loading: Only selected tab's data initially visible
+        - Batch insert: All replication done in single transaction
+        - Efficient queries: Single query per user for fixed expenses
+
+    Safety Features:
+        - Duplicate detection: Won't create if item already exists
+        - Preview before write: User sees exactly what will be created
+        - Selective replication: User controls which items to replicate
+        - Visual highlighting: Updated rows clearly distinguished
+
+    Note:
+        The view only works in "month" mode - if week mode is selected,
+        a warning message is displayed instead of the replication interface.
+
+        Replication uses the same labels, accounts, and categories as the
+        original expense - only dates and exchange rates are updated.
+
+        The "Select" column tracks user selection, while the "Replicate"
+        column in the table is for future granular control (currently
+        all fixed items are pre-checked).
+
+    See Also:
+        inputs.InputsScreen: Parent screen that launches this view
+        inputs_insert_expense: Creating individual expenses
+        functions.project_composer.ProjectComposer: Transaction type definitions
     """
 
     def __init__(self, *args, **kwargs):
+        """Initialize the replicateexpenses view.
+
+        Sets up tracking dictionaries for updated items and selection state.
+
+        Args:
+            *args: Positional arguments passed to parent Vertical
+            **kwargs: Keyword arguments passed to parent Vertical
+
+        Attributes Initialized:
+            _updated_items: Empty dict for projected expenses
+            _selected_items: Empty dict for row selection tracking
+        """
         super().__init__(*args, **kwargs)
         self._updated_items = {}  # Store updated items per user: {user_id: [items]}
         self._selected_items = {}  # Store selected items per user: {user_id: {item_id: bool}}
