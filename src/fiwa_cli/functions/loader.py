@@ -170,25 +170,13 @@ def handle_args() -> [str, Dict[str, Any]]:
         to prompt for passwords securely.
     """
     import argparse
+    from importlib.metadata import version, PackageNotFoundError
 
-    # Read version from pyproject.toml
     try:
-        try:
-            import tomllib  # Python 3.11+
-        except ImportError:
-            import tomli as tomllib  # Python 3.10 and earlier
-
-        pyproject_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..", "..", "..", "pyproject.toml"
-        )
-        pyproject_path = os.path.normpath(pyproject_path)
-
-        with open(pyproject_path, 'rb') as f:
-            pyproject = tomllib.load(f)
-            app_version = pyproject['project']['version']
-    except Exception:
-        app_version = "unknown"
+        __version__ = version("fiwa-cli")
+    except PackageNotFoundError:
+        # Package is not installed, use fallback during development
+        __version__ = "0.1.0.dev"
 
     parser = argparse.ArgumentParser(description="FiWa CLI Application")
 
@@ -196,7 +184,7 @@ def handle_args() -> [str, Dict[str, Any]]:
     parser.add_argument(
         "--version",
         action='version',
-        version=f'FiWa CLI version {app_version}',
+        version=f'FiWa CLI version {__version__}',
         help="Show program version and exit"
     )
 
