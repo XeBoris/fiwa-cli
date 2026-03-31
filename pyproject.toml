@@ -55,7 +55,8 @@ syntax = [
 docs = [
     "sphinx",
     "sphinx-rtd-theme",
-    "sphinx-autodoc-typehints"
+    "sphinx-autodoc-typehints",
+    "tomli>=2.0.0; python_version < '3.11'"
 ]
 
 [project.scripts]
