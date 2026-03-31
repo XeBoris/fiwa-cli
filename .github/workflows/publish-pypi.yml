@@ -3,7 +3,8 @@ name: Publish to PyPI
 
 on:
   push:
-    branches: [ "prod-local-only" ]
+    tags:
+      - 'v*'  # Trigger on version tags like v0.3.0, v1.0.0, etc.
   workflow_dispatch:  # Allow manual triggering
 
 env:
@@ -17,6 +18,21 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Verify branch is prod-local-only
+      run: |
+        # Get the branch that contains this tag
+        BRANCHES=$(git branch -r --contains ${{ github.ref }})
+        echo "Branches containing this tag: $BRANCHES"
+        
+        if echo "$BRANCHES" | grep -q "origin/prod-local-only"; then
+          echo "✓ Tag is on prod-local-only branch - proceeding with publish"
+        else
+          echo "❌ ERROR: This tag is NOT on prod-local-only branch!"
+          echo "   Publishing is only allowed from prod-local-only branch."
+          echo "   Current branches: $BRANCHES"
+          exit 1
+        fi
 
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
