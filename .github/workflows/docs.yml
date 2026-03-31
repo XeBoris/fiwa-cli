@@ -31,8 +31,6 @@ jobs:
 
     - name: Build HTML documentation
       run: |
-#        cd docs
-#        make html
         make docs-clean
         make docs-build
         echo ""
