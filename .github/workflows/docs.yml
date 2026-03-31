@@ -31,8 +31,10 @@ jobs:
 
     - name: Build HTML documentation
       run: |
-        cd docs
-        make html
+#        cd docs
+#        make html
+        make docs-clean
+        make docs-build
         echo ""
         echo "✓ Documentation built successfully!"
         echo "  Output: docs/build/html/"
