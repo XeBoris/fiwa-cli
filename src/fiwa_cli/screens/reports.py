@@ -528,7 +528,7 @@ class ReportsScreen(ReactiveScreen):
 
     def _update_app_state_period(self) -> None:
         """Update app_state with current period selection."""
- 
+
         # Calculate date range based on period type
         if self._current_period_type == "week":
             # Calculate week boundaries

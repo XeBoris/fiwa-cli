@@ -29,6 +29,8 @@ dependencies = [
     "httpx",
     "pyyaml",
     "numpy",
+    "holidays",
+    "babel"
 ]
 
 [project.optional-dependencies]
@@ -49,6 +51,7 @@ syntax = [
     "textual[syntax]",
 ]
 
+# Documentation dependencies (installed with: pip install fiwa-cli[docs])
 docs = [
     "sphinx",
     "sphinx-rtd-theme",
