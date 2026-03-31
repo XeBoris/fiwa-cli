@@ -494,7 +494,6 @@ class ReportsScreen(ReactiveScreen):
     def _reset_to_current_period(self) -> None:
         """Reset the WeekMonthWidget to current week or month based on period type."""
         try:
-            import datetime
 
             today = datetime.date.today()
 
@@ -529,48 +528,45 @@ class ReportsScreen(ReactiveScreen):
 
     def _update_app_state_period(self) -> None:
         """Update app_state with current period selection."""
-        try:
-            # Calculate date range based on period type
-            if self._current_period_type == "week":
-                # Calculate week boundaries
-                from fiwa_cli.functions.compute_time import TimeClass
+ 
+        # Calculate date range based on period type
+        if self._current_period_type == "week":
+            # Calculate week boundaries
+            from fiwa_cli.functions.compute_time import TimeClass
 
-                tc = TimeClass(country_code="DE")
-                week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
+            tc = TimeClass(country_code="DE")
+            week_info = tc.cmp_week_by_number(self._current_year, self._current_week)
 
-                period_start = week_info["week_beg"]
-                period_end = week_info["week_end"]
-                period_end += datetime.timedelta(days=1)  # Include the end date in the range
-                period_label = f"{self._current_year} Week {self._current_week}"
-            else:  # month
-                # Calculate month boundaries
-                from fiwa_cli.functions.compute_time import TimeClass
+            period_start = week_info["week_beg"]
+            period_end = week_info["week_end"]
+            period_end += datetime.timedelta(days=1)  # Include the end date in the range
+            period_label = f"{self._current_year} Week {self._current_week}"
 
-                tc = TimeClass(country_code="DE")
-                month_info = tc.cmp_month_by_number(
-                    self._current_year, self._current_month, self._month_start  # from class init
-                )
+            # self.app.file_log(f"DEBUG: Week period calculated - Start: {period_start}, End: {period_end}")
+        else:  # month
+            # Calculate month boundaries
+            from fiwa_cli.functions.compute_time import TimeClass
 
-                period_start = month_info["month_beg"]
-                period_end = month_info["month_end"]
-                # self.app.notify(f"{period_start} / {period_end} / {json.loads(self.app.app_state.get('project_store', {})).get('month_start', 'N/A')}")
-                period_label = f"{self._current_year} {month_info['month_name']}"
-
-            # Update app_state with period information
-            self.app.app_state["current_period_type"] = self._current_period_type
-            self.app.app_state["current_period_year"] = self._current_year
-            self.app.app_state["current_period_week"] = self._current_week
-            self.app.app_state["current_period_month"] = self._current_month
-            self.app.app_state["current_period_start"] = period_start
-            self.app.app_state["current_period_end"] = period_end
-            self.app.app_state["current_period_label"] = period_label
-
-            self.app.log(
-                f"Updated app_state period: {period_label} ({period_start} to {period_end})"
+            tc = TimeClass(country_code="DE")
+            month_info = tc.cmp_month_by_number(
+                self._current_year, self._current_month, self._month_start  # from class init
             )
 
-            # Refresh the current report with new period data
-            self._refresh_current_report()
+            period_start = month_info["month_beg"]
+            period_end = month_info["month_end"]
+            period_label = f"{self._current_year} {month_info['month_name']}"
 
-        except Exception as e:
-            self.app.log(f"Error updating app_state period: {e}")
+        # self.app.file_log(f"DEBUG: Month period calculated - Start: {period_start}, End: {period_end}, month_start: {self._month_start}")
+
+        # Update app_state with period information
+        self.app.app_state["current_period_type"] = self._current_period_type
+        self.app.app_state["current_period_year"] = self._current_year
+        self.app.app_state["current_period_week"] = self._current_week
+        self.app.app_state["current_period_month"] = self._current_month
+        self.app.app_state["current_period_start"] = period_start
+        self.app.app_state["current_period_end"] = period_end
+        self.app.app_state["current_period_label"] = period_label
+
+        # Refresh the current report with new period data
+        self._refresh_current_report()
+

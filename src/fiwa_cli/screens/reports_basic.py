@@ -469,7 +469,7 @@ class BasicReportForm(Vertical):
         period_end = self.app.app_state.get("current_period_end")
         period_label = self.app.app_state.get("current_period_label", "")
         period_type = self.app.app_state.get("current_period_type", "week")
-
+        # self.app.notify(str(self.app.app_state))
         if period_start and period_end:
             date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
         else:
