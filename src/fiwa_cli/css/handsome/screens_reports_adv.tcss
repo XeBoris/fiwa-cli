@@ -1,0 +1,76 @@
+/* ============================================
+   BASIC REPORT (COST OVERVIEW) STYLING
+   File: css/handsome/screens_reports_adv.tcss
+   Component: AdvReportForm
+   ============================================ */
+BasicReportForm {
+
+}
+
+BasicReportForm .report-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+    color: $text;
+}
+BasicReportForm .date-info {
+    padding: 0 0 0 0;
+    margin: 0 4 1 4;
+    background: $primary 30%;
+    color: $text;
+    border: solid $primary;
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+}
+
+BasicReportForm #report-content {
+    width: 100%;
+    scrollbar-size: 4 1;
+}
+
+BasicReportForm TabbedContent {
+    height: auto;
+    margin: 1 0;
+}
+BasicReportForm TabPane {
+    padding: 1;
+}
+
+BasicReportForm DataTable {
+    height: auto;
+    min-height: 5;
+    max-height: 25;
+    border: solid $accent;
+    margin: 0 0 1 0;
+}
+
+BasicReportForm .table-section-title {
+    text-style: bold;
+    padding: 1 0 0 0;
+    margin: 1 0 0 0;
+    color: $accent;
+    text-align: left;
+}
+
+BasicReportForm .subtotal {
+    text-align: right;
+    padding: 0 1;
+    margin: 0 0 1 0;
+    color: $warning;
+    text-style: italic;
+    background: $surface;
+}
+
+BasicReportForm .user-total {
+    text-align: right;
+    padding: 1;
+    margin: 1 0 0 0;
+    color: $success;
+    text-style: bold;
+    background: $surface;
+    border-top: double $accent;
+}
+

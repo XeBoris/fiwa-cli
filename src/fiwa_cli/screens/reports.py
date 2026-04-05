@@ -62,6 +62,7 @@ from fiwa_cli.components import FiwaHeader
 from fiwa_cli.components.week_month_picker import WeekMonthWidget
 
 from .reports_basic import BasicReportForm
+from .reports_advanced import AdvReportForm
 
 from fiwa_cli.functions.loader import load_dynamic_css
 
@@ -271,7 +272,7 @@ class ReportsScreen(ReactiveScreen):
                     # Report type selection buttons
                     yield Static("Report:", classes="menu-section")
                     yield Button("📊 Cost Overview", id="cost-overview-button")
-                    yield Button("📈 Monthly Summary", id="monthly-summary-button")
+                    yield Button("📈 Summary", id="summary-button")
                     # yield Button("🏷️ Category Breakdown", id="category-breakdown-button")
                     # yield Button("📉 Spending Trends", id="spending-trends-button")
                     # yield Button("👥 User Comparison", id="user-comparison-button")
@@ -355,8 +356,8 @@ class ReportsScreen(ReactiveScreen):
             self._reset_to_current_period()
         elif event.button.id == "cost-overview-button":
             self.show_cost_overview()
-        elif event.button.id == "monthly-summary-button":
-            self.show_content("Monthly Summary", "Coming soon...")
+        elif event.button.id == "summary-button":
+            self.show_summary_overview()
         elif event.button.id == "category-breakdown-button":
             self.show_content("Category Breakdown", "Coming soon...")
         elif event.button.id == "spending-trends-button":
@@ -474,6 +475,16 @@ class ReportsScreen(ReactiveScreen):
         form.on_mount()
         content_area.mount(form)
         self.app.log("Cost Overview loaded")
+
+    def show_summary_overview(self) -> None:
+        """Show an advanced summary of the costs in the content area."""
+        content_area = self.query_one("#reports-content-area", ScrollableContainer)
+        content_area.remove_children()
+
+        form = AdvReportForm()
+        form.on_mount()
+        content_area.mount(form)
+        self.app.log("Advanced Cost Overview loaded")
 
     def show_content(self, title: str, message: str) -> None:
         """Update the content area with new information."""

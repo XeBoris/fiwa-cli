@@ -592,7 +592,7 @@ def generate_data(
                 "price_final": final_amount,
                 "currency": currency,
                 "currency_final": currency,
-                "bought_date": shopping_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_date": shopping_datetime.strftime("%Y-%m-%d"), # %H:%M:%S
                 "bought_by_id": user_id,
                 "bought_for_id": bought_for_id,
                 "added_by_id": user_id,
