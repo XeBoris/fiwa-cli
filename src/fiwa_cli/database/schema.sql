@@ -1,5 +1,5 @@
 -- Projects table
-CREATE TABLE IF NOT EXISTS pstand_projects
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_projects
 (
     project_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS pstand_projects
 );
 
 -- Users table
-CREATE TABLE IF NOT EXISTS pstand_users
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_users
 (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     first_name VARCHAR(255) NOT NULL,
@@ -34,11 +34,11 @@ CREATE TABLE IF NOT EXISTS pstand_users
 );
 
 -- User-Project mapping table
-CREATE TABLE IF NOT EXISTS pstand_user_project_map
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_user_project_map
 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER REFERENCES pstand_users (user_id),
-    project_id INTEGER REFERENCES pstand_projects (project_id),
+    user_id INTEGER REFERENCES p{DB_SALT}_users (user_id),
+    project_id INTEGER REFERENCES p{DB_SALT}_projects (project_id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     project_perm_model VARCHAR(6) DEFAULT '000000',
     project_primary BOOLEAN DEFAULT 0,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS pstand_user_project_map
 );
 
 -- Items table
-CREATE TABLE IF NOT EXISTS pstand_items
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_items
 (
     item_id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_uuid VARCHAR(36) NOT NULL,
@@ -57,10 +57,10 @@ CREATE TABLE IF NOT EXISTS pstand_items
     currency VARCHAR(3) NOT NULL,
     currency_final VARCHAR(3) NOT NULL,
     bought_date TIMESTAMP NOT NULL,
-    bought_by_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
-    bought_for_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
-    added_by_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
-    project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
+    bought_by_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
+    bought_for_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
+    added_by_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
+    project_id INTEGER NOT NULL REFERENCES p{DB_SALT}_projects (project_id),
     exchange_rate DECIMAL NOT NULL DEFAULT 1.0,
     exchange_rate_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,13 +69,13 @@ CREATE TABLE IF NOT EXISTS pstand_items
 );
 
 -- Labels table
-CREATE TABLE IF NOT EXISTS pstand_labels
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_labels
 (
     label_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(36) NOT NULL,
     description VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
+    project_id INTEGER NOT NULL REFERENCES p{DB_SALT}_projects (project_id),
     composite TEXT NOT NULL,  -- Store as JSON string
     label_owner INTEGER DEFAULT -1,  -- -1 for project wide labels, user_id for user-created labels
     label_status INTEGER DEFAULT 2,
@@ -87,12 +87,12 @@ CREATE TABLE IF NOT EXISTS pstand_labels
 -- User Label Defaults table
 -- Stores each user's default label preference for each label_type within a project
 -- Each user can have ONE default label per label_type per project
-CREATE TABLE IF NOT EXISTS pstand_user_label_defaults
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_user_label_defaults
 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
-    project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
-    label_id INTEGER NOT NULL REFERENCES pstand_labels (label_id),
+    user_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
+    project_id INTEGER NOT NULL REFERENCES p{DB_SALT}_projects (project_id),
+    label_id INTEGER NOT NULL REFERENCES p{DB_SALT}_labels (label_id),
     label_type INTEGER NOT NULL,  -- Redundant but helps with queries
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, project_id, label_type)  -- Only one default per user per type per project
@@ -100,10 +100,10 @@ CREATE TABLE IF NOT EXISTS pstand_user_label_defaults
 
 
 -- Session table
-CREATE TABLE IF NOT EXISTS pstand_session_table
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_session_table
 (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
+    user_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
     session_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     session_uuid VARCHAR(255) NOT NULL,
     session_type VARCHAR(255) NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS pstand_session_table
 );
 
 -- Register table
-CREATE TABLE IF NOT EXISTS pstand_register
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_register
 (
     register_id INTEGER PRIMARY KEY AUTOINCREMENT,
     register_token VARCHAR(36) NOT NULL,
@@ -123,12 +123,12 @@ CREATE TABLE IF NOT EXISTS pstand_register
 );
 
 -- Aggregates table
-CREATE TABLE IF NOT EXISTS pstand_aggregates
+CREATE TABLE IF NOT EXISTS p{DB_SALT}_aggregates
 (
     aggregate_id INTEGER PRIMARY KEY AUTOINCREMENT,
     aggregate_uuid VARCHAR(36) NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES pstand_users (user_id),
-    project_id INTEGER NOT NULL REFERENCES pstand_projects (project_id),
+    user_id INTEGER NOT NULL REFERENCES p{DB_SALT}_users (user_id),
+    project_id INTEGER NOT NULL REFERENCES p{DB_SALT}_projects (project_id),
     begin DATE NOT NULL,
     interval_seconds INTEGER NOT NULL,
     aggregate_type INTEGER NOT NULL,

@@ -469,6 +469,17 @@ def generate_superhero_labels(dbh, users):
     }
     _labels.append(i_label)
 
+    i_label = {
+        "name": "Savings",
+        "description": "",
+        "composite": None,
+        "label_status": 2,
+        "label_type": 3,
+        "label_sub_type": -1,
+        "label_owner": -1,
+    }
+    _labels.append(i_label)
+
     for i_label in _labels:
         dbh.op_label_create(label_dict=i_label, project_id=p_info["project_id"])
 
@@ -1096,7 +1107,7 @@ def generate_income_data(dbh, users, start_date_str="2024-11-01"):
     print(f"  - Period: 2024-11-01 to {end_date.strftime('%Y-%m-%d')}")
 
 
-def generate_savings_data(dbh, users):
+def generate_savings_data(dbh, users, start_date_str="2024-11-01"):
     """
     Generate monthly savings transactions for Batman and Superman.
 
@@ -1121,15 +1132,18 @@ def generate_savings_data(dbh, users):
     label_id_expenses = dbh.op_label_get_by_name("expenses", p_info["project_id"])
     label_id_fixed = dbh.op_label_get_by_name("fixed", p_info["project_id"])
 
+    label_id_person = dbh.op_label_get_by_name("Savings", p_info["project_id"])
+
     label_id_savings_bm1 = dbh.op_label_get_by_name("BM: Savings Account I", p_info["project_id"])
     label_id_savings_bm2 = dbh.op_label_get_by_name("BM: Savings Account II", p_info["project_id"])
     label_id_savings_sm1 = dbh.op_label_get_by_name("SM: Savings Account I", p_info["project_id"])
     label_id_savings_sm2 = dbh.op_label_get_by_name("SM: Savings Account II", p_info["project_id"])
 
+
     # Note: Savings are always for oneself (bought_by == bought_for), so no liability accounts needed
 
     # Define start and end dates
-    start_date = datetime(2024, 11, 1)
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.now()
 
     # Generate list of months to process
@@ -1141,12 +1155,15 @@ def generate_savings_data(dbh, users):
         month = current_date.month
 
         # Savings happen on the 27th (after income on 25th/26th)
-        savings_date = datetime(year, month, 27, 14, 0, 0)  # 2 PM
+        rnd_int = random.randint(0, 3)
+        savings_date = datetime(year, month, 25, 0, 0, 0)  # 2 PM
+        savings_date += timedelta(days=rnd_int)
 
         # Only create savings if the 27th is not in the future
         if savings_date <= end_date:
             # Batman: Savings Account I (primary - 20% of income)
             # Batman's monthly income: $23,000, so 20% = $4,600
+            llb = f"{label_id_expenses}_{label_id_fixed}_{label_id_savings_bm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Monthly Savings Transfer - Primary",
@@ -1155,14 +1172,14 @@ def generate_savings_data(dbh, users):
                 "price_final": 4600.00,
                 "currency": "USD",
                 "currency_final": "USD",
-                "bought_date": savings_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_date": savings_date.strftime("%Y-%m-%d"), # %H:%M:%S
                 "bought_by_id": users["batman"],
                 "bought_for_id": users["batman"],
                 "added_by_id": users["batman"],
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": savings_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_savings_bm1, label_id_expenses, label_id_fixed]),
+                "tags": llb,
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -1173,6 +1190,7 @@ def generate_savings_data(dbh, users):
 
             # Batman: Savings Account II (emergency fund - 10% of income)
             # 10% of $23,000 = $2,300
+            llb = f"{label_id_expenses}_{label_id_fixed}_{label_id_savings_bm2}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Monthly Savings Transfer - Emergency Fund",
@@ -1181,14 +1199,14 @@ def generate_savings_data(dbh, users):
                 "price_final": 2300.00,
                 "currency": "USD",
                 "currency_final": "USD",
-                "bought_date": savings_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_date": savings_date.strftime("%Y-%m-%d"),  #%H:%M:%S
                 "bought_by_id": users["batman"],
                 "bought_for_id": users["batman"],
                 "added_by_id": users["batman"],
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": savings_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_savings_bm2, label_id_expenses, label_id_fixed]),
+                "tags": llb,
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -1199,6 +1217,7 @@ def generate_savings_data(dbh, users):
 
             # Superman: Savings Account I (primary - 15% of income)
             # Superman's monthly income: $5,500, so 15% = $825
+            llb = f"{label_id_expenses}_{label_id_fixed}_{label_id_savings_sm1}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Monthly Savings Transfer - Primary",
@@ -1207,14 +1226,14 @@ def generate_savings_data(dbh, users):
                 "price_final": 825.00,
                 "currency": "USD",
                 "currency_final": "USD",
-                "bought_date": savings_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_date": savings_date.strftime("%Y-%m-%d"), # %H:%M:%S
                 "bought_by_id": users["superman"],
                 "bought_for_id": users["superman"],
                 "added_by_id": users["superman"],
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": savings_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_savings_sm1, label_id_expenses, label_id_fixed]),
+                "tags": llb,
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)
@@ -1225,6 +1244,7 @@ def generate_savings_data(dbh, users):
 
             # Superman: Savings Account II (emergency fund - 10% of income)
             # 10% of $5,500 = $550
+            llb = f"{label_id_expenses}_{label_id_fixed}_{label_id_savings_sm2}_{label_id_person}_[]"
             item_dict = {
                 "item_uuid": str(uuid.uuid4()),
                 "name": "Monthly Savings Transfer - Emergency Fund",
@@ -1233,14 +1253,14 @@ def generate_savings_data(dbh, users):
                 "price_final": 550.00,
                 "currency": "USD",
                 "currency_final": "USD",
-                "bought_date": savings_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "bought_date": savings_date.strftime("%Y-%m-%d"), #%H:%M:%S
                 "bought_by_id": users["superman"],
                 "bought_for_id": users["superman"],
                 "added_by_id": users["superman"],
                 "project_id": p_info["project_id"],
                 "exchange_rate": 1.0,
                 "exchange_rate_date": savings_date.strftime("%Y-%m-%d"),
-                "tags": json.dumps([label_id_savings_sm2, label_id_expenses, label_id_fixed]),
+                "tags": llb,
             }
             try:
                 item_id = dbh.op_item_create(item_dict=item_dict)

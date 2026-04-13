@@ -350,6 +350,13 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         The default admin credentials (admin/admin123) are created for initial
         setup only and should be changed immediately after first login.
     """
+    import bcrypt
+    import random
+    import string
+
+    N = 5
+    pw_salt = bcrypt.gensalt()
+    db_salt = ''.join(random.choices(string.ascii_lowercase + string.digits, k=N))
 
     os_home_dir = ""
     os_folder = "fiwa-cli"  # No leading dot for Windows
@@ -378,6 +385,10 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         },
         "development": {"stage": config.get("stage", "prod"), "debug_mode": True},
         "style": {"theme": "textual-light", "form": "handsome"},
+        "register": {
+            "orm": 123,
+            "pawn": f"{db_salt}:{pw_salt.decode("utf-8")}"
+        }
     }
     # create the data directory if it doesn't exist:
     try:
@@ -403,6 +414,8 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         h = Handler(method="sqlite")
         dbh = h.load()
         dbh.set_path(sqlite_path)
+        dbh.set_pw_salt(pw_salt=pw_salt)
+        dbh.set_db_salt(db_salt=db_salt)
         dbh.initialize_database(schema_path=_schema_path)
 
         user_dict = {
@@ -455,7 +468,7 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
 
     # we need the operation model to decide how to setup:
     opp_model = configyml.get("configuration", {}).get("model", "terminal")
-
+    reg_config = configyml.get("register", {})
     dev_config = configyml.get("development", {})
 
     # opp_mode = config.get("configuration", {}).get("host", "terminal")
@@ -468,6 +481,15 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
         h = Handler(method="sqlite")
         dbh = h.load()
         dbh.set_path(sqlite_path)
+
+        # Extract and set the salts from the config
+        try:
+            _dbsalt = reg_config.get("pawn", None).split(":")[0]
+            _pwsalt = reg_config.get("pawn", None).split(":")[1]
+            dbh.set_pw_salt(pw_salt=_pwsalt)
+            dbh.set_db_salt(db_salt=_dbsalt)
+        except Exception as e:
+            raise ValueError(f"Invalid register pawn format in config: {e}")
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
@@ -501,6 +523,14 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
         dbh = h.load()
         dbh.set_path(sqlite_path)
 
+        try:
+            _dbsalt = reg_config.get("pawn", None).split(":")[0]
+            _pwsalt = reg_config.get("pawn", None).split(":")[1]
+            dbh.set_pw_salt(pw_salt=_pwsalt)
+            dbh.set_db_salt(db_salt=_dbsalt)
+        except Exception as e:
+            raise ValueError(f"Invalid register pawn format in config: {e}")
+
         _schema_path = os.path.dirname(os.path.abspath(__file__))
         _schema_path = _schema_path.split("functions")[0]
         _schema_path = os.path.join(_schema_path, "database", "schema.sql")
@@ -524,7 +554,7 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
         #
         shp.generate_income_data(dbh, users=sph_user_ids, start_date_str=start_date)
         #
-        # shp.generate_savings_data(dbh, users=sph_user_ids)
+        shp.generate_savings_data(dbh, users=sph_user_ids, start_date_str=start_date)
 
         # if user + password are provided, let's log in the user:
         if "user" in config and "password" in config:
@@ -547,6 +577,15 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
         h = Handler(method="sqlite")
         dbh = h.load()
         dbh.set_path(sqlite_path)
+
+        # Extract and set the salts from the config
+        try:
+            _dbsalt = reg_config.get("pawn", None).split(":")[0]
+            _pwsalt = reg_config.get("pawn", None).split(":")[1]
+            dbh.set_pw_salt(pw_salt=_pwsalt)
+            dbh.set_db_salt(db_salt=_dbsalt)
+        except Exception as e:
+            raise ValueError(f"Invalid register pawn format in config: {e}")
 
         _schema_path = os.path.dirname(os.path.abspath(__file__))
         _schema_path = _schema_path.split("functions")[0]
@@ -595,6 +634,15 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
         h = Handler(method="sqlite")
         dbh = h.load()
         dbh.set_path(sqlite_path)
+
+        # Extract and set the salts from the config
+        try:
+            _dbsalt = reg_config.get("pawn", None).split(":")[0]
+            _pwsalt = reg_config.get("pawn", None).split(":")[1]
+            dbh.set_pw_salt(pw_salt=_pwsalt)
+            dbh.set_db_salt(db_salt=_dbsalt)
+        except Exception as e:
+            raise ValueError(f"Invalid register pawn format in config: {e}")
 
         _schema_path = os.path.dirname(os.path.abspath(__file__))
         _schema_path = _schema_path.split("functions")[0]

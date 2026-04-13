@@ -169,7 +169,7 @@ import uuid
 import json
 from datetime import datetime
 from datetime import timedelta
-
+import bcrypt
 
 class SQLLiteHandler:
     """SQLite database handler implementing all FiWa database operations.
@@ -272,7 +272,7 @@ class SQLLiteHandler:
         project_composer.ProjectComposer: Uses handler for label operations
     """
 
-    def __init__(self, db_path=":memory:"):
+    def __init__(self, db_path=":memory:", pw_salt=None, db_salt=None):
         """Initialize SQLite database handler.
 
         Args:
@@ -286,13 +286,18 @@ class SQLLiteHandler:
             >>> # File-based database (production)
             >>> dbh = SQLLiteHandler(db_path="/data/fiwa.db")
         """
-        self._pw_salt = "fiwa_default_salt_2026"
-        self._db_salt = "stand"
+    
+        self._db_salt = db_salt
+        self._pw_salt = pw_salt
         self._db_path = db_path
         self._connection = None
         self._cursor = None
         self._label_cache: dict[int, list] = {}
-
+    
+    def _verify_setup(self):
+        if self._db_salt is None or self._pw_salt is None:
+            raise ValueError("Attention! You haven't set a password salt or database salt")
+    
     def set_path(self, db_path):
         """Set database file path.
 
@@ -348,7 +353,17 @@ class SQLLiteHandler:
         return hash_object.hexdigest()
 
     def initialize_database(self, schema_path=None):
+        """Initialize the database from schema.sql with dynamic table prefix.
 
+        Args:
+            schema_path (str): Path to schema.sql file
+
+        Returns:
+            int: 1 if initialized, 2 if already exists
+
+        Note:
+            Replaces {DB_SALT} placeholder in schema with actual _db_salt value
+        """
         if os.path.exists(self._db_path):
             return 2  # Database already exists, no need to initialize
 
@@ -359,7 +374,12 @@ class SQLLiteHandler:
         if not schema_file.exists():
             raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
+        # Read schema and replace placeholder with actual salt
         schema_sql = schema_file.read_text(encoding="utf-8")
+        
+        # Replace {DB_SALT} placeholder with the actual database salt
+        schema_sql = schema_sql.replace("{DB_SALT}", self._db_salt)
+        
         self._cursor.executescript(schema_sql)
         self._connection.commit()
 
@@ -436,6 +456,7 @@ class SQLLiteHandler:
             self.close()
 
     def load(self):
+        self._verify_setup()
         self._connection = sqlite3.connect(self._db_path)
         self._cursor = self._connection.cursor()
 
@@ -1892,8 +1913,8 @@ class SQLLiteHandler:
         self,
         user_id: int,
         project_id: int,
-        start_date: str,
-        end_date: str,
+        start_date: [str, datetime],
+        end_date: [str, datetime],
         include_user_info: bool = True
     ) -> list:
         """Get items/transactions for a user within a date range.
@@ -1949,6 +1970,11 @@ class SQLLiteHandler:
             - Only items where bought_for_id matches user_id are returned
             - If include_user_info=False, bought_by_* fields will be None
         """
+        if isinstance(start_date, datetime):
+            start_date = start_date.strftime("%Y-%m-%d")
+        if isinstance(end_date, datetime):
+            end_date = end_date.strftime("%Y-%m-%d")
+
         self.load()
 
         try:

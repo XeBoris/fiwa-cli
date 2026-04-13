@@ -2,7 +2,7 @@
 
 /* Container */
 #spending-tracker-container {
-    width: 100%;
+    width: 35;
     height: auto;
     padding: 1 2;
     border: solid $primary;
