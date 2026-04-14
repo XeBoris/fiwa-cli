@@ -1,0 +1,146 @@
+/* Spending Tracker Widget Styles - GitHub-style heatmap */
+
+/* Container */
+#spending-tracker-container {
+    width: 35;
+    height: auto;
+    padding: 1 2;
+    border: solid $primary;
+}
+
+/* Header showing month and year */
+.tracker-header {
+    width: 100%;
+    height: 1;
+    content-align: center middle;
+    text-style: bold;
+    color: $text;
+    margin-bottom: 1;
+}
+
+/* Day labels row (Mon, Tue, Wed, ...) */
+.tracker-day-labels {
+    width: 30;
+    height: 1;
+    margin-bottom: 1;
+}
+
+.tracker-day-label {
+    width: 1fr;
+    height: 1;
+    content-align: center middle;
+    color: $text-muted;
+    text-style: dim;
+}
+
+/* Calendar grid (7 columns x up to 5 rows) */
+#spending-tracker-grid {
+    grid-size: 7 5;
+    grid-gutter: 0 0;
+    width: 30;
+    height: auto;
+    margin-bottom: 1;
+}
+
+/* Individual day cells */
+.tracker-day {
+    width: 100%;
+    height: 3;
+    content-align: center middle;
+    border: solid transparent;
+    text-style: bold;
+    border: none;
+}
+
+/* Empty day (from previous/next month) */
+.tracker-day-empty {
+    background: transparent;
+    color: transparent;
+    border: none;
+}
+
+/* Activity levels - 5 levels from 0 (no activity) to 4 (high activity) */
+
+/* Level 0: No transactions */
+.tracker-day-level-0 {
+    background: $surface-darken-1;
+    color: $text-muted;
+}
+
+/* Level 1: 1 transaction */
+.tracker-day-level-1 {
+    background: $success 30%;
+    color: $text;
+}
+
+/* Level 2: 2-3 transactions */
+.tracker-day-level-2 {
+    background: $success 50%;
+    color: $text;
+}
+
+/* Level 3: 4-6 transactions */
+.tracker-day-level-3 {
+    background: $success 70%;
+    color: $text;
+}
+
+/* Level 4: 7+ transactions */
+.tracker-day-level-4 {
+    background: $success;
+    color: $text;
+    text-style: bold;
+}
+
+/*
+.tracker-day-level-0:hover {
+    background: $surface;
+    border: solid $primary;
+}
+.tracker-day-level-1:hover {
+    background: $success 50%;
+    border: solid $success;
+}
+.tracker-day-level-2:hover {
+    background: $success 70%;
+    border: solid $success;
+}
+
+.tracker-day-level-3:hover {
+    background: $success 90%;
+    border: solid $success;
+}
+
+.tracker-day-level-4:hover {
+    background: $success-lighten-1;
+    border: solid $success-lighten-2;
+}
+*/
+
+/* Legend at bottom */
+.tracker-legend {
+    width: 100%;
+    height: 2;
+    align: left middle;
+    margin-top: 1;
+}
+
+.tracker-legend-label {
+    width: auto;
+    height: 1;
+    padding: 0 1;
+    color: $text-muted;
+}
+
+.tracker-legend-box {
+    width: 3;
+    height: 1;
+    margin: 0 0;
+    border: none;
+}
+
+/*
+.tracker-legend-box:hover {
+    border: solid $primary;
+}
+*/

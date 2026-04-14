@@ -43,6 +43,7 @@ from textual.widgets import Button, Footer, Static
 from textual.reactive import reactive
 
 from fiwa_cli.functions.loader import setup_fiwa, get_abs_path, prep_fiwa, handle_args
+from fiwa_cli.functions.compute_stats import ProjectStats
 from fiwa_cli.components.header import FiwaHeader
 
 import datetime
@@ -262,6 +263,9 @@ class MyApp(App):
             self.app_state["project_style"] = primary_project_style
             self.app_state["project_store"] = primary_project_store
 
+            # we declare and init the project style specific statistic module:
+            # ps (#todo), maybe we find a better name
+            self.app_state["stats"] = ProjectStats(project_style=primary_project_style)
             # Load currency information for the primary project
             if primary_project:
                 import json
@@ -286,6 +290,7 @@ class MyApp(App):
             self.app_state["project_style"] = "default"
             self.app_state["current_project_currency_main"] = "USD"
             self.app_state["current_project_currency_list"] = []
+            self.app_state["stats"] = ProjectStats(project_style="default")
 
     def on_mount(self) -> None:
         """Called when the application is mounted and ready.

@@ -10,6 +10,7 @@ Available Components:
     - **CalendarWidget**: Interactive date picker modal
     - **WeekMonthWidget**: Week/month period selector with navigation
     - **ItemInputForm**: Comprehensive expense/transaction input form
+    - **SpendingTrackerWidget**: GitHub-style spending heatmap visualization
 
 Component Design Principles:
     - Self-contained: Each component manages its own state
@@ -19,10 +20,11 @@ Component Design Principles:
     - Reactive: Auto-update when state changes
 
 Quick Import:
-    >>> from fiwa_cli.components import FiwaHeader, TimeDisplay
+    >>> from fiwa_cli.components import FiwaHeader, TimeDisplay, SpendingTrackerWidget
     >>>
     >>> yield FiwaHeader(user="batman", projects=["Project 1"])
     >>> yield TimeDisplay()
+    >>> yield SpendingTrackerWidget(daily_data=data, year=2026, month=3)
 
 Example:
     Using multiple components::
@@ -30,10 +32,12 @@ Example:
         >>> from fiwa_cli.components import FiwaHeader, TimeDisplay
         >>> from fiwa_cli.components.calendar_picker import CalendarWidget
         >>> from fiwa_cli.components.week_month_picker import WeekMonthWidget
+        >>> from fiwa_cli.components.spending_tracker import SpendingTrackerWidget
         >>>
         >>> def compose(self):
         >>>     yield FiwaHeader(...)
         >>>     yield WeekMonthWidget()
+        >>>     yield SpendingTrackerWidget(daily_data=stats, year=2026, month=3)
         >>>     # ... content ...
 
 See Also:
@@ -43,5 +47,6 @@ See Also:
 
 from fiwa_cli.components.header import FiwaHeader
 from fiwa_cli.components.time_display import TimeDisplay
+from fiwa_cli.components.spending_tracker import SpendingTrackerWidget
 
-__all__ = ["FiwaHeader", "TimeDisplay"]
+__all__ = ["FiwaHeader", "TimeDisplay", "SpendingTrackerWidget"]
