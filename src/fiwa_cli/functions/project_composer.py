@@ -266,6 +266,12 @@ class ProjectExpenseTracker(ProjectComposer):
         super().__init__(dbh=dbh, project_id=project_id, users=users)
         self.name = "ExpenseTracker"
 
+        self.parsed_tags = {"c": "", #group: balance
+                            "t": "", #group: transaction
+                            "b": "", #group: account
+                            "m": "", #group: main
+                            "s": []  #group: secondary
+                            }
         self.label_ = [
             {
                 "type": 0,
@@ -487,6 +493,49 @@ class ProjectExpenseTracker(ProjectComposer):
 
         return items
 
+    def parse_item_list(self, raw_items, label_map={}):
+        """Parse tags for multiple items and add label fields.
+
+        Args:
+            raw_items: List of items with tags field
+            label_map: Dictionary mapping label IDs to label info
+
+        Returns:
+            List of items with parsed_tags and label fields added
+        """
+        # Process items and parse tags
+        items = []
+        for raw_item in raw_items:
+            tags_raw = raw_item.get("tags", "")
+
+            # Handle None or empty tags
+            if not tags_raw:
+                tags_raw = ""
+
+            # Remove quotes if present
+            if tags_raw.startswith('"') and tags_raw.endswith('"'):
+                tags_raw = tags_raw[1:-1]
+
+            # Parse tags using ProjectComposer
+            try:
+                parsed_tags = self.parse_tags_from_string(tags_raw, label_map=label_map)
+            except Exception:
+                # If parsing fails, use empty tags
+                parsed_tags = {"c": "", "t": "", "b": "", "m": "", "s": []}
+
+            # Add parsed data to item
+            item = raw_item.copy()
+            item["parsed_tags"] = parsed_tags
+            item["label_c"] = parsed_tags.get("c", "")
+            item["label_t"] = parsed_tags.get("t", "")
+            item["label_b"] = parsed_tags.get("b", "")
+            item["label_m"] = parsed_tags.get("m", "")
+            item["label_s"] = parsed_tags.get("s", "")
+            items.append(item)
+
+
+        return items
+
     def parse_tags_from_string(self, tag_str: str, label_map: dict) -> dict:
         """
         Parse tag string format: id_id_id_id_[id,id,...]
@@ -509,6 +558,10 @@ class ProjectExpenseTracker(ProjectComposer):
         """
         parsed = {"c": "", "t": "", "b": "", "m": "", "s": []}
 
+        # label_map = self.get_label_map()
+        # label_map = [i.replace(" ", "") for i in label_map]
+        # parsed = {i: "" for i in label_map}
+        #
         if not tag_str:
             return parsed
 
@@ -598,6 +651,7 @@ class ProjectExpenseTracker(ProjectComposer):
         tag_string = f"{c_id}_{t_id}_{b_id}_{m_id}_{s_part}"
 
         return tag_string
+
 
     def compose_labels(self):
         """

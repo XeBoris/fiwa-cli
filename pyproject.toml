@@ -30,7 +30,9 @@ dependencies = [
     "pyyaml",
     "numpy",
     "holidays",
-    "babel"
+    "babel",
+    "pandas",
+    "numpy",
 ]
 
 [project.optional-dependencies]
