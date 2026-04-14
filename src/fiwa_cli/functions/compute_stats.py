@@ -24,24 +24,72 @@ class ProjectStats():
             self._items_df = pd.DataFrame()
 
     def op_parse_df(self):
+        """Parse and normalize DataFrame columns for ExpenseTracker projects.
+        
+        Converts date, price, and exchange rate columns to proper types.
+        Handles missing columns gracefully.
+        """
         if self._project_style == "ExpenseTracker":
-            self._items_df["bought_date"] = pd.to_datetime(self._items_df["bought_date"], format='mixed')
-            self._items_df["exchange_rate_date"] = pd.to_datetime(self._items_df["exchange_rate_date"], format='mixed')
-            self._items_df["price"] = pd.to_numeric(self._items_df["price"])
-            self._items_df["price_final"] = pd.to_numeric(self._items_df["price_final"])
-            self._items_df["exchange_rate"] = pd.to_numeric(self._items_df["exchange_rate"])
+            try:
+                # Parse dates and normalize to remove time component
+                if 'bought_date' in self._items_df.columns:
+                    self._items_df["bought_date"] = pd.to_datetime(
+                        self._items_df["bought_date"], format='mixed'
+                    ).dt.normalize()
+                
+                if 'exchange_rate_date' in self._items_df.columns:
+                    self._items_df["exchange_rate_date"] = pd.to_datetime(
+                        self._items_df["exchange_rate_date"], format='%Y-%m-%d'
+                    )#.dt.normalize()
+                
+                # Parse numeric columns
+                if 'price' in self._items_df.columns:
+                    self._items_df["price"] = pd.to_numeric(self._items_df["price"], errors='coerce')
+                
+                if 'price_final' in self._items_df.columns:
+                    self._items_df["price_final"] = pd.to_numeric(
+                        self._items_df["price_final"], errors='coerce'
+                    )
 
-            self._items_df["bought_date"] = pd.to_datetime(self._items_df["bought_date"], format='mixed').dt.normalize()
-            self._items_df["exchange_rate"] = pd.to_datetime(self._items_df["exchange_rate"],
-                                                             format='mixed').dt.normalize()
-            self._items_df.sort_values(by="bought_date", inplace=True)
+                if 'exchange_rate' in self._items_df.columns:
+                    # Convert to numeric with robust handling for corrupted date values
+                    # (handles legacy data where exchange_rate was mistakenly parsed as datetime)
+                    self._items_df["exchange_rate"] = pd.to_numeric(
+                        self._items_df["exchange_rate"], errors='coerce'
+                    )
+
+                # Sort by date if column exists
+                if 'bought_date' in self._items_df.columns:
+                    self._items_df.sort_values(by="bought_date", inplace=True)
+                    
+            except Exception as e:
+                print(f"ERROR in op_parse_df: {e}")
+                # Continue with unparsed data rather than failing
 
     def aggregate_daily_df(self):
+        """Aggregate daily transactions by date and main label.
+
+        Returns:
+            list: List of dictionaries with daily aggregations, or empty list if no data
+        """
         if len(self._items_df) == 0:
+            return []
+
+        # Check if required columns exist
+        if 'label_t' not in self._items_df.columns:
+            print("WARNING: label_t column missing in DataFrame")
+            return []
+        
+        if 'label_m' not in self._items_df.columns:
+            print("WARNING: label_m column missing in DataFrame")
             return []
 
         # get daily
         pdf = self._items_df[self._items_df["label_t"] == "daily"].copy()
+        
+        if len(pdf) == 0:
+            return []
+        
         # Convert to datetime first, then extract date only (strips timestamp to 00:00:00)
         pdf["bought_date"] = pd.to_datetime(pdf["bought_date"], format='mixed').dt.normalize()
         k = []
@@ -96,48 +144,56 @@ class ProjectStats():
                 Defaults to False.
 
         Returns:
-            tuple: A tuple of five elements containing aggregated financial data.
+            tuple: A tuple of five elements containing aggregated financial data:
+                (period_totals, account_summary, fixed_variable_details, 
+                 home_daily_details, travel_daily_details)
+
                 The type of each element depends on the `return_df` parameter:
 
                 **When return_df=False (default):**
 
-                - **d0** (dict): Overall period totals with keys:
+                - **period_totals** (dict): Overall period totals with keys:
                     - "total_fv" (float): Total for fixed/variable transactions
                     - "total_daily" (float): Total for all daily transactions
                     - "total_daily_trav" (float): Total for travel-related daily transactions
                     - "total_daily_home" (float): Total for home/non-travel daily transactions
 
-                - **d1** (list[dict]): High-level summary by account, each dict contains:
+                - **account_summary** (list[dict]): High-level summary by account, each dict contains:
                     - "label" (str): Account name or category
                     - "value" (float): Net amount for the category
                     Special entries: "Daily Home", "Daily Travel", "Savings (EoM)"
 
-                - **k_fv** (list[dict]): Detailed fixed/variable transactions
-                - **k_home** (list[dict]): Detailed daily home transactions
-                - **k_trav** (list[dict]): Detailed daily travel transactions
+                - **fixed_variable_details** (list[dict]): Detailed fixed/variable transactions
+                    Each dict contains: "label", "transaction", "value"
+
+                - **home_daily_details** (list[dict]): Detailed daily home transactions
+                    Each dict contains: "label", "transaction", "value"
+
+                - **travel_daily_details** (list[dict]): Detailed daily travel transactions
+                    Each dict contains: "label", "transaction", "value"
 
                 **When return_df=True:**
 
-                - **d0** (pd.DataFrame): Overall period totals with columns:
+                - **period_totals** (pd.DataFrame): Overall period totals with columns:
                     - `label` (str): Total category name
                     - `value` (float): Monetary value (expenses negative, revenue positive)
 
-                - **d1** (pd.DataFrame): High-level summary by account with columns:
+                - **account_summary** (pd.DataFrame): High-level summary by account with columns:
                     - `label` (str): Account name or category
                     - `value` (float): Net amount for the category
                     Sorted by value in descending order with "Savings (EoM)" at the bottom.
 
-                - **k_fv** (pd.DataFrame): Detailed fixed/variable transactions with columns:
+                - **fixed_variable_details** (pd.DataFrame): Detailed fixed/variable transactions with columns:
                     - `label` (str): Bank account name (`label_b`)
                     - `transaction` (str): Transaction type (`label_c`)
                     - `value` (float): Net transaction value
 
-                - **k_home** (pd.DataFrame): Detailed daily home transactions with columns:
+                - **home_daily_details** (pd.DataFrame): Detailed daily home transactions with columns:
                     - `label` (str): Bank account name (`label_b`)
                     - `transaction` (str): Transaction type (`label_c`)
                     - `value` (float): Net transaction value
 
-                - **k_trav** (pd.DataFrame): Detailed daily travel transactions with columns:
+                - **travel_daily_details** (pd.DataFrame): Detailed daily travel transactions with columns:
                     - `label` (str): Bank account name (`label_b`)
                     - `transaction` (str): Transaction type (`label_c`)
                     - `value` (float): Net transaction value
@@ -152,15 +208,16 @@ class ProjectStats():
 
             >>> stats = ProjectStats(project_style="ExpenseTracker")
             >>> stats.set_items(items_list)
-            >>> d0, d1, k_fv, k_home, k_trav = stats.aggr_period()
+            >>> (period_totals, account_summary, fixed_variable_details,
+            ...  home_daily_details, travel_daily_details) = stats.aggr_period()
             >>>
             >>> # View overall totals as dict
-            >>> print(d0)
+            >>> print(period_totals)
             {'total_fv': -1234.56, 'total_daily': -987.65, 
              'total_daily_trav': -234.00, 'total_daily_home': -753.65}
             >>>
             >>> # View account summary as list
-            >>> print(d1)
+            >>> print(account_summary)
             [{'label': 'CheckingAccount', 'value': -500.00},
              {'label': 'Daily Home', 'value': -753.65},
              {'label': 'Daily Travel', 'value': -234.00},
@@ -168,10 +225,11 @@ class ProjectStats():
 
             **Using pandas DataFrames:**
 
-            >>> d0, d1, k_fv, k_home, k_trav = stats.aggr_period(return_df=True)
+            >>> (period_totals, account_summary, fixed_variable_details,
+            ...  home_daily_details, travel_daily_details) = stats.aggr_period(return_df=True)
             >>>
             >>> # View overall totals as DataFrame
-            >>> print(d0)
+            >>> print(period_totals)
                          label      value
             0        total_fv  -1234.56
             1    total_daily   -987.65
@@ -179,7 +237,7 @@ class ProjectStats():
             3  total_daily_home -753.65
             >>>
             >>> # View account summary as DataFrame (sorted)
-            >>> print(d1)
+            >>> print(account_summary)
                       label      value
             0  CheckingAccount  -500.00
             1      Daily Home  -753.65
@@ -197,7 +255,7 @@ class ProjectStats():
             - Travel transactions are identified by the presence of 'travel' in `label_s`
             - All monetary values are in the project's main currency
             - The "Savings (EoM)" entry represents the net balance for the period
-            - When `return_df=True`, d1 is sorted by value in descending order
+            - When `return_df=True`, account_summary is sorted by value in descending order
             - Use `return_df=False` for lightweight operations or JSON serialization
             - Use `return_df=True` for data analysis, visualization, or further pandas operations
 
@@ -206,6 +264,36 @@ class ProjectStats():
             aggregate_fv_df: For fixed/variable transaction aggregation
             op_parse_df: For initial dataframe preparation
         """
+        # Validate DataFrame exists and has data
+        if self._items_df is None or len(self._items_df) == 0:
+            # Return empty structures
+            period_totals = {
+                "total_fv": 0.0,
+                "total_daily": 0.0,
+                "total_daily_trav": 0.0,
+                "total_daily_home": 0.0
+            }
+            account_summary = []
+            fixed_variable_details = []
+            home_daily_details = []
+            travel_daily_details = []
+            
+            if return_df:
+                period_totals = pd.DataFrame([period_totals]).T.reset_index()
+                period_totals.columns = ["label", "value"]
+                account_summary = pd.DataFrame(account_summary)
+                fixed_variable_details = pd.DataFrame(fixed_variable_details)
+                home_daily_details = pd.DataFrame(home_daily_details)
+                travel_daily_details = pd.DataFrame(travel_daily_details)
+            
+            return period_totals, account_summary, fixed_variable_details, home_daily_details, travel_daily_details
+        
+        # Validate required columns exist
+        required_cols = ['label_c', 'label_t', 'label_b', 'label_s', 'price_final']
+        missing = [col for col in required_cols if col not in self._items_df.columns]
+        if missing:
+            raise ValueError(f"DataFrame missing required columns for aggregation: {missing}. Available columns: {self._items_df.columns.tolist()}")
+        
         df = self._items_df.copy()
 
         for k, krow in df.iterrows():
@@ -217,23 +305,36 @@ class ProjectStats():
 
         df["price_final1"] = df["e"] * df["price_final"]
 
-        # we need
+        # Helper function to check if label_s contains 'travel' (case-insensitive)
+        def contains_travel(label_s_value):
+            """Check if label_s contains 'travel' keyword (handles list or string)."""
+            if isinstance(label_s_value, list):
+                # Check if any item in the list contains 'travel'
+                return any('travel' in str(item).lower() for item in label_s_value)
+            elif isinstance(label_s_value, str):
+                # Check if string contains 'travel'
+                return 'travel' in label_s_value.lower()
+            else:
+                # Default: no travel
+                return False
+
+        # Split transactions by type
         df_fv = df[(df["label_t"] == "fixed") | (df["label_t"] == "variable")].copy()
 
         df_d = df[df["label_t"] == "daily"].copy()
-        df_d_trav = df_d[df_d["label_s"].apply(lambda x: 'travel' in x)].copy()
-        df_d_home = df_d[df_d["label_s"].apply(lambda x: 'travel' not in x)].copy()
+        df_d_trav = df_d[df_d["label_s"].apply(contains_travel)].copy()
+        df_d_home = df_d[df_d["label_s"].apply(lambda x: not contains_travel(x))].copy()
 
         # build a dataframe with all the totals:
-        d0 = {
+        period_totals = {
             "total_fv": df_fv["price_final1"].sum(),
             "total_daily": df_d["price_final1"].sum(),
             "total_daily_trav": df_d_trav["price_final1"].sum(),
             "total_daily_home": df_d_home["price_final1"].sum()
         }
         if return_df:
-            d0 = pd.DataFrame([d0]).T.reset_index()
-            d0.columns = ["label", "value"]
+            period_totals = pd.DataFrame([period_totals]).T.reset_index()
+            period_totals.columns = ["label", "value"]
 
         def run(subdf):
             r = {}
@@ -258,40 +359,40 @@ class ProjectStats():
             return r, klist
 
         # receive summaries:
-        r_fv, k_fv = run(df_fv)
-        r_trav, k_trav = run(df_d_trav)
+        r_fv, fixed_variable_details = run(df_fv)
+        r_trav, travel_daily_details = run(df_d_trav)
         r_trav_sum = sum([v for k, v in r_trav.items()])
-        r_home, k_home = run(df_d_home)
+        r_home, home_daily_details = run(df_d_home)
         r_home_sum = sum([v for k, v in r_home.items()])
 
         # print(r_fv)
         # print(r_trav, r_trav_sum)
         # print(r_home, r_home_sum)
 
-        d1 = []
+        account_summary = []
         for k, v in r_fv.items():
-            d1.append({"label": k[2:],
+            account_summary.append({"label": k[2:],
                        "value": v})
 
-        d1.append({"label": "Daily Home",
+        account_summary.append({"label": "Daily Home",
                    "value": r_home_sum})
-        d1.append({"label": "Daily Travel",
+        account_summary.append({"label": "Daily Travel",
                    "value": r_trav_sum})
 
         # add the end of month sum:
         # suggested to be zero
-        d1sum = sum([v["value"] for v in d1])
-        d1.append({"label": "Savings (EoM)",
+        d1sum = sum([v["value"] for v in account_summary])
+        account_summary.append({"label": "Savings (EoM)",
                    "value": d1sum})
 
         if return_df:
-            d1 = pd.DataFrame(d1)
-            d1.sort_values("value", inplace=True, ascending=False)
-            d1.reset_index(inplace=True, drop=True)
+            account_summary = pd.DataFrame(account_summary)
+            account_summary.sort_values("value", inplace=True, ascending=False)
+            account_summary.reset_index(inplace=True, drop=True)
 
 
-            k_fv = pd.DataFrame(k_fv)
-            k_home = pd.DataFrame(k_home)
-            k_trav = pd.DataFrame(k_trav)
+            fixed_variable_details = pd.DataFrame(fixed_variable_details)
+            home_daily_details = pd.DataFrame(home_daily_details)
+            travel_daily_details = pd.DataFrame(travel_daily_details)
 
-        return d0, d1, k_fv, k_home, k_trav
+        return period_totals, account_summary, fixed_variable_details, home_daily_details, travel_daily_details

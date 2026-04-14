@@ -66,6 +66,7 @@ from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual import on
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.functions.project_composer import ProjectComposer
 from fiwa_cli.components.spending_tracker import SpendingTrackerWidget
 
 class AdvReportForm(Vertical):
@@ -252,7 +253,9 @@ class AdvReportForm(Vertical):
 
         # Get ProjectComposer instance
         dbh = self.app._config.get("dbh")
-        from fiwa_cli.functions.project_composer import ProjectComposer
+
+        labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+        label_map = {l["label_id"]: l for l in labels}
 
         try:
             pc = ProjectComposer.create(
@@ -286,50 +289,107 @@ class AdvReportForm(Vertical):
                             items = pc.get_balance_split(items)
                             items_daily = pc.get_transaction_split(items, keys=["daily"])
                             items_fv = pc.get_transaction_split(items, keys=["fixed", "variable"])
+
+                            items_parsed = pc.parse_item_list(items, label_map=label_map)
                         else:
                             items_daily = []
                             items_fv = []
+
 
                         # --- Spending Tracker Heatmap (GitHub-style) ---
                         if period_start and period_end:
                             # Build daily aggregation data for the tracker
                             stats = self.app.app_state.get("stats")
                             if stats:
-                                stats.set_items(items=items_daily)
+                                stats.set_items(items=items_parsed)
                                 daily_agg_data = stats.aggregate_daily_df()
+                                period_totals, account_summary, fixed_variable_details, home_daily_details, travel_daily_details = stats.aggr_period()
                             else:
                                 daily_agg_data = []
+                                period_totals = {}
+                                account_summary = []
+                            
                             self.app.file_log.info(str(daily_agg_data))
-                            # Create spending tracker widget with custom period
-                            tracker = SpendingTrackerWidget(
-                                daily_data=daily_agg_data,
-                                period_start=period_start,
-                                period_end=period_end
-                            )
-                            yield tracker
-
-                        # --- Monthly Summary Statistics ---
-                        total_daily = sum(item.get("price_final", 0) * item.get("multiplier", -1) for item in items_daily)
-                        total_fv = sum(item.get("price_final", 0) * item.get("multiplier", -1) for item in items_fv)
-                        total_all = total_daily + total_fv
-
-                        revenue_daily = sum(item.get("price_final", 0) for item in items_daily if item.get("multiplier", -1) == 1)
-                        revenue_fv = sum(item.get("price_final", 0) for item in items_fv if item.get("multiplier", -1) == 1)
-                        total_revenue = revenue_daily + revenue_fv
-
-                        expenses_daily = sum(item.get("price_final", 0) for item in items_daily if item.get("multiplier", -1) == -1)
-                        expenses_fv = sum(item.get("price_final", 0) for item in items_fv if item.get("multiplier", -1) == -1)
-                        total_expenses = expenses_daily + expenses_fv
+                            self.app.file_log.info(f"Period totals: {str(period_totals)}")
+                            
+                            # Create horizontal container for tracker and account summary
+                            with Horizontal(classes="tracker-summary-container"):
+                                # Left side: Spending Tracker
+                                with Vertical(classes="tracker-section"):
+                                    yield Static("📊 Daily Spending Pattern", classes="section-subtitle")
+                                    tracker = SpendingTrackerWidget(
+                                        daily_data=daily_agg_data,
+                                        period_start=period_start,
+                                        period_end=period_end
+                                    )
+                                    yield tracker
+                                
+                                # Vertical separator
+                                #yield Vertical(classes="vertical-separator")
+                                
+                                # Right side: Account Summary
+                                with Vertical(classes="account-summary-section"):
+                                    yield Static("💳 Account Summary", classes="section-subtitle")
+                                    
+                                    # Build account summary display
+                                    if account_summary:
+                                        summary_text = []
+                                        for entry in account_summary:
+                                            label = entry.get("label", "Unknown")
+                                            value = entry.get("value", 0.0)
+                                            
+                                            # Format with appropriate symbols
+                                            if label == "Savings (EoM)":
+                                                symbol = "💰"
+                                                color_class = "summary-savings"
+                                            elif label in ["Daily Home", "Daily Travel"]:
+                                                symbol = "🏠" if "Home" in label else "✈️"
+                                                color_class = "summary-daily"
+                                            else:
+                                                symbol = "√"
+                                                color_class = "summary-account"
+                                            
+                                            # Format value with sign
+                                            value_str = f"{value:+.2f}" if value != 0 else "0.00"
+                                            summary_text.append(f"{symbol} {label}: {value_str} {currency_main}")
+                                        
+                                        yield Static(
+                                            "\n".join(summary_text),
+                                            classes="account-summary-content",
+                                            id=f"account-summary-{user['user_id']}"
+                                        )
+                                    else:
+                                        yield Static(
+                                            "No account data available",
+                                            classes="account-summary-empty"
+                                        )
+                                    
+                                    # Add period totals breakdown
+                                    if period_totals:
+                                        yield Static("", classes="summary-spacer")
+                                        yield Static("📈 Period Breakdown", classes="section-subtitle-small")
+                                        
+                                        totals_text = []
+                                        total_fv = period_totals.get("total_fv", 0.0)
+                                        total_daily = period_totals.get("total_daily", 0.0)
+                                        total_daily_home = period_totals.get("total_daily_home", 0.0)
+                                        total_daily_trav = period_totals.get("total_daily_trav", 0.0)
+                                        
+                                        totals_text.append(f"Fixed/Variable: {total_fv:+.2f} {currency_main}")
+                                        totals_text.append(f"Daily Total: {total_daily:+.2f} {currency_main}")
+                                        totals_text.append(f"  • Home: {total_daily_home:+.2f} {currency_main}")
+                                        totals_text.append(f"  • Travel: {total_daily_trav:+.2f} {currency_main}")
+                                        
+                                        yield Static(
+                                            "\n".join(totals_text),
+                                            classes="period-totals-content"
+                                        )
 
                         # Summary display
-                        yield Static("Monthly Summary", classes="table-section-title")
+                        yield Static("Spending Summary", classes="table-section-title")
 
                         summary_lines = [
-                            f"💰 Grand Total: {total_all:.2f} {currency_main}",
-                            f"  ↗ Revenue: {total_revenue:.2f} {currency_main}",
-                            f"  ↘ Expenses: {total_expenses:.2f} {currency_main}",
-                            f"  = Balance: {total_all:.2f} {currency_main}",
-                            "",
+                            f"",
                             f"Daily Transactions: {len(items_daily)}",
                             f"Fixed/Variable Transactions: {len(items_fv)}",
                         ]
@@ -653,30 +713,30 @@ class AdvReportForm(Vertical):
             return []
 
     def refresh_data(self) -> None:
-        """Refresh all data tables with current period data without recreating UI.
+        """Refresh spending tracker and account summary with current period data.
 
-        This method is called when the period selection changes (week/month
-        navigation) to reload transaction data from the database while
-        preserving the existing tab structure and user's current tab selection.
+        This method is called when the period selection changes to reload
+        transaction data from the database while preserving the existing
+        tab structure and user's current tab selection.
 
-        The refresh process:
+        The refresh process for AdvReportForm:
             1. Updates period display widget with new date range
             2. Retrieves all project users with Read permission
             3. Gets ProjectComposer instance for label mapping
             4. For each user:
                - Queries transactions for current period
-               - Splits into fixed/variable vs. daily
-               - Clears existing table rows
-               - Populates tables with new data
-               - Recalculates revenue/expense totals
-               - Updates summary displays
+               - Splits into daily vs. fixed/variable
+               - Updates SpendingTrackerWidget with new heatmap data
+               - Recalculates account summary using aggr_period()
+               - Updates account summary and period breakdown displays
+               - Updates monthly summary totals
 
         Side Effects:
             - Updates #date-selection-display widget
-            - Clears all DataTable rows (both tables per user)
+            - Updates SpendingTrackerWidget heatmap
+            - Updates #account-summary-{user_id} Static widgets
+            - Updates #total-user-{user_id} summary widgets
             - Queries database for new transactions
-            - Repopulates tables with filtered data
-            - Updates total revenue/expense Static widgets
             - Logs refresh operation and any errors
 
         Performance:
@@ -688,55 +748,66 @@ class AdvReportForm(Vertical):
         Example:
             After period change::
 
-                >>> # User viewing Week 10 Cost Overview
-                >>> # User changes WeekMonthWidget to Week 11
+                >>> # User viewing March 2026 Summary
+                >>> # User changes WeekMonthWidget to April 2026
                 >>> # ReportsScreen calls refresh_data()
-                >>> # Period display updates: "2026 Week 11: 2026-03-10 to 2026-03-16"
-                >>> # All user tabs reload with Week 11 transactions
-                >>> # Batman tab: Fixed table shows 3 items, Daily shows 12 items
-                >>> # Totals recalculated: Revenue $5000, Expenses $1200
+                >>> # Period display updates: "2026 Month 04: 2026-03-25 to 2026-04-24"
+                >>> # SpendingTrackerWidget refreshes with April data
+                >>> # Account summary recalculates for April
+                >>> # Monthly totals update
 
         Error Handling:
             - If project_id invalid: Returns early without error
             - If database query fails: Logs error, continues with other users
-            - If table not found: Logs warning, skips that table
+            - If widgets not found: Logs warning, skips that update
             - If label parsing fails: Uses empty labels, continues
 
         Note:
-            The method preserves the user's current tab selection - if they're
-            viewing Superman's tab when the period changes, they'll still be
-            on Superman's tab after the refresh.
+            This method is specifically for AdvReportForm which shows:
+                - SpendingTrackerWidget (GitHub-style heatmap)
+                - Account Summary (breakdown by account)
+                - Period Breakdown (fixed/variable and daily totals)
+
+            Unlike BasicReportForm, this doesn't update DataTables.
+            It updates the spending tracker visualization and summary displays.
 
             Only users with Read permission (100000+) have their data refreshed.
-
-            The date range display is updated first so users immediately see
-            which period they're viewing.
 
         See Also:
             _get_user_items: Queries transactions for a specific user
             _get_project_users: Gets users with appropriate permissions
             reports.ReportsScreen._refresh_current_report: Calls this method
+            components.spending_tracker.SpendingTrackerWidget.update_data: Updates heatmap
         """
         try:
             # Update the date selection display
             period_start = self.app.app_state.get("current_period_start")
             period_end = self.app.app_state.get("current_period_end")
             period_label = self.app.app_state.get("current_period_label", "")
-            period_type = self.app.app_state.get("current_period_type", "week")
+            period_type = self.app.app_state.get("current_period_type", "month")
 
             if period_start and period_end:
                 date_range_text = f"𝌌 {period_label}: {period_start.strftime('%Y-%m-%d')} to {period_end.strftime('%Y-%m-%d')}"
             else:
                 date_range_text = "𝌌 All expenses"
 
-            self.app.log(f"BasicReportForm refresh_data - Period: {date_range_text}")
+            self.app.log(f"AdvReportForm refresh_data - Period: {date_range_text}")
 
             # Update the Static widget
-            date_display = self.query_one("#date-selection-display", Static)
-            date_display.update(date_range_text)
+            try:
+                date_display = self.query_one("#date-selection-display", Static)
+                date_display.update(date_range_text)
+            except Exception as e:
+                self.app.log(f"Could not update date display: {e}")
+
+            # Check if we're in monthly view (required for AdvReportForm)
+            if period_type != "month":
+                self.app.log("AdvReportForm requires monthly view - skipping refresh")
+                return
 
             project_id = self.app.app_state.get("project_id", 0)
             if project_id <= 0:
+                self.app.log("Invalid project_id - skipping refresh")
                 return
 
             # Get all project users
@@ -758,7 +829,7 @@ class AdvReportForm(Vertical):
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
-            # Update each user's DataTables (both fixed/variable and daily)
+            # Update each user's spending tracker and account summary
             for user in project_users:
                 # Check if user has at least Read permission
                 user_permission = user.get("project_perm_model", "000000")
@@ -770,214 +841,113 @@ class AdvReportForm(Vertical):
                     )
                     continue
 
+                user_id = user["user_id"]
+                self.app.log(f"Refreshing AdvReport for user {user_id}")
+
                 # Fetch items for this user
-                items = self._get_user_items(user["user_id"], project_id)
-                self.app.file_log.info(str(items))
+                items = self._get_user_items(user_id, project_id)
 
                 # Apply transformations
                 if pc:
                     items = pc.get_balance_split(items)
-                    items_fv = pc.get_transaction_split(items, keys=["fixed", "variable"])
-                    items_daily = pc.get_transaction_split(items, keys=["daily"])
+                    items_parsed = pc.parse_item_list(items, label_map={})
+                    items_daily = pc.get_transaction_split(items_parsed, keys=["daily"])
+                    items_fv = pc.get_transaction_split(items_parsed, keys=["fixed", "variable"])
                 else:
-                    items_fv = items
+                    items_parsed = items
                     items_daily = []
+                    items_fv = []
 
-                # --- Refresh Spending Tracker (if monthly view) ---
-                if period_type == "month" and period_start:
-                    try:
-                        # Query for existing tracker widget
-                        tracker_widgets = list(self.query(SpendingTrackerWidget))
-
-                        # Build updated daily aggregation data
-                        # from fiwa_cli.functions.compute_stats import ProjectStats
-                        stats = self.app.app_state["stats"]
-                        stats.set_items(items=items_daily)
+                # --- Refresh Spending Tracker & Account Summary ---
+                try:
+                    # Get stats instance and compute aggregations
+                    stats = self.app.app_state.get("stats")
+                    if stats and items_parsed:
+                        stats.set_items(items=items_parsed)
                         daily_agg_data = stats.aggregate_daily_df()
+                        period_totals, account_summary, fixed_variable_details, home_daily_details, travel_daily_details = stats.aggr_period()
 
-                        # Update tracker if it exists
-                        if tracker_widgets:
-                            for tracker in tracker_widgets:
-                                tracker.update_data(
+                        # Update SpendingTrackerWidget
+                        try:
+                            # Find the tracker for this specific user's tab
+                            tab_pane = self.query_one(f"#tab-user-{user_id}", TabPane)
+                            tracker_widgets = list(tab_pane.query(SpendingTrackerWidget))
+                            
+                            if tracker_widgets:
+                                tracker_widgets[0].update_data(
                                     daily_data=daily_agg_data,
                                     period_start=period_start,
                                     period_end=period_end
                                 )
-                            self.app.log(f"Updated spending tracker for user {user['user_id']}")
-                    except Exception as e:
-                        self.app.log(f"Could not update spending tracker: {e}")
+                                self.app.log(f"Updated spending tracker for user {user_id}")
+                        except Exception as e:
+                            self.app.log(f"Could not update spending tracker for user {user_id}: {e}")
 
-                # --- Refresh Fixed/Variable Table ---
-                table_fv_id = f"items-table-fv-{user['user_id']}"
-                try:
-                    table_fv = self.query_one(f"#{table_fv_id}", DataTable)
-                    table_fv.clear()
+                        # Update Account Summary
+                        try:
+                            account_summary_widget = self.query_one(f"#account-summary-{user_id}", Static)
+                            
+                            if account_summary:
+                                summary_text = []
+                                for entry in account_summary:
+                                    label = entry.get("label", "Unknown")
+                                    value = entry.get("value", 0.0)
+                                    
+                                    # Format with appropriate symbols
+                                    if label == "Savings (EoM)":
+                                        symbol = "💰"
+                                    elif label in ["Daily Home", "Daily Travel"]:
+                                        symbol = "📍" if "Home" in label else "✈️"
+                                    else:
+                                        symbol = "🏦"
+                                    
+                                    # Format value with sign
+                                    value_str = f"{value:+.2f}" if value != 0 else "0.00"
+                                    summary_text.append(f"{symbol} {label}: {value_str} {currency_main}")
+                                
+                                account_summary_widget.update("\n".join(summary_text))
+                                self.app.log(f"Updated account summary for user {user_id}")
+                        except Exception as e:
+                            self.app.log(f"Could not update account summary for user {user_id}: {e}")
 
-                    total_fv = 0.0
-                    revenue_fv = 0.0
-                    expenses_fv = 0.0
-                    bought_by_self_fv = 0.0
-                    bought_by_others_fv = {}
+                        # Update Monthly Summary totals
+                        try:
+                            total_daily = sum(item.get("price_final", 0) * item.get("multiplier", -1) for item in items_daily)
+                            total_fv = sum(item.get("price_final", 0) * item.get("multiplier", -1) for item in items_fv)
+                            total_all = total_daily + total_fv
 
-                    for item in items_fv:
-                        date_str = (
-                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
-                        )
-                        label_display = item.get("label_m", "")
-                        multiplier = item.get("multiplier", 1)
+                            revenue_daily = sum(item.get("price_final", 0) for item in items_daily if item.get("multiplier", -1) == 1)
+                            revenue_fv = sum(item.get("price_final", 0) for item in items_fv if item.get("multiplier", -1) == 1)
+                            total_revenue = revenue_daily + revenue_fv
 
-                        table_fv.add_row(
-                            item["name"],
-                            f"{item['price']:.2f}",
-                            item["currency"],
-                            f"{item['price_final']:.2f}",
-                            date_str,
-                            f"{item['bought_by_last_name']}",
-                            label_display,
-                            key=f"fv-{item['item_id']}",
-                        )
+                            expenses_daily = sum(item.get("price_final", 0) for item in items_daily if item.get("multiplier", -1) == -1)
+                            expenses_fv = sum(item.get("price_final", 0) for item in items_fv if item.get("multiplier", -1) == -1)
+                            total_expenses = expenses_daily + expenses_fv
 
-                        amount = item["price_final"] * multiplier
-                        total_fv += amount
+                            summary_lines = [
+                                f"",
+                                f"",
+                                f"Daily Transactions: {len(items_daily)}",
+                                f"Fixed/Variable Transactions: {len(items_fv)}",
+                            ]
 
-                        if multiplier == 1:
-                            revenue_fv += item["price_final"]
-                        else:
-                            expenses_fv += item["price_final"]
-
-                        if item["bought_by_id"] == user["user_id"]:
-                            bought_by_self_fv += item["price_final"]
-                        else:
-                            buyer_name = (
-                                f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                            )
-                            bought_by_others_fv[buyer_name] = (
-                                bought_by_others_fv.get(buyer_name, 0.0) + item["price_final"]
-                            )
-
-                    # Sort by date
-                    if table_fv.columns:
-                        date_column_key = list(table_fv.columns.keys())[4]
-                        table_fv.sort(date_column_key, reverse=True)
-
-                    # Update fixed/variable total
-                    total_fv_widget = self.query_one(f"#total-fv-{user['user_id']}", Static)
-                    total_fv_widget.update(
-                        f"Total Fixed/Variable: {expenses_fv:.2f} {currency_main} | +{revenue_fv:.2f} {currency_main} ▷ {total_fv:.2f} {currency_main}"
-                    )
+                            total_widget = self.query_one(f"#total-user-{user_id}", Static)
+                            total_widget.update("\n".join(summary_lines))
+                            
+                            self.app.log(f"Updated monthly summary for user {user_id}")
+                        except Exception as e:
+                            self.app.log(f"Could not update monthly summary for user {user_id}: {e}")
 
                 except Exception as e:
-                    self.app.log(
-                        f"Could not refresh fixed/variable table for user {user['user_id']}: {e}"
-                    )
+                    self.app.log(f"Error processing stats for user {user_id}: {e}")
 
-                # --- Refresh Daily Table ---
-                table_daily_id = f"items-table-daily-{user['user_id']}"
-                try:
-                    table_daily = self.query_one(f"#{table_daily_id}", DataTable)
-                    table_daily.clear()
-
-                    total_daily = 0.0
-                    revenue_daily = 0.0
-                    expenses_daily = 0.0
-                    bought_by_self_daily = 0.0
-                    bought_by_others_daily = {}
-
-                    for item in items_daily:
-                        date_str = (
-                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
-                        )
-                        label_display = item.get("label_m", "")
-                        multiplier = item.get("multiplier", 1)
-
-                        table_daily.add_row(
-                            item["name"],
-                            f"{item['price']:.2f}",
-                            item["currency"],
-                            f"{item['price_final']:.2f}",
-                            date_str,
-                            f"{item['bought_by_last_name']}",
-                            label_display,
-                            key=f"daily-{item['item_id']}",
-                        )
-
-                        amount = item["price_final"] * multiplier
-                        total_daily += amount
-
-                        if multiplier == 1:
-                            revenue_daily += item["price_final"]
-                        else:
-                            expenses_daily += item["price_final"]
-
-                        if item["bought_by_id"] == user["user_id"]:
-                            bought_by_self_daily += item["price_final"]
-                        else:
-                            buyer_name = (
-                                f"{item['bought_by_first_name']} {item['bought_by_last_name']}"
-                            )
-                            bought_by_others_daily[buyer_name] = (
-                                bought_by_others_daily.get(buyer_name, 0.0) + item["price_final"]
-                            )
-
-                    # Sort by date
-                    if table_daily.columns:
-                        date_column_key = list(table_daily.columns.keys())[4]
-                        table_daily.sort(date_column_key, reverse=True)
-
-                    # Update daily total
-                    total_daily_widget = self.query_one(f"#total-daily-{user['user_id']}", Static)
-                    total_daily_widget.update(
-                        f"Total Daily: {expenses_daily:.2f} {currency_main} | +{revenue_daily:.2f} {currency_main} ▷ {total_daily:.2f} {currency_main}"
-                    )
-
-                except Exception as e:
-                    self.app.log(f"Could not refresh daily table for user {user['user_id']}: {e}")
-
-                # --- Update Combined Summary ---
-                try:
-                    total_all = total_fv + total_daily
-                    total_revenue = revenue_fv + revenue_daily
-                    total_expenses = expenses_fv + expenses_daily
-
-                    breakdown_lines = [f"💰 Grand Total: {total_all:.2f} {currency_main}"]
-
-                    # Show revenue/expense breakdown for monthly view
-                    if period_type == "month":
-                        breakdown_lines.append(f"  ↗ Revenue: {total_revenue:.2f} {currency_main}")
-                        breakdown_lines.append(
-                            f"  ↘ Expenses: {total_expenses:.2f} {currency_main}"
-                        )
-                        breakdown_lines.append(f"  = Balance: {total_all:.2f} {currency_main}")
-
-                    # Show who bought what breakdown
-                    total_self = bought_by_self_fv + bought_by_self_daily
-                    if total_self > 0:
-                        breakdown_lines.append(f"  • Self: {total_self:.2f} {currency_main}")
-
-                    # Merge bought_by_others from both tables
-                    all_bought_by_others = {}
-                    for buyer, amount in bought_by_others_fv.items():
-                        all_bought_by_others[buyer] = all_bought_by_others.get(buyer, 0.0) + amount
-                    for buyer, amount in bought_by_others_daily.items():
-                        all_bought_by_others[buyer] = all_bought_by_others.get(buyer, 0.0) + amount
-
-                    if all_bought_by_others:
-                        for buyer, amount in sorted(
-                            all_bought_by_others.items(), key=lambda x: x[1], reverse=True
-                        ):
-                            breakdown_lines.append(
-                                f"  • From {buyer}: {amount:.2f} {currency_main}"
-                            )
-
-                    total_widget = self.query_one(f"#total-user-{user['user_id']}", Static)
-                    total_widget.update("\n".join(breakdown_lines))
-
-                    self.app.log(
-                        f"Refreshed tables for user {user['user_id']}: {len(items_fv)} fixed/variable, {len(items_daily)} daily"
-                    )
-
-                except Exception as e:
-                    self.app.log(f"Could not update summary for user {user['user_id']}: {e}")
+            self.app.log("AdvReportForm refresh_data completed")
 
         except Exception as e:
-            self.app.log(f"Error refreshing data tables: {e}")
+            self.app.log(f"Error refreshing AdvReportForm: {e}")
+            try:
+                self.app.file_log.error(f"Error refreshing AdvReportForm: {e}")
+                import traceback
+                self.app.file_log.error(traceback.format_exc())
+            except Exception:
+                pass

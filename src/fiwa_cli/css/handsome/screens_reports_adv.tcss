@@ -74,3 +74,93 @@ BasicReportForm .user-total {
     border-top: double $accent;
 }
 
+/* ============================================
+   SPENDING TRACKER & ACCOUNT SUMMARY LAYOUT
+   ============================================ */
+
+BasicReportForm .tracker-summary-container {
+    height: auto;
+    width: 100%;
+    margin: 1 0 2 0;
+    padding: 0;
+}
+
+BasicReportForm .tracker-section {
+    width: 60%;
+    height: auto;
+    padding: 1 1 1 1;
+}
+
+BasicReportForm .vertical-separator {
+    width: 1;
+    height: 100%;
+    background: $accent 40%;
+    border-left: solid $accent;
+    margin: 0 0;
+}
+
+BasicReportForm .account-summary-section {
+    width: 40%;
+    height: auto;
+    padding: 1 1 1 1;
+}
+
+BasicReportForm .section-subtitle {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 1 0;
+    margin: 0 0 1 0;
+    text-align: left;
+}
+
+BasicReportForm .section-subtitle-small {
+    text-style: bold;
+    color: $accent 80%;
+    padding: 0 0 0 0;
+    margin: 1 0 0 0;
+    text-align: left;
+}
+
+BasicReportForm .account-summary-content {
+    padding: 1;
+    margin: 0;
+    background: $surface;
+    border: solid $primary 50%;
+    color: $text;
+    text-align: left;
+
+}
+
+BasicReportForm .account-summary-empty {
+    padding: 1;
+    margin: 0;
+    background: $surface;
+    color: $text-muted;
+    text-align: center;
+    text-style: italic;
+}
+
+BasicReportForm .period-totals-content {
+    padding: 1;
+    margin: 0;
+    background: $panel;
+    border: solid $accent 30%;
+    color: $text;
+    text-align: left;
+
+}
+
+BasicReportForm .summary-spacer {
+    height: 1;
+}
+
+BasicReportForm .warning-message {
+    text-align: center;
+    padding: 2;
+    margin: 2 4;
+    background: $warning 20%;
+    color: $warning;
+    border: solid $warning;
+    text-style: bold;
+}
+

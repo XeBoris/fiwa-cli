@@ -449,19 +449,30 @@ class ReportsScreen(ReactiveScreen):
                 >>> # BasicReportForm remounted with Week 11 data
 
         Note:
-            Currently only "Cost Overview" is implemented as BasicReportForm.
-            Future report types will be detected and refreshed similarly.
+            Supports both BasicReportForm (Cost Overview) and 
+            AdvReportForm (Summary) refresh operations.
         """
         try:
-            # Check if BasicReportForm is currently loaded
+            # Check if BasicReportForm or AdvReportForm is currently loaded
             content_area = self.query_one("#reports-content-area", ScrollableContainer)
+            
             # Try to find BasicReportForm in content area
-
-            forms = list(content_area.query(BasicReportForm))
-            if forms:
-                # Refresh the existing form
-                forms[0].refresh_data()
-                self.app.log("Refreshed Cost Overview report")
+            basic_forms = list(content_area.query(BasicReportForm))
+            if basic_forms:
+                # Refresh the existing BasicReportForm
+                basic_forms[0].refresh_data()
+                self.app.log("Refreshed Cost Overview report (BasicReportForm)")
+                return
+            
+            # Try to find AdvReportForm in content area
+            adv_forms = list(content_area.query(AdvReportForm))
+            if adv_forms:
+                # Refresh the existing AdvReportForm
+                adv_forms[0].refresh_data()
+                self.app.log("Refreshed Summary report (AdvReportForm)")
+                return
+                
+            self.app.log("No report form found to refresh")
         except Exception as e:
             self.app.log(f"Could not refresh report: {e}")
 
