@@ -325,7 +325,7 @@ class AdvReportForm(Vertical):
                                     yield tracker
                                 
                                 # Vertical separator
-                                #yield Vertical(classes="vertical-separator")
+                                # yield Vertical(classes="vertical-separator")
                                 
                                 # Right side: Account Summary
                                 with Vertical(classes="account-summary-section"):

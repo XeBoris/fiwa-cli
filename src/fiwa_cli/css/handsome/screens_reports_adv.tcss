@@ -1,13 +1,13 @@
 /* ============================================
-   BASIC REPORT (COST OVERVIEW) STYLING
+   ADVANCED REPORT (SUMMARY) STYLING
    File: css/handsome/screens_reports_adv.tcss
    Component: AdvReportForm
    ============================================ */
-BasicReportForm {
+AdvReportForm {
 
 }
 
-BasicReportForm .report-title {
+AdvReportForm .report-title {
     text-style: bold underline;
     text-align: center;
     padding: 0 0 0 0;
@@ -15,7 +15,7 @@ BasicReportForm .report-title {
     background: $background;
     color: $text;
 }
-BasicReportForm .date-info {
+AdvReportForm .date-info {
     padding: 0 0 0 0;
     margin: 0 4 1 4;
     background: $primary 30%;
@@ -26,20 +26,21 @@ BasicReportForm .date-info {
     text-style: bold;
 }
 
-BasicReportForm #report-content {
+
+AdvReportForm #report-content {
     width: 100%;
     scrollbar-size: 4 1;
 }
 
-BasicReportForm TabbedContent {
+AdvReportForm TabbedContent {
     height: auto;
     margin: 1 0;
 }
-BasicReportForm TabPane {
+AdvReportForm TabPane {
     padding: 1;
 }
 
-BasicReportForm DataTable {
+AdvReportForm DataTable {
     height: auto;
     min-height: 5;
     max-height: 25;
@@ -47,7 +48,7 @@ BasicReportForm DataTable {
     margin: 0 0 1 0;
 }
 
-BasicReportForm .table-section-title {
+AdvReportForm .table-section-title {
     text-style: bold;
     padding: 1 0 0 0;
     margin: 1 0 0 0;
@@ -55,7 +56,7 @@ BasicReportForm .table-section-title {
     text-align: left;
 }
 
-BasicReportForm .subtotal {
+AdvReportForm .subtotal {
     text-align: right;
     padding: 0 1;
     margin: 0 0 1 0;
@@ -64,7 +65,7 @@ BasicReportForm .subtotal {
     background: $surface;
 }
 
-BasicReportForm .user-total {
+AdvReportForm .user-total {
     text-align: right;
     padding: 1;
     margin: 1 0 0 0;
@@ -78,20 +79,20 @@ BasicReportForm .user-total {
    SPENDING TRACKER & ACCOUNT SUMMARY LAYOUT
    ============================================ */
 
-BasicReportForm .tracker-summary-container {
+AdvReportForm .tracker-summary-container {
     height: auto;
     width: 100%;
     margin: 1 0 2 0;
     padding: 0;
 }
 
-BasicReportForm .tracker-section {
+AdvReportForm .tracker-section {
     width: 60%;
     height: auto;
     padding: 1 1 1 1;
 }
 
-BasicReportForm .vertical-separator {
+AdvReportForm .vertical-separator {
     width: 1;
     height: 100%;
     background: $accent 40%;
@@ -99,13 +100,14 @@ BasicReportForm .vertical-separator {
     margin: 0 0;
 }
 
-BasicReportForm .account-summary-section {
-    width: 40%;
+AdvReportForm .account-summary-section {
+    width: 50%;
     height: auto;
     padding: 1 1 1 1;
+    align: left top;
 }
 
-BasicReportForm .section-subtitle {
+AdvReportForm .section-subtitle {
     text-style: bold;
     color: $accent;
     padding: 0 0 1 0;
@@ -113,7 +115,7 @@ BasicReportForm .section-subtitle {
     text-align: left;
 }
 
-BasicReportForm .section-subtitle-small {
+AdvReportForm .section-subtitle-small {
     text-style: bold;
     color: $accent 80%;
     padding: 0 0 0 0;
@@ -121,17 +123,16 @@ BasicReportForm .section-subtitle-small {
     text-align: left;
 }
 
-BasicReportForm .account-summary-content {
+AdvReportForm .account-summary-content {
     padding: 1;
     margin: 0;
     background: $surface;
     border: solid $primary 50%;
     color: $text;
     text-align: left;
-
 }
 
-BasicReportForm .account-summary-empty {
+AdvReportForm .account-summary-empty {
     padding: 1;
     margin: 0;
     background: $surface;
@@ -140,7 +141,7 @@ BasicReportForm .account-summary-empty {
     text-style: italic;
 }
 
-BasicReportForm .period-totals-content {
+AdvReportForm .period-totals-content {
     padding: 1;
     margin: 0;
     background: $panel;
@@ -150,11 +151,11 @@ BasicReportForm .period-totals-content {
 
 }
 
-BasicReportForm .summary-spacer {
+AdvReportForm .summary-spacer {
     height: 1;
 }
 
-BasicReportForm .warning-message {
+AdvReportForm .warning-message {
     text-align: center;
     padding: 2;
     margin: 2 4;
