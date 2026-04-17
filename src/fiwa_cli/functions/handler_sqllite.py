@@ -1469,14 +1469,37 @@ class SQLLiteHandler:
         name = label_dict["name"]
         description = label_dict.get("description", "")
         composite = label_dict.get("composite", [])
-        composite_str = json.dumps(composite)
+
+        self.load()
+        # Convert composite list: translate label names to label_ids if needed
+        # If composite contains strings (label names), look up their IDs
+        # If composite already contains integers (label_ids), keep them as-is
+        composite_ids = []
+        if composite:
+            for item in composite:
+                if isinstance(item, int):
+                    # Already a label_id, keep it
+                    composite_ids.append(item)
+                elif isinstance(item, str):
+                    # It's a label name, need to look up the label_id
+                    # Query the database to find label_id by name in this project
+                    label_lookup = self.execute_query(
+                        f"""SELECT label_id FROM p{self._db_salt}_labels
+                            WHERE name = ? AND project_id = ?""",
+                        [item, project_id],
+                    )
+                    if label_lookup:
+                        composite_ids.append(label_lookup[0][0])
+                    # If label not found, skip it (don't add to composite_ids)
+        
+        composite_str = json.dumps(composite_ids)
         label_status = label_dict.get("label_status", 2)  # Default: active
         label_type = label_dict.get("label_type", 1)
         label_sub_type = label_dict.get("label_sub_type", -2)  # Default: -2
         label_owner = label_dict.get("label_owner", -1)  # Default: -1 (project-wide/common)
         created_at = datetime.utcnow().isoformat()
 
-        self.load()
+
 
         # Check if label with same name exists in this project
         existing = self.execute_query(
@@ -1575,8 +1598,31 @@ class SQLLiteHandler:
             params.append(label_dict["description"])
 
         if "composite" in label_dict:
+            # Convert composite list: translate label names to label_ids if needed
+            # If composite contains strings (label names), look up their IDs
+            # If composite already contains integers (label_ids), keep them as-is
+            composite = label_dict["composite"]
+            composite_ids = []
+            
+            if composite:
+                for item in composite:
+                    if isinstance(item, int):
+                        # Already a label_id, keep it
+                        composite_ids.append(item)
+                    elif isinstance(item, str):
+                        # It's a label name, need to look up the label_id
+                        # Query the database to find label_id by name in this project
+                        label_lookup = self.execute_query(
+                            f"""SELECT label_id FROM p{self._db_salt}_labels
+                                WHERE name = ? AND project_id = ?""",
+                            [item, project_id],
+                        )
+                        if label_lookup:
+                            composite_ids.append(label_lookup[0][0])
+                        # If label not found, skip it (don't add to composite_ids)
+            
             update_fields.append("composite = ?")
-            params.append(json.dumps(label_dict["composite"]))
+            params.append(json.dumps(composite_ids))
 
         if "label_status" in label_dict:
             update_fields.append("label_status = ?")

@@ -1669,16 +1669,24 @@ class ItemInputForm(ModalScreen):
                 if pc and user_labels:
                     # For now, store the labels in their respective positions
                     # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
+                    secondary_label_ids = user_labels[4:] if len(user_labels) > 4 else []
+                    
+                    # Expand secondary labels: if a label has composite labels, include them too
+                    expanded_secondary = self._expand_composite_labels(
+                        secondary_label_ids, project_labels
+                    )
+                    
                     tags_dict = {
                         "c": user_labels[0] if len(user_labels) > 0 else 0,
                         "t": user_labels[1] if len(user_labels) > 1 else 0,
                         "b": user_labels[2] if len(user_labels) > 2 else 0,
                         "m": user_labels[3] if len(user_labels) > 3 else 0,
-                        "s": user_labels[4:] if len(user_labels) > 4 else [],
+                        "s": expanded_secondary,  # Use expanded list
                     }
                     db_item_data["tags"] = pc.build_tags_string(tags_dict)
                     self.app.log(
-                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}"
+                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict} "
+                        f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
                     )
                 else:
                     # Fallback: empty tag string
@@ -1750,15 +1758,25 @@ class ItemInputForm(ModalScreen):
             # Convert tags to proper string format using ProjectComposer
             if pc and item_data["tags"]:
                 # For now, store the main label in position 'm' (position 3)
+                secondary_label_ids = item_data["tags"][4:] if len(item_data["tags"]) > 4 else []
+                
+                # Expand secondary labels: if a label has composite labels, include them too
+                expanded_secondary = self._expand_composite_labels(
+                    secondary_label_ids, project_labels
+                )
+                
                 tags_dict = {
                     "c": item_data["tags"][0] if len(item_data["tags"]) > 0 else 0,
                     "t": item_data["tags"][1] if len(item_data["tags"]) > 1 else 0,
                     "b": item_data["tags"][2] if len(item_data["tags"]) > 2 else 0,
                     "m": item_data["tags"][3] if len(item_data["tags"]) > 3 else 0,
-                    "s": item_data["tags"][4:] if len(item_data["tags"]) > 4 else [],
+                    "s": expanded_secondary,  # Use expanded list
                 }
                 tags_string = pc.build_tags_string(tags_dict)
-                self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
+                self.app.log(
+                    f"Built tag string for update: {tags_string} from dict: {tags_dict} "
+                    f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
+                )
             else:
                 # Fallback: empty tag string
                 tags_string = "0_0_0_0_[]"
