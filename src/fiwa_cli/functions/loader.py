@@ -356,7 +356,9 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
 
     N = 5
     pw_salt = bcrypt.gensalt()
+    pw_salt = pw_salt.decode("utf-8")
     db_salt = ''.join(random.choices(string.ascii_lowercase + string.digits, k=N))
+
 
     os_home_dir = ""
     os_folder = "fiwa-cli"  # No leading dot for Windows
@@ -387,7 +389,7 @@ def prep_fiwa(mode: str = "", config: Dict[str, Any] = {}) -> None:
         "style": {"theme": "textual-light", "form": "handsome"},
         "register": {
             "orm": 123,
-            "pawn": f"{db_salt}:{pw_salt.decode("utf-8")}"
+            "pawn": f"{db_salt}:{pw_salt}"
         }
     }
     # create the data directory if it doesn't exist:
@@ -464,7 +466,6 @@ def setup_fiwa(abs_path: str = "", config: Dict[str, Any] = {}) -> None:
     # load according yaml file from location:
     configyml = load_yaml_config(os.path.join(os_home_dir, "config.yml"))
     sqlite_path = os.path.join(os_home_dir, "data.sqlite")
-    print(configyml)
 
     # we need the operation model to decide how to setup:
     opp_model = configyml.get("configuration", {}).get("model", "terminal")

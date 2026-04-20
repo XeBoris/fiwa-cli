@@ -345,10 +345,10 @@ class SQLLiteHandler:
             raise ValueError("Salt must be provided for password hashing")
 
         # Combine password with salt
-        salted_password = f"{password}{salt}"
+        # salted_password = f"{password}{salt}"
 
         # Create SHA-256 hash
-        hash_object = hashlib.sha256(salted_password.encode("utf-8"))
+        hash_object = hashlib.sha256(f"{password}{salt}".encode("utf-8"))
 
         return hash_object.hexdigest()
 
@@ -508,7 +508,8 @@ class SQLLiteHandler:
 
         # Hash the password
         password_hash = self.hash_password(user_dict["password"], salt=self._pw_salt)
-
+        print(user_dict["password"])
+        print(password_hash)
         # Generate unique identifier
         unique_identifier = str(uuid.uuid4())
 
@@ -581,6 +582,7 @@ class SQLLiteHandler:
         password_hash = self.hash_password(password=password, salt=self._pw_salt)
 
         self.load()
+
         # Check against both username and email fields
         result = self.execute_query(
             f"""SELECT user_id FROM p{self._db_salt}_users
@@ -661,11 +663,16 @@ class SQLLiteHandler:
 
         if len(result) != 1:
             print(
+                "No User found in Session Table"
+            )
+            self.close()
+            return {}
+        elif len(result) > 1:
+            print(
                 "Not allowed to have multiple sessions for one user, but found multiple sessions in the database. This should not happen."
             )
             self.close()
             return {}
-
         elif len(result) == 1:
             # we use the first session, extract the user_id and session_uuid and session_start and session_type
             result = result[0]
@@ -993,7 +1000,6 @@ class SQLLiteHandler:
             pc.compose_accounts()
 
             k = pc.get()
-            print(k)
 
             # Mark project as staged
             self.load()
