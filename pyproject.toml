@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
-    {name = "Boris Bauermeister", email = "Boris.Bauermeister@gmail.com"}
+    dict(name = "Boris Bauermeister", email = "Boris.Bauermeister@gmail.com")
 ]
 keywords = ["finance", "workflow", "cli", "textual"]
 classifiers = [
