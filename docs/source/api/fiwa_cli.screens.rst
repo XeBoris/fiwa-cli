@@ -84,6 +84,14 @@ fiwa\_cli.screens.reports module
    :show-inheritance:
    :undoc-members:
 
+fiwa\_cli.screens.reports\_advanced module
+------------------------------------------
+
+.. automodule:: fiwa_cli.screens.reports_advanced
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 fiwa\_cli.screens.reports\_basic module
 ---------------------------------------
 

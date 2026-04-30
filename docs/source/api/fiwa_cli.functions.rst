@@ -4,6 +4,14 @@ fiwa\_cli.functions package
 Submodules
 ----------
 
+fiwa\_cli.functions.compute\_stats module
+-----------------------------------------
+
+.. automodule:: fiwa_cli.functions.compute_stats
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 fiwa\_cli.functions.compute\_time module
 ----------------------------------------
 

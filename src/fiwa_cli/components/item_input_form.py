@@ -858,6 +858,78 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error fetching project labels: {e}")
             return []
 
+    def _expand_composite_labels(self, label_ids: list, project_labels: list) -> list:
+        """Expand secondary labels to include their composite dependencies.
+        
+        When a user selects a secondary label that has composite labels defined,
+        this method automatically includes those composite labels in the final list.
+        
+        Args:
+            label_ids: List of selected label IDs (e.g., [15, 23])
+            project_labels: List of all project labels with their metadata
+            
+        Returns:
+            Expanded list of label IDs including composites (e.g., [7, 8, 15, 23])
+            
+        Example:
+            User selects label "Weekend Activities" (ID=15)
+            Label 15 has composite = [7, 8] (Sports, Leisure)
+            Result: [7, 8, 15] - both composites and the original label
+            
+        Note:
+            - Prevents duplicates using set
+            - Maintains order: composites first, then selected labels
+            - Handles circular dependencies by not recursing
+        """
+        import json
+        
+        if not label_ids:
+            return []
+        
+        # Build a map for quick label lookup
+        label_map = {label["label_id"]: label for label in project_labels}
+        
+        # Set to track all label IDs (prevents duplicates)
+        expanded_ids_set = set()
+        expanded_ids_ordered = []
+        
+        for label_id in label_ids:
+            # Look up the label
+            label_info = label_map.get(label_id)
+            
+            if label_info:
+                # Get composite field (list of label IDs)
+                composite_raw = label_info.get("composite", "[]")
+                
+                # Parse composite JSON if it's a string
+                if isinstance(composite_raw, str):
+                    try:
+                        composite_ids = json.loads(composite_raw)
+                    except Exception:
+                        composite_ids = []
+                elif isinstance(composite_raw, list):
+                    composite_ids = composite_raw
+                else:
+                    composite_ids = []
+                
+                # Add composite labels first (dependencies)
+                for comp_id in composite_ids:
+                    if comp_id not in expanded_ids_set:
+                        expanded_ids_set.add(comp_id)
+                        expanded_ids_ordered.append(comp_id)
+                
+                # Add the label itself
+                if label_id not in expanded_ids_set:
+                    expanded_ids_set.add(label_id)
+                    expanded_ids_ordered.append(label_id)
+            else:
+                # Label not found in project_labels, but still include it
+                if label_id not in expanded_ids_set:
+                    expanded_ids_set.add(label_id)
+                    expanded_ids_ordered.append(label_id)
+        
+        return expanded_ids_ordered
+
     def _prepare_user_labels(
         self,
         cost_shares: list,
@@ -1630,6 +1702,9 @@ class ItemInputForm(ModalScreen):
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
+            # Get project labels for composite label expansion
+            project_labels = self._get_project_labels(project_id)
+
             # Keep track of created item IDs
             created_item_ids = []
 
@@ -1669,16 +1744,24 @@ class ItemInputForm(ModalScreen):
                 if pc and user_labels:
                     # For now, store the labels in their respective positions
                     # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
+                    secondary_label_ids = user_labels[4:] if len(user_labels) > 4 else []
+                    
+                    # Expand secondary labels: if a label has composite labels, include them too
+                    expanded_secondary = self._expand_composite_labels(
+                        secondary_label_ids, project_labels
+                    )
+                    
                     tags_dict = {
                         "c": user_labels[0] if len(user_labels) > 0 else 0,
                         "t": user_labels[1] if len(user_labels) > 1 else 0,
                         "b": user_labels[2] if len(user_labels) > 2 else 0,
                         "m": user_labels[3] if len(user_labels) > 3 else 0,
-                        "s": user_labels[4:] if len(user_labels) > 4 else [],
+                        "s": expanded_secondary,  # Use expanded list
                     }
                     db_item_data["tags"] = pc.build_tags_string(tags_dict)
                     self.app.log(
-                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}"
+                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict} "
+                        f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
                     )
                 else:
                     # Fallback: empty tag string
@@ -1747,18 +1830,31 @@ class ItemInputForm(ModalScreen):
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
+            # Get project labels for composite label expansion
+            project_labels = self._get_project_labels(project_id)
+
             # Convert tags to proper string format using ProjectComposer
             if pc and item_data["tags"]:
                 # For now, store the main label in position 'm' (position 3)
+                secondary_label_ids = item_data["tags"][4:] if len(item_data["tags"]) > 4 else []
+                
+                # Expand secondary labels: if a label has composite labels, include them too
+                expanded_secondary = self._expand_composite_labels(
+                    secondary_label_ids, project_labels
+                )
+                
                 tags_dict = {
                     "c": item_data["tags"][0] if len(item_data["tags"]) > 0 else 0,
                     "t": item_data["tags"][1] if len(item_data["tags"]) > 1 else 0,
                     "b": item_data["tags"][2] if len(item_data["tags"]) > 2 else 0,
                     "m": item_data["tags"][3] if len(item_data["tags"]) > 3 else 0,
-                    "s": item_data["tags"][4:] if len(item_data["tags"]) > 4 else [],
+                    "s": expanded_secondary,  # Use expanded list
                 }
                 tags_string = pc.build_tags_string(tags_dict)
-                self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
+                self.app.log(
+                    f"Built tag string for update: {tags_string} from dict: {tags_dict} "
+                    f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
+                )
             else:
                 # Fallback: empty tag string
                 tags_string = "0_0_0_0_[]"
