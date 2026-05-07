@@ -37,7 +37,7 @@ CreateLabelForm #form-content {
 }
 
 CreateLabelForm #action-grid {
-    grid-size: 4 3;
+    grid-size: 4 5;
     grid-columns: 1fr 1fr 1fr 1fr;
     grid-gutter: 1 1;
     grid-rows: 3 3 3 3;
@@ -81,6 +81,20 @@ CreateLabelForm #new-label-activated {
     margin: 0 0 0 0;
 }
 
+CreateLabelForm #sub-type-label {
+    padding: 1 0 1 0;
+    text-style: bold;
+}
+
+CreateLabelForm #sub-type-select-container {
+    width: 100%;
+    height: 3;
+}
+
+CreateLabelForm #sub-type-select {
+    width: 100%;
+    height: 3;
+}
 
 CreateLabelForm #grid-label-create {
     grid-size: 2 1;
