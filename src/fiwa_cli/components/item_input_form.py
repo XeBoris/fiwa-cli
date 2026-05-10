@@ -148,6 +148,7 @@ See Also:
 
 from textual.widgets import Static, Button, Input, Select, Label, SelectionList, Switch, Placeholder
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
+from textual.widgets import TabbedContent, TabPane
 from textual.app import ComposeResult
 from textual.message import Message
 from datetime import datetime
@@ -277,6 +278,13 @@ class LabelModalScreen(ModalScreen):
 
     BINDINGS = [
         ("escape", "cancel", "Cancel"),
+        ("B", "switch_to_tab(0)", "Tab 0"),
+        ("T", "switch_to_tab(1)", "Tab 1"),
+        ("A", "switch_to_tab(2)", "Tab 2"),
+        ("M", "switch_to_tab(3)", "Tab 3"),
+        ("S", "switch_to_tab(4)", "Tab 4"),
+        # ("j", "show_tab('jessica')", "Jessica"),
+        # ("p", "show_tab('paul')", "Paul"),
     ]
 
     def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
@@ -325,8 +333,26 @@ class LabelModalScreen(ModalScreen):
             # Fallback to default
             return {0: "Action", 1: "Account", 2: "Label"}
 
+    def action_switch_to_tab(self, tab_number: int) -> None:
+        """Switch to a tab by its type_id number.
+
+        Args:
+            tab_number: The label type_id (0-4) to switch to
+        """
+        try:
+            # Check if this tab exists in our label_map
+            if tab_number in self.label_map:
+                tab_id = f"tab-{tab_number}"
+                tabbed_content = self.query_one(TabbedContent)
+                tabbed_content.active = tab_id
+                self.app.log(f"Switched to tab: {tab_id} ({self.label_map[tab_number]})")
+            else:
+                self.app.log(f"Tab {tab_number} does not exist in current project")
+        except Exception as e:
+            self.app.log(f"Error switching to tab {tab_number}: {e}")
+
     def compose(self) -> ComposeResult:
-        from textual.widgets import TabbedContent, TabPane
+
 
         with Vertical():
             with Vertical(classes="modal-header"):
@@ -349,15 +375,15 @@ class LabelModalScreen(ModalScreen):
                 for type_id, group_name in sorted(self.label_map.items()):
                     tab_id = f"tab-{type_id}"
                     selection_list_id = f"label-selection-{type_id}"
-
+                    _group_name = f"[bold italic]{group_name[0].upper()}[/bold italic]" + f"{group_name[1:]}"
                     # Create a tab for this label type
-                    with TabPane(group_name, id=tab_id):
+                    with TabPane(_group_name, id=tab_id):
                         if self.labels_by_type.get(type_id):
                             with ScrollableContainer():
                                 yield SelectionList[int](
                                     *[
                                         (
-                                            label["name"],
+                                            label['name'],
                                             label["label_id"],
                                             label["label_id"] in self.selected_labels,
                                         )
@@ -1243,6 +1269,7 @@ class ItemInputForm(ModalScreen):
                 yield Button("🗑️ Delete", id="delete-button", variant="error")
             yield Button("❌ Cancel", id="cancel-button")
 
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "save-button":
@@ -1296,6 +1323,19 @@ class ItemInputForm(ModalScreen):
             # Only update bought-for section if not in edit mode (section doesn't exist in edit mode)
             if not self._edit_mode:
                 self._update_bought_for_section(selected_user_id)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input widget changes."""
+        if event.input.id == "grid-item-bought-date":
+            # User changed the bought date - update exchange date to match
+            bought_date_value = event.value.strip()
+            if bought_date_value:
+                try:
+                    exchange_date_input = self.query_one("#item-exchange-date", Input)
+                    exchange_date_input.value = bought_date_value
+                    self.app.log(f"Auto-updated exchange date to match bought date: {bought_date_value}")
+                except Exception as e:
+                    self.app.log(f"Error updating exchange date: {e}")
 
     def _update_bought_for_section(self, selected_bought_by_id: int) -> None:
         """Update the 'Bought For' section when bought_by user changes.
@@ -1724,7 +1764,8 @@ class ItemInputForm(ModalScreen):
                     "item_uuid": item_data["item_uuid"],
                     "name": item_data["name"],
                     "note": item_data.get("note", ""),
-                    "price": original_price_share,  # Split original price by percentage
+                    "price": original_price_share  # Split original price by percentage
+                    ,
                     "price_final": share_amount,  # Split final converted price by percentage
                     "currency": item_data["currency"],
                     "currency_final": item_data["currency_final"],
@@ -1971,49 +2012,49 @@ class ItemInputForm(ModalScreen):
             # Clear main input fields (correct IDs: grid-item-*, not item-*)
             self.query_one("#grid-item-name", Input).value = ""
             self.query_one("#grid-item-price", Input).value = ""
-            self.query_one("#grid-item-currency", Select).value = currency_main
-            self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime(
-                "%Y-%m-%d"
-            )
+            #self.query_one("#grid-item-currency", Select).value = currency_main              # Don't reset currency to default, let it stay as last selected for convenience
+            #self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime( # Don't reset bought date to today, let it stay as last entered for convenience
+            #    "%Y-%m-%d"
+            #)
 
             # Clear additional fields
             self.query_one("#item-note", Input).value = ""
-            self.query_one("#item-exchange-rate", Input).value = "1.0"
-            self.query_one("#item-exchange-date", Input).value = datetime.now().strftime("%Y-%m-%d")
+            #self.query_one("#item-exchange-rate", Input).value = "1.0"
+            #self.query_one("#item-exchange-date", Input).value = datetime.now().strftime("%Y-%m-%d")
 
             # Reset bought-by select field to current user if available
-            try:
-                project_users = self._get_project_users(project_id)
-                if project_users:
-                    default_user = user_id if user_id > 0 else project_users[0]["user_id"]
-                    self.query_one("#grid-item-bought-by", Select).value = default_user
-
-                    # Clear cost-sharing fields (only in create mode)
-                    if not self._edit_mode:
-                        for user in project_users:
-                            try:
-                                share_input = self.query_one(f"#share-{user['user_id']}", Input)
-                                # Reset to default: 100% for bought_by user, 0% for others
-                                if user["user_id"] == default_user:
-                                    share_input.value = "100"
-                                else:
-                                    share_input.value = "0"
-                            except Exception:
-                                pass  # Field might not exist
-            except Exception as e:
-                self.app.log(f"Error resetting user fields: {e}")
+            # try:
+            #     project_users = self._get_project_users(project_id)
+            #     if project_users:
+            #         default_user = user_id if user_id > 0 else project_users[0]["user_id"]
+            #         self.query_one("#grid-item-bought-by", Select).value = default_user
+            #
+            #         # Clear cost-sharing fields (only in create mode)
+            #         if not self._edit_mode:
+            #             for user in project_users:
+            #                 try:
+            #                     share_input = self.query_one(f"#share-{user['user_id']}", Input)
+            #                     # Reset to default: 100% for bought_by user, 0% for others
+            #                     if user["user_id"] == default_user:
+            #                         share_input.value = "100"
+            #                     else:
+            #                         share_input.value = "0"
+            #                 except Exception:
+            #                     pass  # Field might not exist
+            # except Exception as e:
+            #     self.app.log(f"Error resetting user fields: {e}")
 
             # Clear label selections
-            try:
-                labels_widget = self.query_one("#item-labels", SelectionList)
-                labels_widget.deselect_all()
-            except Exception:
-                pass
+            # try:
+            #     labels_widget = self.query_one("#item-labels", SelectionList)
+            #     labels_widget.deselect_all()
+            # except Exception:
+            #     pass
 
             # Generate new UUID for next item
             self._item_uuid = str(uuid.uuid4())
 
-            self.app.notify("✓ Form cleared", severity="info")
+            #self.app.notify("✓ Form cleared", severity="info")
 
         except Exception as e:
             self.app.log(f"Error clearing form: {e}")
