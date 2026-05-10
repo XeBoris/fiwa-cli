@@ -337,7 +337,7 @@ class LabelModalScreen(ModalScreen):
         """Switch to a tab by its type_id number.
 
         Args:
-            tab_number: The label type_id (0-9) to switch to
+            tab_number: The label type_id (0-4) to switch to
         """
         try:
             # Check if this tab exists in our label_map
@@ -1269,6 +1269,7 @@ class ItemInputForm(ModalScreen):
                 yield Button("🗑️ Delete", id="delete-button", variant="error")
             yield Button("❌ Cancel", id="cancel-button")
 
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "save-button":
@@ -1322,6 +1323,19 @@ class ItemInputForm(ModalScreen):
             # Only update bought-for section if not in edit mode (section doesn't exist in edit mode)
             if not self._edit_mode:
                 self._update_bought_for_section(selected_user_id)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input widget changes."""
+        if event.input.id == "grid-item-bought-date":
+            # User changed the bought date - update exchange date to match
+            bought_date_value = event.value.strip()
+            if bought_date_value:
+                try:
+                    exchange_date_input = self.query_one("#item-exchange-date", Input)
+                    exchange_date_input.value = bought_date_value
+                    self.app.log(f"Auto-updated exchange date to match bought date: {bought_date_value}")
+                except Exception as e:
+                    self.app.log(f"Error updating exchange date: {e}")
 
     def _update_bought_for_section(self, selected_bought_by_id: int) -> None:
         """Update the 'Bought For' section when bought_by user changes.
@@ -1750,7 +1764,8 @@ class ItemInputForm(ModalScreen):
                     "item_uuid": item_data["item_uuid"],
                     "name": item_data["name"],
                     "note": item_data.get("note", ""),
-                    "price": original_price_share,  # Split original price by percentage
+                    "price": original_price_share  # Split original price by percentage
+                    ,
                     "price_final": share_amount,  # Split final converted price by percentage
                     "currency": item_data["currency"],
                     "currency_final": item_data["currency_final"],
