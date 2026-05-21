@@ -295,7 +295,7 @@ class ReplicateExpensesView(Vertical):
                                 item.get("label_b", ""),
                                 item.get("label_m", ""),
                                 date_str,
-                                "Original",
+                                "[bold green]Current[/bold green]",  # Distinguish from future items
                                 key=f"orig-{item['item_id']}",
                             )
 
@@ -492,6 +492,7 @@ class ReplicateExpensesView(Vertical):
         year: int,
         month: int,
         selected_items: list,
+        original_period_start: datetime.date,
         dbh,
     ) -> list:
         """Check if any selected items already exist in the target month.
@@ -503,9 +504,11 @@ class ReplicateExpensesView(Vertical):
             import calendar
 
             # Compute month boundaries
-            month_start = datetime.date(year, month, 1)
+            org_period_start_day = original_period_start.day
+            org_period_end_day = org_period_start_day - datetime.timedelta(days=1)
+            month_start = datetime.date(year, month, org_period_start_day)
             last_day = calendar.monthrange(year, month)[1]
-            month_end = datetime.date(year, month, last_day)
+            month_end = datetime.date(year, month, org_period_end_day)
 
             # Fetch existing items for the target month
             dbh.load()
@@ -580,6 +583,7 @@ class ReplicateExpensesView(Vertical):
         try:
             # Get the current month's period
             period_start = self.app.app_state.get("current_period_start")
+            self.app.notify(f"{period_start}")
             if not period_start:
                 self.app.notify("No period selected", severity="error")
                 return
@@ -616,7 +620,7 @@ class ReplicateExpensesView(Vertical):
             # Check if items already exist in next month
             dbh = self.app._config.get("dbh")
             existing_duplicates = self._check_existing_items_in_month(
-                user_id, project_id, next_year, next_month, selected_items, dbh
+                user_id, project_id, next_year, next_month, selected_items, period_start, dbh
             )
 
             if existing_duplicates:
@@ -674,16 +678,19 @@ class ReplicateExpensesView(Vertical):
 
                 self._updated_items[user_id].append(updated_item)
 
-                # Add to table with different styling
+                # Visual differentiation:
+                # - Original rows: normal text, green "Current" status
+                # - Updated rows: dimmed text (lighter), cyan "→ Next Month" status
+                # This helps users distinguish between current and projected expenses
                 table.add_row(
-                    "✓",
-                    item["name"],
-                    f"{item['price_final']:.2f} {item['currency_final']}",
-                    item.get("label_t", ""),
-                    item.get("label_b", ""),
-                    item.get("label_m", ""),
-                    new_date.strftime("%Y-%m-%d"),
-                    "Updated",
+                    "[dim]✓[/dim]",
+                    f"[dim]{item['name']}[/dim]",
+                    f"[dim]{item['price_final']:.2f} {item['currency_final']}[/dim]",
+                    f"[dim]{item.get('label_t', '')}[/dim]",
+                    f"[dim]{item.get('label_b', '')}[/dim]",
+                    f"[dim]{item.get('label_m', '')}[/dim]",
+                    f"[dim]{new_date.strftime('%Y-%m-%d')}[/dim]",
+                    "[bold cyan]→ Next Month[/bold cyan]",
                     key=f"new-{item['item_id']}",
                 )
 
@@ -815,7 +822,7 @@ class ReplicateExpensesView(Vertical):
                             item.get("label_b", ""),
                             item.get("label_m", ""),
                             date_str,
-                            "Original",
+                            "[bold green]Current[/bold green]",  # Consistent with compose()
                             key=f"orig-{item['item_id']}",
                         )
 

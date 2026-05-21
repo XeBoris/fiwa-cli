@@ -186,6 +186,11 @@ class ReportsScreen(ReactiveScreen):
         settings.SettingsScreen: Similar sidebar/content layout pattern
         base.ReactiveScreen: Base class with state watching
     """
+    BINDINGS = [
+        ("ctrl+o", "show_overview", "New Expense"),
+        ("ctrl+s", "show_summary", "Edit Expenses"),
+        ("ctrl+b", "go_back", "Go Back"),
+    ]
 
     def __init__(self, *args, **kwargs):
         """Initialize the reports screen.
@@ -592,3 +597,45 @@ class ReportsScreen(ReactiveScreen):
         # Refresh the current report with new period data
         self._refresh_current_report()
 
+    # key binding action handlers
+    def action_show_overview(self) -> None:
+        """Action handler for 'ctrl+o' key binding.
+
+        Opens the CreateExpenseForm for adding a new expense.
+        Equivalent to clicking the "New" button in the sidebar.
+
+        Side Effects:
+            - Calls show_create_input_form()
+            - Mounts CreateExpenseForm in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+o' pressed - opening Overview")
+        self.show_cost_overview()
+
+    def action_show_summary(self) -> None:
+        """Action handler for 'ctrl+s' key binding.
+
+        Opens the Summary report form.
+        Equivalent to clicking the "Summary" button in the sidebar.
+
+        Side Effects:
+            - Calls show_summary_overview()
+            - Mounts AdvReportForm in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+s' pressed - opening Summary")
+        self.show_summary_overview()
+
+    def action_go_back(self) -> None:
+        """Action handler for 'ctrl+b' key binding.
+
+        Navigates back to the main screen.
+        Equivalent to clicking the "Back" button in the sidebar.
+
+        Side Effects:
+            - Calls _return_to_main_screen()
+            - Pops ReportsScreen from screen stack
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+b' pressed - going back to main screen")
+        self._return_to_main_screen()
