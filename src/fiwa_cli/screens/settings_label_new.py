@@ -328,7 +328,6 @@ class CreateLabelForm(Vertical):
         if event.select.id == "label-type-select":
             # Update the selected label type
             self._selected_label_type = int(event.value)
-            #self.app.notify(f"{self._selected_label_type}")
             self.app.log(f"Label type changed to: {self._selected_label_type}")
             
             # Load and display secondary labels for this type
@@ -469,7 +468,7 @@ class CreateLabelForm(Vertical):
                 composite_label = int(composite_label.value)
             except:
                 composite_label = -1  # No sub-type selected or not applicable
-            self.app.notify(f"test {composite_label} {self._selected_label_type}")
+            
 
             # Get label owner from select
             select_owner = self.query_one("#label-owner-select", Select)
@@ -493,7 +492,51 @@ class CreateLabelForm(Vertical):
         if not name:
             self.app.notify("Label name is required", severity="error")
             return
-
+        
+        # Prevent nested composite labels: Check if the selected composite label
+        # itself has a composite label as sub-type. We reject this to avoid
+        # creating long chains of composite labels which complicate the label structure.
+        if composite_label and len(composite_label) > 0:
+            dbh = self.app._config.get("dbh")
+            if dbh:
+                # Get the selected composite label's details
+                selected_composite_id = composite_label[0]
+                project_id = self.app.app_state.get("project_id", 0)
+                all_labels = dbh.op_label_get_all(project_id=project_id, use_cache=False)
+                
+                # Find the selected composite label in all labels
+                selected_label = None
+                for label in all_labels:
+                    if label.get("label_id") == selected_composite_id:
+                        selected_label = label
+                        break
+                
+                # Check if the selected composite label has its own composite
+                if selected_label:
+                    composite_field = selected_label.get("composite", [])
+                    # If composite_field is a string, try to parse it as JSON
+                    if isinstance(composite_field, str):
+                        import json
+                        try:
+                            composite_field = json.loads(composite_field) if composite_field else []
+                        except (json.JSONDecodeError, ValueError):
+                            composite_field = []
+                    
+                    # If the selected label has a composite, reject the creation
+                    if composite_field and len(composite_field) > 0:
+                        self.app.notify(
+                            f"⚠ Cannot use '{selected_label.get('name')}' as composite label: "
+                            "it already has its own composite label. "
+                            "Nested composite labels are not allowed.",
+                            severity="error",
+                            timeout=6
+                        )
+                        self.app.log(
+                            f"Rejected composite label creation: "
+                            f"selected label {selected_composite_id} has composite {composite_field}"
+                        )
+                        return
+        
         # Create label data
         label_data = {
             "name": name,
