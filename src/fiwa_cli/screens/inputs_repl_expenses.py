@@ -295,7 +295,7 @@ class ReplicateExpensesView(Vertical):
                                 item.get("label_b", ""),
                                 item.get("label_m", ""),
                                 date_str,
-                                "Original",
+                                "[bold green]Current[/bold green]",  # Distinguish from future items
                                 key=f"orig-{item['item_id']}",
                             )
 
@@ -356,16 +356,20 @@ class ReplicateExpensesView(Vertical):
                     table.update_cell(row_key, select_col_key, "")
 
     def _get_project_users(self, project_id: int) -> list:
-        """Get all users for the current project."""
-        try:
-            dbh = self.app._config.get("dbh")
-            if dbh and project_id > 0:
-                users = dbh.op_project_get_users(project_id)
-                return users
+        """Get all users for the current project.
+        
+        Args:
+            project_id: The project ID
+            
+        Returns:
+            List of user dictionaries with project permissions
+        """
+        dbh = self.app._config.get("dbh")
+        if not dbh or project_id <= 0:
             return []
-        except Exception as e:
-            self.app.log(f"Error fetching project users: {e}")
-            return []
+        
+        users = dbh.op_project_get_users(project_id)
+        return users if users else []
 
     def _get_fixed_items(self, user_id: int, project_id: int) -> list:
         """Get fixed items for a specific user in the selected month.
@@ -377,113 +381,107 @@ class ReplicateExpensesView(Vertical):
         Returns:
             List of fixed items with parsed labels
         """
-        try:
-            dbh = self.app._config.get("dbh")
-            if not dbh:
-                return []
-
-            # Get period boundaries from app_state (should be month)
-            period_start = self.app.app_state.get("current_period_start")
-            period_end = self.app.app_state.get("current_period_end")
-
-            # Format dates for query
-            start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
-            end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
-
-            # Query fixed items only
-            dbh.load()
-            query = f"""
-                SELECT
-                    i.item_id,
-                    i.item_uuid,
-                    i.name,
-                    i.bought_date,
-                    i.price,
-                    i.currency,
-                    i.price_final,
-                    i.currency_final,
-                    i.bought_by_id,
-                    i.bought_for_id,
-                    i.added_by_id,
-                    i.note,
-                    i.exchange_rate,
-                    i.exchange_rate_date,
-                    i.tags
-                FROM p{dbh._db_salt}_items i
-                WHERE i.bought_for_id = ?
-                    AND i.project_id = ?
-                    AND i.bought_date >= ?
-                    AND i.bought_date < ?
-                ORDER BY i.bought_date ASC
-            """
-
-            results = dbh.execute_query(query, [user_id, project_id, start_date_str, end_date_str])
-            dbh.close()
-
-            # Get all labels for parsing
-            labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
-            label_map = {l["label_id"]: l for l in labels}
-
-            # Get ProjectComposer for parsing
-            from fiwa_cli.functions.project_composer import ProjectComposer
-
-            project_style = self.app.app_state.get("project_style", "default")
-
-            try:
-                pc = ProjectComposer.create(
-                    compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
-                )
-            except Exception as e:
-                self.app.log(f"Error creating ProjectComposer: {e}")
-                pc = None
-
-            # Parse items and filter to only fixed
-            items = []
-            for row in results:
-                tags_raw = row[14] if row[14] else ""
-
-                # Remove quotes if present
-                if tags_raw.startswith('"') and tags_raw.endswith('"'):
-                    tags_raw = tags_raw[1:-1]
-
-                # Parse tags
-                if pc:
-                    parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
-                else:
-                    parsed_tags = {"c": "", "t": "", "b": "", "m": "", "s": []}
-
-                # Only include items with transaction type "fixed"
-                if parsed_tags.get("t", "") == "fixed":
-                    items.append(
-                        {
-                            "item_id": row[0],
-                            "item_uuid": row[1],
-                            "name": row[2],
-                            "bought_date": row[3],
-                            "price": row[4],
-                            "currency": row[5],
-                            "price_final": row[6],
-                            "currency_final": row[7],
-                            "bought_by_id": row[8],
-                            "bought_for_id": row[9],
-                            "added_by_id": row[10],
-                            "note": row[11],
-                            "exchange_rate": row[12],
-                            "exchange_rate_date": row[13],
-                            "tags": tags_raw,
-                            "parsed_tags": parsed_tags,
-                            "label_t": parsed_tags.get("t", ""),
-                            "label_b": parsed_tags.get("b", ""),
-                            "label_m": parsed_tags.get("m", ""),
-                        }
-                    )
-
-            self.app.log(f"Found {len(items)} fixed items for user {user_id}")
-            return items
-
-        except Exception as e:
-            self.app.log(f"Error fetching fixed items: {e}")
+        dbh = self.app._config.get("dbh")
+        if not dbh:
+            self.app.log("No database handler available")
             return []
+
+        # Get period boundaries from app_state (should be month)
+        period_start = self.app.app_state.get("current_period_start")
+        period_end = self.app.app_state.get("current_period_end")
+
+        # Format dates for query
+        start_date_str = period_start.strftime("%Y-%m-%d") if period_start else "2000-01-01"
+        end_date_str = period_end.strftime("%Y-%m-%d") if period_end else "2099-12-31"
+
+        # Query fixed items only
+        dbh.load()
+        query = f"""
+            SELECT
+                i.item_id,
+                i.item_uuid,
+                i.name,
+                i.bought_date,
+                i.price,
+                i.currency,
+                i.price_final,
+                i.currency_final,
+                i.bought_by_id,
+                i.bought_for_id,
+                i.added_by_id,
+                i.note,
+                i.exchange_rate,
+                i.exchange_rate_date,
+                i.tags
+            FROM p{dbh._db_salt}_items i
+            WHERE i.bought_for_id = ?
+                AND i.project_id = ?
+                AND i.bought_date >= ?
+                AND i.bought_date < ?
+            ORDER BY i.bought_date ASC
+        """
+
+        results = dbh.execute_query(query, [user_id, project_id, start_date_str, end_date_str])
+        dbh.close()
+
+        # Get all labels for parsing
+        labels = dbh.op_label_get_all(project_id=project_id, use_cache=True)
+        label_map = {l["label_id"]: l for l in labels}
+
+        # Get ProjectComposer for parsing tags
+        from fiwa_cli.functions.project_composer import ProjectComposer
+
+        project_style = self.app.app_state.get("project_style", "default")
+        
+        pc = None
+        if project_style != "default":
+            pc = ProjectComposer.create(
+                compose_type=project_style, dbh=dbh, project_id=project_id, users=[]
+            )
+
+        # Parse items and filter to only fixed
+        items = []
+        for row in results:
+            tags_raw = row[14] if row[14] else ""
+
+            # Remove quotes if present
+            if tags_raw.startswith('"') and tags_raw.endswith('"'):
+                tags_raw = tags_raw[1:-1]
+
+            # Parse tags
+            if pc:
+                parsed_tags = pc.parse_tags_from_string(tags_raw, label_map=label_map)
+            else:
+                parsed_tags = {"c": "", "t": "", "b": "", "m": "", "s": []}
+
+            # Only include items with transaction type "fixed"
+            if parsed_tags.get("t", "") == "fixed":
+                items.append(
+                    {
+                        "item_id": row[0],
+                        "item_uuid": row[1],
+                        "name": row[2],
+                        "bought_date": row[3],
+                        "price": row[4],
+                        "currency": row[5],
+                        "price_final": row[6],
+                        "currency_final": row[7],
+                        "bought_by_id": row[8],
+                        "bought_for_id": row[9],
+                        "added_by_id": row[10],
+                        "note": row[11],
+                        "exchange_rate": row[12],
+                        "exchange_rate_date": row[13],
+                        "tags": tags_raw,
+                        "parsed_tags": parsed_tags,
+                        "label_t": parsed_tags.get("t", ""),
+                        "label_b": parsed_tags.get("b", ""),
+                        "label_m": parsed_tags.get("m", ""),
+                    }
+                )
+
+        self.app.log(f"Found {len(items)} fixed items for user {user_id}")
+        return items
 
     def _check_existing_items_in_month(
         self,
@@ -492,88 +490,110 @@ class ReplicateExpensesView(Vertical):
         year: int,
         month: int,
         selected_items: list,
+        original_period_start: datetime.date,
         dbh,
     ) -> list:
         """Check if any selected items already exist in the target month.
 
-        We compare by: name, bought_by_id, bought_for_id, price_final, currency_final, tags, and target date.
-        Returns a list of items that would be duplicates.
+        Compares items by: name, bought_by_id, bought_for_id, price_final,
+        currency_final, tags, and target date.
+
+        Args:
+            user_id: User ID to check for
+            project_id: Project ID
+            year: Target year
+            month: Target month
+            selected_items: List of items to check for duplicates
+            original_period_start: Start date of the original period
+            dbh: Database handler
+
+        Returns:
+            List of items that would be duplicates (already exist in target month)
         """
-        try:
-            import calendar
+        import calendar
 
-            # Compute month boundaries
-            month_start = datetime.date(year, month, 1)
-            last_day = calendar.monthrange(year, month)[1]
-            month_end = datetime.date(year, month, last_day)
-
-            # Fetch existing items for the target month
-            dbh.load()
-            query = f"""
-                SELECT name, bought_by_id, bought_for_id, price_final, currency_final, tags, bought_date
-                FROM p{dbh._db_salt}_items
-                WHERE project_id = ?
-                AND bought_for_id = ?
-                AND bought_date BETWEEN ? AND ?
-            """
-            results = dbh.execute_query(query, [project_id, user_id, month_start, month_end])
-            dbh.close()
-
-            # Build a set of existing item keys
-            existing_keys = set()
-            for row in results:
-                (
-                    name,
-                    bought_by_id,
-                    bought_for_id,
-                    price_final,
-                    currency_final,
-                    tags,
-                    bought_date,
-                ) = row
-                date_str = str(bought_date).split()[0]
-                key = (
-                    name,
-                    bought_by_id,
-                    bought_for_id,
-                    float(price_final),
-                    currency_final,
-                    tags,
-                    date_str,
-                )
-                existing_keys.add(key)
-
-            # Build duplicate list
-            duplicates = []
-            for item in selected_items:
-                # Compute target date in next month
-                original_date = datetime.datetime.strptime(
-                    str(item["bought_date"]).split()[0], "%Y-%m-%d"
-                ).date()
-                try:
-                    target_date = original_date.replace(year=year, month=month)
-                except ValueError:
-                    target_date = original_date.replace(
-                        year=year, month=month, day=min(original_date.day, last_day)
-                    )
-
-                key = (
-                    item["name"],
-                    item["bought_by_id"],
-                    item["bought_for_id"],
-                    float(item["price_final"]),
-                    item["currency_final"],
-                    item["tags"],
-                    target_date.strftime("%Y-%m-%d"),
-                )
-                if key in existing_keys:
-                    duplicates.append(item)
-
-            return duplicates
-
-        except Exception as e:
-            self.app.log(f"Error checking duplicates for replication: {e}")
+        if not selected_items:
             return []
+
+        # Calculate target month boundaries based on original period start day
+        # If original period starts on day 15, target period is also day 15 to next month day 14
+        start_day = original_period_start.day
+        target_month_start = datetime.date(year, month, start_day)
+
+        # Calculate end date (one day before next period starts)
+        if month == 12:
+            next_year = year + 1
+            next_month = 1
+        else:
+            next_year = year
+            next_month = month + 1
+
+        # Handle case where start_day doesn't exist in next month (e.g., Jan 31 -> Feb)
+        max_day_in_next_month = calendar.monthrange(next_year, next_month)[1]
+        end_day = min(start_day, max_day_in_next_month)
+        target_month_end_exclusive = datetime.date(next_year, next_month, end_day)
+
+        # Query existing items in target month
+        dbh.load()
+        query = f"""
+            SELECT name, bought_by_id, bought_for_id, price_final, currency_final, tags, bought_date
+            FROM p{dbh._db_salt}_items
+            WHERE project_id = ?
+            AND bought_for_id = ?
+            AND bought_date >= ?
+            AND bought_date < ?
+        """
+        results = dbh.execute_query(
+            query, [project_id, user_id, target_month_start, target_month_end_exclusive]
+        )
+        dbh.close()
+
+        # Build set of existing item signatures
+        existing_keys = set()
+        for row in results:
+            name, bought_by_id, bought_for_id, price_final, currency_final, tags, bought_date = row
+            date_str = str(bought_date).split()[0]
+            key = (
+                name,
+                bought_by_id,
+                bought_for_id,
+                float(price_final),
+                currency_final,
+                tags,
+                date_str,
+            )
+            existing_keys.add(key)
+
+        # Check each selected item against existing items
+        duplicates = []
+        max_day_in_target_month = calendar.monthrange(year, month)[1]
+
+        for item in selected_items:
+            # Parse original date
+            original_date_str = str(item["bought_date"]).split()[0]
+            original_date = datetime.datetime.strptime(original_date_str, "%Y-%m-%d").date()
+
+            # Calculate target date (same day of month in target year/month)
+            target_day = min(original_date.day, max_day_in_target_month)
+            target_date = datetime.date(year, month, target_day)
+
+            # Create item signature
+            key = (
+                item["name"],
+                item["bought_by_id"],
+                item["bought_for_id"],
+                float(item["price_final"]),
+                item["currency_final"],
+                item["tags"],
+                target_date.strftime("%Y-%m-%d"),
+            )
+
+            # Check if this signature already exists
+            if key in existing_keys:
+                duplicates.append(item)
+
+        return duplicates
+
 
     def _update_to_next_month(self, user_id: int) -> None:
         """Update the selected fixed items to next month and display in table."""
@@ -616,7 +636,7 @@ class ReplicateExpensesView(Vertical):
             # Check if items already exist in next month
             dbh = self.app._config.get("dbh")
             existing_duplicates = self._check_existing_items_in_month(
-                user_id, project_id, next_year, next_month, selected_items, dbh
+                user_id, project_id, next_year, next_month, selected_items, period_start, dbh
             )
 
             if existing_duplicates:
@@ -652,16 +672,10 @@ class ReplicateExpensesView(Vertical):
                 ).date()
 
                 # Calculate new date (same day, next month)
-                try:
-                    new_date = original_date.replace(year=next_year, month=next_month)
-                except ValueError:
-                    # Handle day overflow (e.g., Jan 31 -> Feb 28)
-                    import calendar
+                _day = original_date.day
 
-                    last_day = calendar.monthrange(next_year, next_month)[1]
-                    new_date = original_date.replace(
-                        year=next_year, month=next_month, day=min(original_date.day, last_day)
-                    )
+                new_date = original_date + datetime.timedelta(days=32)
+                new_date = new_date.replace(day=_day)
 
                 # Create updated item data
                 updated_item = {
@@ -674,16 +688,19 @@ class ReplicateExpensesView(Vertical):
 
                 self._updated_items[user_id].append(updated_item)
 
-                # Add to table with different styling
+                # Visual differentiation:
+                # - Original rows: normal text, green "Current" status
+                # - Updated rows: dimmed text (lighter), cyan "→ Next Month" status
+                # This helps users distinguish between current and projected expenses
                 table.add_row(
-                    "✓",
-                    item["name"],
-                    f"{item['price_final']:.2f} {item['currency_final']}",
-                    item.get("label_t", ""),
-                    item.get("label_b", ""),
-                    item.get("label_m", ""),
-                    new_date.strftime("%Y-%m-%d"),
-                    "Updated",
+                    "[dim]✓[/dim]",
+                    f"[dim]{item['name']}[/dim]",
+                    f"[dim]{item['price_final']:.2f} {item['currency_final']}[/dim]",
+                    f"[dim]{item.get('label_t', '')}[/dim]",
+                    f"[dim]{item.get('label_b', '')}[/dim]",
+                    f"[dim]{item.get('label_m', '')}[/dim]",
+                    f"[dim]{new_date.strftime('%Y-%m-%d')}[/dim]",
+                    "[bold cyan]→ Next Month[/bold cyan]",
                     key=f"new-{item['item_id']}",
                 )
 
@@ -699,68 +716,64 @@ class ReplicateExpensesView(Vertical):
 
     def _write_to_database(self, user_id: int) -> None:
         """Write the updated items to the database."""
-        try:
-            # Get updated items for this user
-            updated_items = self._updated_items.get(user_id, [])
+        # Get updated items for this user
+        updated_items = self._updated_items.get(user_id, [])
 
-            if not updated_items:
-                self.app.notify(
-                    "No updated items to write. Click 'Update to Next Month' first.",
-                    severity="warning",
-                )
-                return
-
-            # Get database handler
-            dbh = self.app._config.get("dbh")
-            if not dbh:
-                self.app.notify("Database connection not available", severity="error")
-                return
-
-            # Write each item to database
-            created_count = 0
-            for item in updated_items:
-                # Prepare item data for op_item_create
-                item_data = {
-                    "item_uuid": item["item_uuid"],
-                    "name": item["name"],
-                    "note": item.get("note", ""),
-                    "price": item["price"],
-                    "price_final": item["price_final"],
-                    "currency": item["currency"],
-                    "currency_final": item["currency_final"],
-                    "bought_date": item["bought_date"],
-                    "bought_by_id": item["bought_by_id"],
-                    "bought_for_id": item["bought_for_id"],
-                    "added_by_id": self.app.app_state.get("user_id", item["added_by_id"]),
-                    "project_id": self.app.app_state.get("project_id", 0),
-                    "exchange_rate": item["exchange_rate"],
-                    "exchange_rate_date": item["exchange_rate_date"],
-                    "tags": item["tags"],
-                }
-
-                # Create item in database
-                item_id = dbh.op_item_create(item_data)
-
-                if item_id:
-                    created_count += 1
-                    self.app.log(f"Created replicated item with ID: {item_id}")
-
-            # Clear updated items after writing
-            self._updated_items[user_id] = []
-
-            # Remove "Updated" rows from table
-            table = self.query_one(f"#replicate-table-{user_id}", DataTable)
-            rows_to_remove = [key for key in table.rows.keys() if str(key.value).startswith("new-")]
-            for row_key in rows_to_remove:
-                table.remove_row(row_key)
-
+        if not updated_items:
             self.app.notify(
-                f"✓ Successfully wrote {created_count} items to database!", severity="success"
+                "No updated items to write. Click 'Update to Next Month' first.",
+                severity="warning",
             )
+            return
 
-        except Exception as e:
-            self.app.log(f"Error writing to database: {e}")
-            self.app.notify(f"Error: {str(e)}", severity="error")
+        # Get database handler
+        dbh = self.app._config.get("dbh")
+        if not dbh:
+            self.app.notify("Database connection not available", severity="error")
+            return
+
+        # Write each item to database
+        created_count = 0
+        for item in updated_items:
+            # Prepare item data for op_item_create
+            item_data = {
+                "item_uuid": item["item_uuid"],
+                "name": item["name"],
+                "note": item.get("note", ""),
+                "price": item["price"],
+                "price_final": item["price_final"],
+                "currency": item["currency"],
+                "currency_final": item["currency_final"],
+                "bought_date": item["bought_date"],
+                "bought_by_id": item["bought_by_id"],
+                "bought_for_id": item["bought_for_id"],
+                "added_by_id": self.app.app_state.get("user_id", item["added_by_id"]),
+                "project_id": self.app.app_state.get("project_id", 0),
+                "exchange_rate": item["exchange_rate"],
+                "exchange_rate_date": item["exchange_rate_date"],
+                "tags": item["tags"],
+            }
+
+            # Create item in database
+            item_id = dbh.op_item_create(item_data)
+
+            if item_id:
+                created_count += 1
+                self.app.log(f"Created replicated item with ID: {item_id}")
+
+        # Clear updated items after writing
+        self._updated_items[user_id] = []
+
+        # Remove "Updated" rows from table
+        table = self.query_one(f"#replicate-table-{user_id}", DataTable)
+        rows_to_remove = [key for key in table.rows.keys() if str(key.value).startswith("new-")]
+        for row_key in rows_to_remove:
+            table.remove_row(row_key)
+
+        self.app.notify(
+            f"✓ Successfully wrote {created_count} items to database!", severity="success"
+        )
+
 
     @on(DataTable.HeaderSelected)
     def on_header_selected(self, event: DataTable.HeaderSelected) -> None:
@@ -771,60 +784,62 @@ class ReplicateExpensesView(Vertical):
 
     def refresh_data(self) -> None:
         """Refresh the view when period changes."""
-        try:
-            # Get period type
-            period_type = self.app.app_state.get("current_period_type", "week")
+        # Get period type
+        period_type = self.app.app_state.get("current_period_type", "week")
 
-            # Only works with monthly view
-            if period_type != "month":
-                self.app.notify("Please switch to monthly view for replication", severity="info")
-                return
+        # Only works with monthly view
+        if period_type != "month":
+            self.app.notify("Please switch to monthly view for replication", severity="info")
+            return
 
-            # Get project users and refresh each table
-            project_id = self.app.app_state.get("project_id", 0)
-            project_users = self._get_project_users(project_id)
-            currency_main = self.app.app_state.get("current_project_currency_main", "USD")
+        # Get project users and refresh each table
+        project_id = self.app.app_state.get("project_id", 0)
+        project_users = self._get_project_users(project_id)
+        currency_main = self.app.app_state.get("current_project_currency_main", "USD")
 
-            for user in project_users:
-                # Check permission
-                user_permission = user.get("project_perm_model", "000000")
-                if not user_permission or len(user_permission) < 6:
-                    continue
-                if user_permission[0] != "1":
-                    continue
+        for user in project_users:
+            # Check permission
+            user_permission = user.get("project_perm_model", "000000")
+            if not user_permission or len(user_permission) < 6:
+                continue
+            if user_permission[0] != "1":
+                continue
 
-                # Try to find and refresh table
-                try:
-                    table = self.query_one(f"#replicate-table-{user['user_id']}", DataTable)
-                    table.clear()
+            # Try to find and refresh table
+            table_id = f"#replicate-table-{user['user_id']}"
+            tables = list(self.query(table_id))
+            
+            if not tables:
+                self.app.log(f"Table {table_id} not found for refresh")
+                continue
+                
+            table = tables[0]
+            table.clear()
 
-                    # Fetch fixed items
-                    items = self._get_fixed_items(user["user_id"], project_id)
+            # Fetch fixed items
+            items = self._get_fixed_items(user["user_id"], project_id)
 
-                    # Re-add rows
-                    for item in items:
-                        date_str = (
-                            str(item["bought_date"]).split()[0] if item["bought_date"] else ""
-                        )
+            # Re-add rows
+            for item in items:
+                date_str = (
+                    str(item["bought_date"]).split()[0] if item["bought_date"] else ""
+                )
 
-                        table.add_row(
-                            "✓",
-                            item["name"],
-                            f"{item['price_final']:.2f} {currency_main}",
-                            item.get("label_t", ""),
-                            item.get("label_b", ""),
-                            item.get("label_m", ""),
-                            date_str,
-                            "Original",
-                            key=f"orig-{item['item_id']}",
-                        )
+                table.add_row(
+                    "✓",
+                    item["name"],
+                    f"{item['price_final']:.2f} {currency_main}",
+                    item.get("label_t", ""),
+                    item.get("label_b", ""),
+                    item.get("label_m", ""),
+                    date_str,
+                    "[bold green]Current[/bold green]",  # Consistent with compose()
+                    key=f"orig-{item['item_id']}",
+                )
 
-                    # Clear updated items for this user
-                    if user["user_id"] in self._updated_items:
-                        self._updated_items[user["user_id"]] = []
+            # Clear updated items for this user
+            if user["user_id"] in self._updated_items:
+                self._updated_items[user["user_id"]] = []
+                
+            self.app.log(f"Refreshed table for user {user['user_id']}")
 
-                except Exception as e:
-                    self.app.log(f"Could not refresh table for user {user['user_id']}: {e}")
-
-        except Exception as e:
-            self.app.log(f"Error refreshing replicate view: {e}")

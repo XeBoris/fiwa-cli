@@ -237,7 +237,6 @@ class SettingsScreen(ReactiveScreen):
         elif event.button.id == "modify-project-button":
             self.show_modify_project_form()
         elif event.button.id == "create-user-button":
-            # self.show_content("Create User", "User creation interface coming soon...")
             self.show_create_user_form()
         elif event.button.id == "modify-user-button":
             self.show_modify_user_form()
@@ -473,7 +472,7 @@ class SettingsScreen(ReactiveScreen):
 
     def on_create_user_form_user_created(self, message: CreateUserForm.UserCreated) -> None:
         """Handle the UserCreated message from CreateUserForm."""
-        self.notify(f"User '{message.user_data['username']}' created!", severity="information")
+        #self.notify(f"User '{message.user_data['username']}' created!", severity="information")
         self.show_content("User Created", f"Successfully created: {message.user_data['username']}")
 
     def on_label_management_form_labels_modified(
@@ -497,7 +496,7 @@ class SettingsScreen(ReactiveScreen):
 
     def on_create_label_form_label_created(self, message: CreateLabelForm.LabelCreated) -> None:
         """Handle the LabelCreated message from CreateLabelForm."""
-        self.notify(f"Label '{message.label_data['name']}' created!", severity="information")
+        
         # Show the label management form to see all labels including the new one
         self.show_label_management_form()
 
