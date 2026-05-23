@@ -159,6 +159,7 @@ import re
 from textual import on
 
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.functions.arithmetic import eval_math
 
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days
@@ -1135,7 +1136,7 @@ class ItemInputForm(ModalScreen):
             yield Input(
                 placeholder="0.00",
                 id="grid-item-price",
-                type="number",
+                type="text",
                 value=str(self._item_data["price"]) if self._edit_mode and self._item_data else "",
             )
             yield Select(
@@ -1527,8 +1528,19 @@ class ItemInputForm(ModalScreen):
                 self.app.notify("'Bought By' user is required", severity="error")
                 return
 
-            # Convert price
-            price_float = float(price)
+            # Convert price using eval_math to support mathematical expressions
+            # Examples: "=100+50", "=20*5", "123,45"
+            try:
+                price_float = eval_math(price)
+            except (SyntaxError, ValueError, ImportError) as e:
+                self.app.notify(
+                    f"Invalid price: {str(e)}\n"
+                    f"Enter a number (e.g., '123.45'), "
+                    f"European format (e.g., '123,45'), "
+                    f"or math expression (e.g., '=100+50')",
+                    severity="error",
+                )
+                return
 
             price_final = price_float * exchange_rate_float
             currency_final = currency_main
