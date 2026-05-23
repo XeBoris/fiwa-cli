@@ -493,7 +493,27 @@ class ReportsScreen(ReactiveScreen):
         self.app.log("Cost Overview loaded")
 
     def show_summary_overview(self) -> None:
-        """Show an advanced summary of the costs in the content area."""
+        """Show an advanced summary of the costs in the content area.
+        
+        Automatically switches from weeks to months if weeks are currently shown,
+        since the summary report is designed for monthly viewing.
+        If months are already shown, no switching occurs.
+        """
+        # Auto-switch to month view if currently in week view
+        if self._current_period_type == "week":
+            try:
+                week_month_widget = self.query_one("#reports-date-picker", WeekMonthWidget)
+                week_month_widget.period_type = "month"
+                week_month_widget.update_display()
+                
+                # Update internal state and recalculate period boundaries
+                self._current_period_type = "month"
+                self._update_app_state_period()
+                
+                self.app.log("Auto-switched from week to month view for Summary report")
+            except Exception as e:
+                self.app.log(f"Could not auto-switch to month view: {e}")
+        
         content_area = self.query_one("#reports-content-area", ScrollableContainer)
         content_area.remove_children()
 
