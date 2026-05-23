@@ -160,6 +160,7 @@ from textual import on
 
 from fiwa_cli.functions.loader import load_dynamic_css
 from fiwa_cli.functions.arithmetic import eval_math
+from fiwa_cli.components.calendar_picker import CalendarWidget
 
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days
@@ -707,6 +708,27 @@ class ItemInputForm(ModalScreen):
         self._item_id = item_data["item_id"] if edit_mode and item_data else None
         self._pending_item_data = None
         self._project_users = []  # Store project users for dynamic updates
+        
+        # Store selected dates for purchased and exchange rate dates
+        if edit_mode and item_data:
+            # Parse dates from item_data for edit mode
+            try:
+                self._selected_bought_date = datetime.strptime(
+                    str(item_data["bought_date"]).split()[0], "%Y-%m-%d"
+                )
+            except (ValueError, KeyError):
+                self._selected_bought_date = datetime.now()
+                
+            try:
+                self._selected_exchange_date = datetime.strptime(
+                    str(item_data["exchange_rate_date"]).split()[0], "%Y-%m-%d"
+                )
+            except (ValueError, KeyError):
+                self._selected_exchange_date = datetime.now()
+        else:
+            # Default to today for create mode
+            self._selected_bought_date = datetime.now()
+            self._selected_exchange_date = datetime.now()
 
         # Load selected labels from item_data in edit mode
         if edit_mode and item_data and item_data.get("tags"):
@@ -1149,14 +1171,9 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-currency",
                 allow_blank=False,
             )
-            yield Input(
-                placeholder="YYYY-MM-DD",
-                id="grid-item-bought-date",
-                value=(
-                    str(self._item_data["bought_date"]).split()[0]
-                    if self._edit_mode and self._item_data
-                    else datetime.now().strftime("%Y-%m-%d")
-                ),
+            yield Button(
+                self._selected_bought_date.strftime("%Y-%m-%d"),
+                id="grid-item-bought-date-button",
             )
             yield Select(
                 options=user_options if user_options else [("No users", -1)],
@@ -1168,7 +1185,7 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-bought-by",
                 allow_blank=False,
             )
-            yield Button("🏷️ Labels", id="open-label-modal-button", variant="default", compact=True)
+            yield Button("🏷️ Labels", id="open-label-modal-button")
 
         # Main horizontal layout - different for create vs edit mode
         with Horizontal(id="bought-for-horizontal-wrapper"):
@@ -1237,14 +1254,9 @@ class ItemInputForm(ModalScreen):
                         )
                     with Vertical(classes="field-group"):
                         yield Static("Exchange Rate Date", classes="form-label")
-                        yield Input(
-                            placeholder="YYYY-MM-DD",
-                            id="item-exchange-date",
-                            value=(
-                                str(self._item_data["exchange_rate_date"]).split()[0]
-                                if self._edit_mode and self._item_data
-                                else datetime.now().strftime("%Y-%m-%d")
-                            ),
+                        yield Button(
+                            self._selected_exchange_date.strftime("%Y-%m-%d"),
+                            id="item-exchange-date-button",
                         )
 
                 # Note field
@@ -1284,6 +1296,12 @@ class ItemInputForm(ModalScreen):
         elif event.button.id == "open-label-modal-button":
             # Use run_worker to properly handle push_screen_wait
             self.run_worker(self._open_label_modal())
+        elif event.button.id == "grid-item-bought-date-button":
+            # Open calendar for purchase date
+            self.run_worker(self._open_calendar_for_bought_date())
+        elif event.button.id == "item-exchange-date-button":
+            # Open calendar for exchange rate date
+            self.run_worker(self._open_calendar_for_exchange_date())
 
     async def _open_label_modal(self) -> None:
         """Open the label selection modal and handle the result."""
@@ -1316,6 +1334,63 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error opening label modal: {e}")
             # self.app.notify(f"Error: {str(e)}", severity="error")
 
+    async def _open_calendar_for_bought_date(self) -> None:
+        """Open calendar picker for the purchase date field."""
+        try:
+            # Open calendar with current selected date, positioned near the button
+            result = await self.app.push_screen_wait(
+                CalendarWidget(initial_date=self._selected_bought_date)
+            )
+
+            if result:  # User selected a date
+                self._selected_bought_date = result
+                self.app.log(f"Selected purchase date: {result.strftime('%Y-%m-%d')}")
+
+                # Update button label
+                button = self.query_one("#grid-item-bought-date-button", Button)
+                button.label = result.strftime("%Y-%m-%d")
+
+                # Auto-update exchange date to match purchased date if not already set differently
+                # Only update if exchange date is still the default (same as old purchased date)
+                try:
+                    # Auto-update the exchange date to match the new purchased date
+                    self._selected_exchange_date = result
+                    exchange_button = self.query_one("#item-exchange-date-button", Button)
+                    exchange_button.label = result.strftime("%Y-%m-%d")
+                    self.app.log(f"Auto-updated exchange date to match purchased date: {result.strftime('%Y-%m-%d')}")
+                except Exception as e:
+                    self.app.log(f"Could not update exchange date button: {e}")
+
+            else:  # User dismissed without selecting
+                self.app.log("Purchase date selection cancelled")
+
+        except Exception as e:
+            self.app.log(f"Error opening calendar for purchase date: {e}")
+            self.app.notify(f"Error opening calendar: {str(e)}", severity="error")
+
+    async def _open_calendar_for_exchange_date(self) -> None:
+        """Open calendar picker for the exchange rate date field."""
+        try:
+            # Open calendar with current selected date, positioned near the button
+            result = await self.app.push_screen_wait(
+                CalendarWidget(initial_date=self._selected_exchange_date)
+            )
+
+            if result:  # User selected a date
+                self._selected_exchange_date = result
+                self.app.log(f"Selected exchange rate date: {result.strftime('%Y-%m-%d')}")
+
+                # Update button label
+                button = self.query_one("#item-exchange-date-button", Button)
+                button.label = result.strftime("%Y-%m-%d")
+
+            else:  # User dismissed without selecting
+                self.app.log("Exchange rate date selection cancelled")
+
+        except Exception as e:
+            self.app.log(f"Error opening calendar for exchange date: {e}")
+            self.app.notify(f"Error opening calendar: {str(e)}", severity="error")
+
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle select widget changes."""
         if event.select.id == "grid-item-bought-by":
@@ -1327,16 +1402,8 @@ class ItemInputForm(ModalScreen):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle input widget changes."""
-        if event.input.id == "grid-item-bought-date":
-            # User changed the bought date - update exchange date to match
-            bought_date_value = event.value.strip()
-            if bought_date_value:
-                try:
-                    exchange_date_input = self.query_one("#item-exchange-date", Input)
-                    exchange_date_input.value = bought_date_value
-                    self.app.log(f"Auto-updated exchange date to match bought date: {bought_date_value}")
-                except Exception as e:
-                    self.app.log(f"Error updating exchange date: {e}")
+        # No longer handle date input changes since dates are now selected via calendar picker
+        pass
 
     def _update_bought_for_section(self, selected_bought_by_id: int) -> None:
         """Update the 'Bought For' section when bought_by user changes.
@@ -1414,12 +1481,14 @@ class ItemInputForm(ModalScreen):
             name = self.query_one("#grid-item-name", Input).value.strip()
             price = self.query_one("#grid-item-price", Input).value.strip()
             currency = self.query_one("#grid-item-currency", Select).value
-            bought_date = self.query_one("#grid-item-bought-date", Input).value.strip()
+            # Use the stored selected date instead of Input field
+            bought_date = self._selected_bought_date.strftime("%Y-%m-%d")
             bought_by_id = self.query_one("#grid-item-bought-by", Select).value
 
             # Get exchange rate and date from input fields (correct IDs: item-exchange-*, not grid-item-exchange-*)
             exchange_rate_input = self.query_one("#item-exchange-rate", Input).value.strip()
-            exchange_date_input = self.query_one("#item-exchange-date", Input).value.strip()
+            # Use the stored selected exchange date instead of Input field
+            exchange_date_input = self._selected_exchange_date.strftime("%Y-%m-%d")
             note = self.query_one("#item-note", Input).value.strip()
 
             # Sanitize name and note to remove invalid characters and trim spaces
@@ -2025,14 +2094,27 @@ class ItemInputForm(ModalScreen):
             self.query_one("#grid-item-name", Input).value = ""
             self.query_one("#grid-item-price", Input).value = ""
             #self.query_one("#grid-item-currency", Select).value = currency_main              # Don't reset currency to default, let it stay as last selected for convenience
-            #self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime( # Don't reset bought date to today, let it stay as last entered for convenience
-            #    "%Y-%m-%d"
-            #)
+            
+            # Reset date buttons to today
+            today = datetime.now()
+            self._selected_bought_date = today
+            self._selected_exchange_date = today
+            
+            try:
+                bought_date_button = self.query_one("#grid-item-bought-date-button", Button)
+                bought_date_button.label = today.strftime("%Y-%m-%d")
+            except Exception as e:
+                self.app.log(f"Error resetting purchased date button: {e}")
+            
+            try:
+                exchange_date_button = self.query_one("#item-exchange-date-button", Button)
+                exchange_date_button.label = today.strftime("%Y-%m-%d")
+            except Exception as e:
+                self.app.log(f"Error resetting exchange date button: {e}")
 
             # Clear additional fields
             self.query_one("#item-note", Input).value = ""
             #self.query_one("#item-exchange-rate", Input).value = "1.0"
-            #self.query_one("#item-exchange-date", Input).value = datetime.now().strftime("%Y-%m-%d")
 
             # Reset bought-by select field to current user if available
             # try:
@@ -2061,9 +2143,7 @@ class ItemInputForm(ModalScreen):
             #     labels_widget = self.query_one("#item-labels", SelectionList)
             #     labels_widget.deselect_all()
             # except Exception:
-            #     pass
-
-            # Generate new UUID for next item
+            #     pass            # Generate new UUID for next item
             self._item_uuid = str(uuid.uuid4())
 
             #self.app.notify("✓ Form cleared", severity="info")

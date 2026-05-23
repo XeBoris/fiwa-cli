@@ -81,6 +81,38 @@ ItemInputForm #open-label-modal-button {
     margin: 0 0 1 0;
 }
 
+ItemInputForm #open-label-modal-button:hover {
+    background: $accent-darken-1;
+}
+
+/* Date picker buttons */
+ItemInputForm #grid-item-bought-date-button {
+    width: 100%;
+    height: 3;
+    background: $primary;
+    color: $text;
+    border: none;
+    text-align: center;
+    margin: 0 0 1 0;
+}
+
+ItemInputForm #grid-item-bought-date-button:hover {
+    background: $accent-darken-1;
+}
+
+ItemInputForm #item-exchange-date-button {
+    width: 20;
+    height: 3;
+    background: $primary;
+    color: $text;
+    border: none;
+    text-align: center;
+}
+
+ItemInputForm #item-exchange-date-button:hover {
+    background: $accent-darken-1;
+}
+
 # row 2
 ItemInputForm #bought-for-horizontal-wrapper {
     layout: horizontal;
@@ -193,12 +225,6 @@ ItemInputForm .form-grid-row-2 {
     margin: 0 0 1 0;
 }
 
-
-
-
-ItemInputForm #open-label-modal-button:hover {
-    background: $accent-darken-1;
-}
 
 
 
