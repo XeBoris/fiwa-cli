@@ -98,7 +98,7 @@ class ProjectStats():
                 "date": i,
                 "items": len(idf),
             }
-            for j, jdf in idf.groupby("label_m"):
+            for j, jdf in idf.groupby(by="label_m"):
                 ik[f"count?{j}"] = len(jdf)
                 ik[f"sum?{j}"] = jdf["price_final"].sum()
             k.append(ik)
@@ -318,6 +318,13 @@ class ProjectStats():
                 # Default: no travel
                 return False
 
+        # Helper function to safely sum a column from a DataFrame (handles empty frames)
+        def safe_sum(subdf, col_name):
+            """Sum a column safely, handling empty DataFrames with no columns."""
+            if subdf.empty or col_name not in subdf.columns:
+                return 0.0
+            return subdf[col_name].sum()
+
         # Split transactions by type
         df_fv = df[(df["label_t"] == "fixed") | (df["label_t"] == "variable")].copy()
 
@@ -327,20 +334,29 @@ class ProjectStats():
 
         # build a dataframe with all the totals:
         period_totals = {
-            "total_fv": df_fv["price_final1"].sum(),
-            "total_daily": df_d["price_final1"].sum(),
-            "total_daily_trav": df_d_trav["price_final1"].sum(),
-            "total_daily_home": df_d_home["price_final1"].sum()
+            "total_fv": safe_sum(df_fv, "price_final1"),
+            "total_daily": safe_sum(df_d, "price_final1"),
+            "total_daily_trav": safe_sum(df_d_trav, "price_final1"),
+            "total_daily_home": safe_sum(df_d_home, "price_final1")
         }
         if return_df:
             period_totals = pd.DataFrame([period_totals]).T.reset_index()
             period_totals.columns = ["label", "value"]
 
         def run(subdf):
+            """Process a subset of transactions grouped by account and type.
+            
+            Returns empty dicts/lists if DataFrame is empty to handle edge cases
+            where filters produce empty results with no columns.
+            """
             r = {}
-            k = {}
             klist = []
-            for kgr, kdf in subdf.groupby(["label_b", "label_c"]):
+            
+            # Handle empty DataFrames (no rows or no columns)
+            if subdf.empty or len(subdf.columns) == 0:
+                return r, klist
+            
+            for kgr, kdf in subdf.groupby(by=["label_b", "label_c"]):
                 k_label_b = kgr[0]
                 k_label_c = kgr[1]
 

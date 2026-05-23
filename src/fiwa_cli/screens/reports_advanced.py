@@ -85,7 +85,8 @@ class AdvReportForm(Vertical):
         - Identify inter-user debts via Repay feature
 
     Attributes:
-        None (stateless widget, reads from app_state and database)
+        _table_sort_state (dict): Tracks sort direction per table
+            Format: {table_id: {"column": column_key, "reverse": bool}}
 
     Report Components (per user tab):
         1. **Period Display**: Shows selected week/month with date range
@@ -188,6 +189,23 @@ class AdvReportForm(Vertical):
         inputs_edit_expense: Similar tabbed view for expense editing
         functions.project_composer.ProjectComposer: Transaction type definitions
     """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AdvReportForm with sort state tracking.
+        
+        Sets up a dictionary to track the sort state of each table so that
+        clicking a column toggles between ascending and descending order.
+        
+        Args:
+            *args: Positional arguments passed to parent Vertical
+            **kwargs: Keyword arguments passed to parent Vertical
+            
+        Side Effects:
+            - Initializes _table_sort_state dictionary for tracking sort direction
+        """
+        super().__init__(*args, **kwargs)
+        # Track sort state: {table_id: {"column": column_key, "reverse": bool}}
+        self._table_sort_state = {}
 
     def compose(self) -> ComposeResult:
         """Compose the Advanced Report interface with spending tracker heatmap.
@@ -459,10 +477,11 @@ class AdvReportForm(Vertical):
 
     @on(DataTable.HeaderSelected)
     def on_header_selected(self, event: DataTable.HeaderSelected) -> None:
-        """Handle column header click to sort the table.
+        """Handle column header click to sort the table with ascending/descending toggle.
 
-        Clicking a column header sorts the table by that column. Clicking
-        again toggles between ascending and descending order.
+        Clicking a column header sorts the table by that column in ascending order.
+        Clicking the same column header again toggles to descending order.
+        Repeating the pattern continues to toggle between ascending and descending.
 
         Args:
             event: DataTable.HeaderSelected event containing:
@@ -471,28 +490,50 @@ class AdvReportForm(Vertical):
 
         Side Effects:
             - Sorts the DataTable by clicked column
-            - Toggles sort direction on repeated clicks
+            - Toggles sort direction (ascend ↔ descend) on repeated clicks
             - Logs sort operation
+            - Updates _table_sort_state to track current sort direction
 
         Example:
             User sorts by Price::
 
                 >>> # User clicks "Price" column header
-                >>> # Table sorts by price ascending
+                >>> # Table sorts by price ascending (↑)
                 >>> # User clicks "Price" again
-                >>> # Table sorts by price descending
+                >>> # Table sorts by price descending (↓)
+                >>> # User clicks "Price" again
+                >>> # Table sorts by price ascending (↑)
 
         Note:
-            The DataTable.sort() method handles the toggle logic
-            automatically - we just need to call it with the column key.
+            The sort state is tracked per table using table ID. Clicking a different
+            column resets to ascending order for that new column.
         """
         table = event.data_table
-
-        # Sort by the clicked column
-        # The sort method will automatically toggle between ascending/descending
-        table.sort(event.column_key)
-
-        self.app.log(f"Sorted table by column: {event.column_key}")
+        table_id = table.id
+        
+        # Get current sort state for this table
+        current_state = self._table_sort_state.get(table_id, {"column": None, "reverse": False})
+        
+        # Determine if we're clicking the same column or a different one
+        if current_state["column"] == event.column_key:
+            # Same column clicked - toggle sort direction
+            new_reverse = not current_state["reverse"]
+        else:
+            # Different column clicked - start with ascending (reverse=False)
+            new_reverse = False
+        
+        # Sort the table
+        table.sort(event.column_key, reverse=new_reverse)
+        
+        # Update the sort state
+        self._table_sort_state[table_id] = {
+            "column": event.column_key,
+            "reverse": new_reverse
+        }
+        
+        # Log the sort operation with direction indicator
+        direction = "↓ descending" if new_reverse else "↑ ascending"
+        self.app.log(f"Sorted table {table_id} by column: {event.column_key} ({direction})")
 
     def _get_project_users(self, project_id: int) -> list:
         """Get all users for the project.
