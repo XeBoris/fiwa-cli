@@ -168,7 +168,7 @@ from fiwa_cli.components.calendar_picker import CalendarWidget
 
 def sanitize_string(
     text: str,
-    allowed_chars: str = r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"",
+    allowed_chars: str = r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"",
     allow_internal_spaces: bool = True,
 ) -> tuple[str, bool]:
     """Sanitize and validate string input by removing invalid characters.
@@ -181,7 +181,7 @@ def sanitize_string(
     Args:
         text: The input string to sanitize
         allowed_chars: Regex character set of allowed characters
-            Default allows: a-z, A-Z, 0-9, spaces, and common punctuation
+            Default allows: a-z, A-Z, 0-9, ä, ö, ü, å (+ capitals), spaces, and common punctuation
             (. , - _ : ; ! ? ( ) [ ] @ # $ % & + = ' ")
         allow_internal_spaces: Whether to allow spaces within the string
             Default: True
@@ -842,24 +842,27 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error fetching project users: {e}")
             return []
 
-    def _get_default_labels(self, project_id: int) -> list:
-        """Get default labels for each label type for the current user.
+    def _get_default_labels_for_user(self, project_id: int, for_user_id: int) -> list:
+        """Get default labels for each label type for a specific user.
 
         Returns a list of label IDs for default labels, ordered by type.
         If a type has no default, returns 0 for that position.
+
+        Args:
+            project_id: The project to look up labels for.
+            for_user_id: The user whose preset defaults should be loaded.
 
         Returns:
             List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
         """
         try:
             dbh = self.app._config.get("dbh")
-            user_id = self.app.app_state.get("user_id", -1)
 
-            if not dbh or user_id <= 0:
+            if not dbh or for_user_id <= 0:
                 return []
 
-            # Get user's default labels as a map: {label_type: label_id}
-            defaults_map = dbh.op_label_get_user_defaults(user_id, project_id)
+            # Get the specified user's default labels as a map: {label_type: label_id}
+            defaults_map = dbh.op_label_get_user_defaults(for_user_id, project_id)
 
             # Get ProjectComposer to know which types exist and their order
             from fiwa_cli.functions.project_composer import ProjectComposer
@@ -880,7 +883,7 @@ class ItemInputForm(ModalScreen):
                         default_labels.append(defaults_map.get(type_id, 0))
 
                     self.app.log(
-                        f"Default labels for user {user_id} in project {project_id}: {default_labels}"
+                        f"Default labels for user {for_user_id} in project {project_id}: {default_labels}"
                     )
                     return default_labels
 
@@ -891,8 +894,19 @@ class ItemInputForm(ModalScreen):
             return []
 
         except Exception as e:
-            self.app.log(f"Error fetching default labels: {e}")
+            self.app.log(f"Error fetching default labels for user {for_user_id}: {e}")
             return []
+
+    def _get_default_labels(self, project_id: int) -> list:
+        """Get default labels for each label type for the current logged-in user.
+
+        Delegates to _get_default_labels_for_user using the session user_id.
+
+        Returns:
+            List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
+        """
+        user_id = self.app.app_state.get("user_id", -1)
+        return self._get_default_labels_for_user(project_id, user_id)
 
     def _get_project_labels(self, project_id: int) -> list:
         """Get all labels for the current project."""
@@ -1396,9 +1410,14 @@ class ItemInputForm(ModalScreen):
         if event.select.id == "grid-item-bought-by":
             # User changed the "bought by" selection
             selected_user_id = event.value
+
             # Only update bought-for section if not in edit mode (section doesn't exist in edit mode)
             if not self._edit_mode:
                 self._update_bought_for_section(selected_user_id)
+
+            # Auto-load the selected user's preset/default labels so they appear
+            # pre-checked when the user opens the LabelModalScreen.
+            self._apply_user_default_labels(selected_user_id)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle input widget changes."""
@@ -1465,6 +1484,45 @@ class ItemInputForm(ModalScreen):
 
         self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
 
+    def _apply_user_default_labels(self, for_user_id: int) -> None:
+        """Load and apply the preset/default labels for the given user.
+
+        Called whenever the "Bought By" dropdown changes.  The loaded IDs are
+        stored in ``self._selected_label_ids`` so that when the user opens the
+        LabelModalScreen those labels are already pre-checked.  The label
+        button text is updated to reflect the pre-selection count.
+
+        If the user has no preset labels configured, the current selection is
+        cleared so stale labels from a previously selected user are not kept.
+
+        Args:
+            for_user_id: user_id of the person selected in the "Bought By" field.
+        """
+        try:
+            project_id = self.app.app_state.get("project_id", 0)
+            default_labels = self._get_default_labels_for_user(project_id, for_user_id)
+
+            # Filter out placeholder 0-entries; keep real label IDs only
+            active_defaults = [lid for lid in default_labels if lid and lid > 0]
+
+            self._selected_label_ids = active_defaults
+            self.app.log(
+                f"Auto-applied default labels for user {for_user_id}: {active_defaults}"
+            )
+
+            # Update the label button to reflect the new pre-selection
+            try:
+                button = self.query_one("#open-label-modal-button", Button)
+                if active_defaults:
+                    button.label = f"🏷️ Labels ({len(active_defaults)}) ★"
+                else:
+                    button.label = "🏷️ Labels"
+            except Exception as e:
+                self.app.log(f"Could not update label button after user change: {e}")
+
+        except Exception as e:
+            self.app.log(f"Error applying default labels for user {for_user_id}: {e}")
+
     def action_dismiss_form(self) -> None:
         """Action called when ESC is pressed - dismiss form without saving."""
         self.dismiss()
@@ -1492,12 +1550,12 @@ class ItemInputForm(ModalScreen):
             note = self.query_one("#item-note", Input).value.strip()
 
             # Sanitize name and note to remove invalid characters and trim spaces
-            # Allow alphanumeric, spaces, and common punctuation
+            # Allow alphanumeric, spaces, common punctuation, and international characters (ä, ö, ü, å, etc.)
             name, name_modified = sanitize_string(
-                name, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+                name, allowed_chars=r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
             )
             note, note_modified = sanitize_string(
-                note, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+                note, allowed_chars=r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
             )
 
             # Notify user if their input was modified
@@ -1768,8 +1826,11 @@ class ItemInputForm(ModalScreen):
                         # Clear the pending data
                         self._pending_item_data = None
 
-                        # Clear the form for next entry
-                        self._clear_form()
+                        # We comment this section out since it was annoying for the user to
+                        # re-type certain elements again and again when costs were almost identical (e.g., same name, price, labels)
+                        # they can just edit the existing data in the form if they want to create a similar transaction
+                        ## Clear the form for next entry
+                        #self._clear_form()
 
                         # Generate new UUID
                         self._item_uuid = str(uuid.uuid4())

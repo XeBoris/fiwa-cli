@@ -176,7 +176,7 @@ def handle_args() -> [str, Dict[str, Any]]:
         __version__ = version("fiwa-cli")
     except PackageNotFoundError:
         # Package is not installed, use fallback during development
-        __version__ = "0.1.0.dev"
+        __version__ = "unknown"
 
     parser = argparse.ArgumentParser(description="FiWa CLI Application")
 
