@@ -62,6 +62,7 @@ from fiwa_cli.components import FiwaHeader
 from fiwa_cli.components.week_month_picker import WeekMonthWidget
 
 from .reports_basic import BasicReportForm
+from .reports_advanced import AdvReportForm
 
 from fiwa_cli.functions.loader import load_dynamic_css
 
@@ -185,6 +186,11 @@ class ReportsScreen(ReactiveScreen):
         settings.SettingsScreen: Similar sidebar/content layout pattern
         base.ReactiveScreen: Base class with state watching
     """
+    BINDINGS = [
+        ("ctrl+o", "show_overview", "New Expense"),
+        ("ctrl+s", "show_summary", "Edit Expenses"),
+        ("ctrl+b", "go_back", "Go Back"),
+    ]
 
     def __init__(self, *args, **kwargs):
         """Initialize the reports screen.
@@ -271,7 +277,7 @@ class ReportsScreen(ReactiveScreen):
                     # Report type selection buttons
                     yield Static("Report:", classes="menu-section")
                     yield Button("📊 Cost Overview", id="cost-overview-button")
-                    yield Button("📈 Monthly Summary", id="monthly-summary-button")
+                    yield Button("📈 Summary", id="summary-button")
                     # yield Button("🏷️ Category Breakdown", id="category-breakdown-button")
                     # yield Button("📉 Spending Trends", id="spending-trends-button")
                     # yield Button("👥 User Comparison", id="user-comparison-button")
@@ -355,8 +361,8 @@ class ReportsScreen(ReactiveScreen):
             self._reset_to_current_period()
         elif event.button.id == "cost-overview-button":
             self.show_cost_overview()
-        elif event.button.id == "monthly-summary-button":
-            self.show_content("Monthly Summary", "Coming soon...")
+        elif event.button.id == "summary-button":
+            self.show_summary_overview()
         elif event.button.id == "category-breakdown-button":
             self.show_content("Category Breakdown", "Coming soon...")
         elif event.button.id == "spending-trends-button":
@@ -448,19 +454,30 @@ class ReportsScreen(ReactiveScreen):
                 >>> # BasicReportForm remounted with Week 11 data
 
         Note:
-            Currently only "Cost Overview" is implemented as BasicReportForm.
-            Future report types will be detected and refreshed similarly.
+            Supports both BasicReportForm (Cost Overview) and 
+            AdvReportForm (Summary) refresh operations.
         """
         try:
-            # Check if BasicReportForm is currently loaded
+            # Check if BasicReportForm or AdvReportForm is currently loaded
             content_area = self.query_one("#reports-content-area", ScrollableContainer)
+            
             # Try to find BasicReportForm in content area
-
-            forms = list(content_area.query(BasicReportForm))
-            if forms:
-                # Refresh the existing form
-                forms[0].refresh_data()
-                self.app.log("Refreshed Cost Overview report")
+            basic_forms = list(content_area.query(BasicReportForm))
+            if basic_forms:
+                # Refresh the existing BasicReportForm
+                basic_forms[0].refresh_data()
+                self.app.log("Refreshed Cost Overview report (BasicReportForm)")
+                return
+            
+            # Try to find AdvReportForm in content area
+            adv_forms = list(content_area.query(AdvReportForm))
+            if adv_forms:
+                # Refresh the existing AdvReportForm
+                adv_forms[0].refresh_data()
+                self.app.log("Refreshed Summary report (AdvReportForm)")
+                return
+                
+            self.app.log("No report form found to refresh")
         except Exception as e:
             self.app.log(f"Could not refresh report: {e}")
 
@@ -474,6 +491,36 @@ class ReportsScreen(ReactiveScreen):
         form.on_mount()
         content_area.mount(form)
         self.app.log("Cost Overview loaded")
+
+    def show_summary_overview(self) -> None:
+        """Show an advanced summary of the costs in the content area.
+        
+        Automatically switches from weeks to months if weeks are currently shown,
+        since the summary report is designed for monthly viewing.
+        If months are already shown, no switching occurs.
+        """
+        # Auto-switch to month view if currently in week view
+        if self._current_period_type == "week":
+            try:
+                week_month_widget = self.query_one("#reports-date-picker", WeekMonthWidget)
+                week_month_widget.period_type = "month"
+                week_month_widget.update_display()
+                
+                # Update internal state and recalculate period boundaries
+                self._current_period_type = "month"
+                self._update_app_state_period()
+                
+                self.app.log("Auto-switched from week to month view for Summary report")
+            except Exception as e:
+                self.app.log(f"Could not auto-switch to month view: {e}")
+        
+        content_area = self.query_one("#reports-content-area", ScrollableContainer)
+        content_area.remove_children()
+
+        form = AdvReportForm()
+        form.on_mount()
+        content_area.mount(form)
+        self.app.log("Advanced Cost Overview loaded")
 
     def show_content(self, title: str, message: str) -> None:
         """Update the content area with new information."""
@@ -570,3 +617,45 @@ class ReportsScreen(ReactiveScreen):
         # Refresh the current report with new period data
         self._refresh_current_report()
 
+    # key binding action handlers
+    def action_show_overview(self) -> None:
+        """Action handler for 'ctrl+o' key binding.
+
+        Opens the CreateExpenseForm for adding a new expense.
+        Equivalent to clicking the "New" button in the sidebar.
+
+        Side Effects:
+            - Calls show_create_input_form()
+            - Mounts CreateExpenseForm in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+o' pressed - opening Overview")
+        self.show_cost_overview()
+
+    def action_show_summary(self) -> None:
+        """Action handler for 'ctrl+s' key binding.
+
+        Opens the Summary report form.
+        Equivalent to clicking the "Summary" button in the sidebar.
+
+        Side Effects:
+            - Calls show_summary_overview()
+            - Mounts AdvReportForm in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+s' pressed - opening Summary")
+        self.show_summary_overview()
+
+    def action_go_back(self) -> None:
+        """Action handler for 'ctrl+b' key binding.
+
+        Navigates back to the main screen.
+        Equivalent to clicking the "Back" button in the sidebar.
+
+        Side Effects:
+            - Calls _return_to_main_screen()
+            - Pops ReportsScreen from screen stack
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+b' pressed - going back to main screen")
+        self._return_to_main_screen()

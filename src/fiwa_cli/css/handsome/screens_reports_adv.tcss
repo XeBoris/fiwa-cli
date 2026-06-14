@@ -1,0 +1,167 @@
+/* ============================================
+   ADVANCED REPORT (SUMMARY) STYLING
+   File: css/handsome/screens_reports_adv.tcss
+   Component: AdvReportForm
+   ============================================ */
+AdvReportForm {
+
+}
+
+AdvReportForm .report-title {
+    text-style: bold underline;
+    text-align: center;
+    padding: 0 0 0 0;
+    margin: 1 1 1 1;
+    background: $background;
+    color: $text;
+}
+AdvReportForm .date-info {
+    padding: 0 0 0 0;
+    margin: 0 4 1 4;
+    background: $primary 30%;
+    color: $text;
+    border: solid $primary;
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+}
+
+
+AdvReportForm #report-content {
+    width: 100%;
+    scrollbar-size: 4 1;
+}
+
+AdvReportForm TabbedContent {
+    height: auto;
+    margin: 1 0;
+}
+AdvReportForm TabPane {
+    padding: 1;
+}
+
+AdvReportForm DataTable {
+    height: auto;
+    min-height: 5;
+    max-height: 25;
+    border: solid $accent;
+    margin: 0 0 1 0;
+}
+
+AdvReportForm .table-section-title {
+    text-style: bold;
+    padding: 1 0 0 0;
+    margin: 1 0 0 0;
+    color: $accent;
+    text-align: left;
+}
+
+AdvReportForm .subtotal {
+    text-align: right;
+    padding: 0 1;
+    margin: 0 0 1 0;
+    color: $warning;
+    text-style: italic;
+    background: $surface;
+}
+
+AdvReportForm .user-total {
+    text-align: right;
+    padding: 1;
+    margin: 1 0 0 0;
+    color: $success;
+    text-style: bold;
+    background: $surface;
+    border-top: double $accent;
+}
+
+/* ============================================
+   SPENDING TRACKER & ACCOUNT SUMMARY LAYOUT
+   ============================================ */
+
+AdvReportForm .tracker-summary-container {
+    height: auto;
+    width: 100%;
+    margin: 1 0 2 0;
+    padding: 0;
+}
+
+AdvReportForm .tracker-section {
+    width: 60%;
+    height: auto;
+    padding: 1 1 1 1;
+}
+
+AdvReportForm .vertical-separator {
+    width: 1;
+    height: 100%;
+    background: $accent 40%;
+    border-left: solid $accent;
+    margin: 0 0;
+}
+
+AdvReportForm .account-summary-section {
+    width: 50%;
+    height: auto;
+    padding: 1 1 1 1;
+    align: left top;
+}
+
+AdvReportForm .section-subtitle {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 1 0;
+    margin: 0 0 1 0;
+    text-align: left;
+}
+
+AdvReportForm .section-subtitle-small {
+    text-style: bold;
+    color: $accent 80%;
+    padding: 0 0 0 0;
+    margin: 1 0 0 0;
+    text-align: left;
+}
+
+AdvReportForm .account-summary-content {
+    padding: 1;
+    margin: 0;
+    background: $surface;
+    border: solid $primary 50%;
+    color: $text;
+    text-align: left;
+}
+
+AdvReportForm .account-summary-empty {
+    padding: 1;
+    margin: 0;
+    background: $surface;
+    color: $text-muted;
+    text-align: center;
+    text-style: italic;
+}
+
+AdvReportForm .period-totals-content {
+    padding: 1;
+    margin: 0;
+    background: $panel;
+    border: solid $accent 30%;
+    color: $text;
+    text-align: left;
+
+}
+
+AdvReportForm .summary-spacer {
+    height: 1;
+}
+
+AdvReportForm .warning-message {
+    text-align: center;
+    padding: 2;
+    margin: 2 4;
+    background: $warning 20%;
+    color: $warning;
+    border: solid $warning;
+    text-style: bold;
+}
+

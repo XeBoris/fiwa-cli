@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fiwa-cli"
-version = "0.3.1"
+version = "0.3.2"
 description = "Financial Workflow Application CLI"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -30,7 +30,9 @@ dependencies = [
     "pyyaml",
     "numpy",
     "holidays",
-    "babel"
+    "babel",
+    "pandas",
+    "numpy",
 ]
 
 [project.optional-dependencies]
@@ -63,8 +65,8 @@ docs = [
 fiwa = "fiwa_cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/Boris-Bauermeister/fiwa-cli"
-Repository = "https://github.com/Boris-Bauermeister/fiwa-cli"
+Homepage = "https://github.com/XeBoris/fiwa-cli"
+Repository = "https://github.com/XeBoris/fiwa-cli"
 
 [tool.setuptools]
 # Use automatic package discovery with src-layout

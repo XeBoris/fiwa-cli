@@ -80,10 +80,9 @@ class CreateLabelForm(Vertical):
     Form Fields:
         - **Label Name** (required): Descriptive name, max 50 characters
         - **Label Type** (required): Dropdown of available types
-        - **Label Sub-Type**: For hierarchical categorization
+        - **Label Sub-Type**: For hierarchical categorization (only shown for Secondary Labels)
         - **Label Owner**: User or "common" designation
         - **Label Status**: Draft (0), Active (2), or Archived (1)
-        - **Set as Default**: Checkbox to mark as default for this type
 
     Label Types (ExpenseTracker example):
         - Type 0: Balance (sub_types: Asset, Liability, Equity)
@@ -177,6 +176,7 @@ class CreateLabelForm(Vertical):
         self._selected_label_type = None  # Will be set dynamically in compose
         self._selected_label_owner = -1  # Default to common (project-wide)
         self._default_label_type = None  # Store default for reset functionality
+        self._selected_label_sub_type = -1  # Default sub-type
 
     def on_mount(self) -> None:
         load_dynamic_css(self, "screens_settings_label_new.tcss")
@@ -286,14 +286,123 @@ class CreateLabelForm(Vertical):
                     value=self._selected_label_owner,
                     compact=True,
                 )
+
                 # row 3
-                yield Static()
                 yield Static("Label Status: ", classes="form-label")
+                yield Static()
+                yield Static()
+                yield Static("Sub-Type: ", classes="form-label", id="sub-type-label")
+
+                # row 4
                 yield Switch(id="new-label-activated", value=True)
+                yield Static()
+                yield Static()
+                yield Static("", id="sub-type-select-container")
+
+                # row 3
+                # yield Static("Label Status: ", classes="form-label")
+                # yield Switch(id="new-label-activated", value=True)
+                # yield Static("Sub-Type: ", classes="form-label", id="sub-type-label")
+                # # Placeholder for sub-type select - will be populated dynamically
+                # yield Static("", id="sub-type-select-container")
+                #
+                # # row 4
+                # yield Static("test", classes="form-label")
+                # yield Static()
+                # yield Static()
+                # yield Static()
+
+                # row 5
+                # yield Static("test", classes="form-label")
+                # yield Static()
+                # yield Static()
+                # yield Static()
+
 
             with Grid(id="grid-label-create"):
                 yield Button("Create", id="label-create-button")
                 yield Button("Reset", id="label-reset-button")
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle changes to select dropdowns."""
+        if event.select.id == "label-type-select":
+            # Update the selected label type
+            self._selected_label_type = int(event.value)
+            self.app.log(f"Label type changed to: {self._selected_label_type}")
+            
+            # Load and display secondary labels for this type
+            self._update_sub_type_options(self._selected_label_type)
+        
+        elif event.select.id == "label-owner-select":
+            # Update the selected label owner
+            self._selected_label_owner = int(event.value)
+            self.app.log(f"Label owner changed to: {self._selected_label_owner}")
+        
+        elif event.select.id == "sub-type-select":
+            # Update the selected sub-type
+            self._selected_label_sub_type = int(event.value)
+            self.app.log(f"Label sub-type changed to: {self._selected_label_sub_type}")
+
+    def _update_sub_type_options(self, label_type: int) -> None:
+        """Fetch and display sub-type options based on selected label type.
+        
+        Only shows the sub-type dropdown when creating Secondary Labels (type 4).
+        For other label types, the container remains empty.
+        
+        Args:
+            label_type: The selected label type ID
+        """
+        project_id = self.app.app_state.get("project_id", 0)
+        
+        if project_id <= 0:
+            return
+        
+        try:
+            container = self.query_one("#sub-type-select-container")
+            container.remove_children()
+            
+            # Only show sub-type select for Secondary Labels (type 4)
+            if label_type != 4:
+                self.app.log(f"Label type {label_type} is not Secondary Labels - hiding sub-type select")
+                self._selected_label_sub_type = -1  # Reset to default
+                return
+            
+            dbh = self.app._config["dbh"]
+
+            # Fetch all existing secondary labels (label_type = 4 in ExpenseTracker)
+            all_labels = dbh.op_label_get_all(project_id)
+
+            # Filter for secondary labels (type 4)
+            secondary_labels = [
+                label for label in all_labels
+                if label.get("label_type") == 4  # Secondary label type
+            ]
+
+            # Build options list: [(label_name, label_id), ...]
+            sub_type_options = [("None (Default)", -1)]  # Default option
+
+            for label in secondary_labels:
+                label_name = label.get("name", "Unknown")
+                label_id = label.get("label_id", -1)
+                sub_type_options.append((label_name, label_id))
+
+            self.app.log(f"Found {len(secondary_labels)} secondary labels for type {label_type}")
+
+            # Mount new select widget
+            container.mount(
+                Select(
+                    options=sub_type_options,
+                    id="sub-type-select",
+                    value=self._selected_label_sub_type,
+                    compact=True
+                )
+            )
+
+            self.app.log(f"Updated sub-type select with {len(sub_type_options)} options")
+
+        except Exception as e:
+            self.app.log(f"Error updating sub-type select widget: {e}")
+            self.app.notify("Error loading secondary labels", severity="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "label-reset-button":
@@ -321,6 +430,14 @@ class CreateLabelForm(Vertical):
 
             # Reset switch to on (active)
             self.query_one("#new-label-activated", Switch).value = True
+            
+            # Reset sub-type selection
+            self._selected_label_sub_type = -1
+            try:
+                container = self.query_one("#sub-type-select-container")
+                container.remove_children()
+            except Exception:
+                pass  # Container might be empty already
 
             self.app.notify("Form reset successfully", severity="info")
 
@@ -341,9 +458,17 @@ class CreateLabelForm(Vertical):
             description = self.query_one("#new-label-description", Input).value.strip()
             switch_value = self.query_one("#new-label-activated", Switch).value
 
-            # Get label type from select
+            # Get label type from select (main)
             select_label = self.query_one("#label-type-select", Select)
             self._selected_label_type = int(select_label.value)
+
+            # composite:
+            try:
+                composite_label = self.query_one("#sub-type-select", Select)
+                composite_label = int(composite_label.value)
+            except:
+                composite_label = -1  # No sub-type selected or not applicable
+            
 
             # Get label owner from select
             select_owner = self.query_one("#label-owner-select", Select)
@@ -353,6 +478,12 @@ class CreateLabelForm(Vertical):
                 label_status = 2  # Active
             else:
                 label_status = 1  # Inactive
+
+            if composite_label != -1:
+                composite_label = [composite_label]
+                self._selected_label_sub_type = 1    # 1 marks a composite label
+            else:
+                composite_label = []
         except Exception as e:
             self.app.log(f"Error getting input values: {e}")
             self.app.notify("Error reading input fields", severity="error")
@@ -361,7 +492,51 @@ class CreateLabelForm(Vertical):
         if not name:
             self.app.notify("Label name is required", severity="error")
             return
-
+        
+        # Prevent nested composite labels: Check if the selected composite label
+        # itself has a composite label as sub-type. We reject this to avoid
+        # creating long chains of composite labels which complicate the label structure.
+        if composite_label and len(composite_label) > 0:
+            dbh = self.app._config.get("dbh")
+            if dbh:
+                # Get the selected composite label's details
+                selected_composite_id = composite_label[0]
+                project_id = self.app.app_state.get("project_id", 0)
+                all_labels = dbh.op_label_get_all(project_id=project_id, use_cache=False)
+                
+                # Find the selected composite label in all labels
+                selected_label = None
+                for label in all_labels:
+                    if label.get("label_id") == selected_composite_id:
+                        selected_label = label
+                        break
+                
+                # Check if the selected composite label has its own composite
+                if selected_label:
+                    composite_field = selected_label.get("composite", [])
+                    # If composite_field is a string, try to parse it as JSON
+                    if isinstance(composite_field, str):
+                        import json
+                        try:
+                            composite_field = json.loads(composite_field) if composite_field else []
+                        except (json.JSONDecodeError, ValueError):
+                            composite_field = []
+                    
+                    # If the selected label has a composite, reject the creation
+                    if composite_field and len(composite_field) > 0:
+                        self.app.notify(
+                            f"⚠ Cannot use '{selected_label.get('name')}' as composite label: "
+                            "it already has its own composite label. "
+                            "Nested composite labels are not allowed.",
+                            severity="error",
+                            timeout=6
+                        )
+                        self.app.log(
+                            f"Rejected composite label creation: "
+                            f"selected label {selected_composite_id} has composite {composite_field}"
+                        )
+                        return
+        
         # Create label data
         label_data = {
             "name": name,
@@ -369,8 +544,8 @@ class CreateLabelForm(Vertical):
             "label_owner": self._selected_label_owner,
             "label_status": label_status,
             "label_type": self._selected_label_type,
-            "label_sub_type": -1,  # Default sub-type (user cannot choose for now)
-            "composite": [],
+            "label_sub_type": self._selected_label_sub_type,  # Use selected sub-type
+            "composite": composite_label,
         }
 
         # Save to database
@@ -397,3 +572,6 @@ class CreateLabelForm(Vertical):
             self.app.notify(f"Failed to create label: {str(e)}", severity="error")
         except Exception as e:
             self.app.notify(f"Error creating label: {str(e)}", severity="error")
+
+        # reset to standard:
+        self._selected_label_sub_type = 0

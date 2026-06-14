@@ -2,6 +2,11 @@
    REPLICATE EXPENSES VIEW STYLING
    File: css/handsome/screens_inputs_repl_expenses.tcss
    Component: ReplicateExpensesView
+
+   Visual Differentiation System:
+   - Original rows: Normal text, green "Current" status
+   - Updated rows: Dimmed text (via [dim] markup), cyan "→ Next Month" status
+   This helps users distinguish current expenses from projected ones
    ============================================ */
 
 ReplicateExpensesView {
@@ -38,6 +43,7 @@ ReplicateExpensesView .warning-message {
 
 ReplicateExpensesView #replicate-content {
     height: 1fr;
+    overflow-y: auto;  /* Enable vertical scrolling when content exceeds */
 }
 
 ReplicateExpensesView TabbedContent {
@@ -47,22 +53,33 @@ ReplicateExpensesView TabbedContent {
 
 ReplicateExpensesView TabPane {
     padding: 1;
+    height: auto;  /* Allow dynamic height for table content */
 }
 
+/* DataTable sizing: Accommodates doubled entries (original + updated rows)
+   - height: auto - Expands based on content
+   - max-height: 60vh - Never exceeds 60% of screen height
+   - Scrollable when content exceeds max-height */
 ReplicateExpensesView DataTable {
     height: auto;
     min-height: 10;
-    max-height: 30;
+    max-height: 60vh;  /* Max 60% of viewport height - allows doubled entries */
     border: solid $accent;
     margin: 0 0 1 0;
 }
 
-/* Style for updated (new month) rows */
+/* Style for updated (new month) rows - softer highlighting */
 ReplicateExpensesView DataTable > .datatable--cursor {
     background: $primary 20%;
 }
 
-/* Action buttons below each table */
+/* Highlight hover on original rows */
+ReplicateExpensesView DataTable > .datatable--hover {
+    background: $accent 10%;
+}
+
+/* Action buttons below each table
+   Fixed width ensures buttons don't change size during interactions */
 ReplicateExpensesView .action-buttons {
     width: 100%;
     height: auto;
@@ -71,7 +88,8 @@ ReplicateExpensesView .action-buttons {
 }
 
 ReplicateExpensesView .action-buttons Button {
-    width: 25;
+    width: 30;      /* Increased from 25 to fit longer text */
+    min-width: 30;  /* Prevents shrinking */
     height: 3;
     margin: 0 1;
 }
@@ -79,3 +97,5 @@ ReplicateExpensesView .action-buttons Button {
 ReplicateExpensesView .action-buttons Button:hover {
     background: $accent;
 }
+
+

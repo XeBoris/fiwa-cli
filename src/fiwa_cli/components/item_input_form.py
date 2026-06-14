@@ -148,6 +148,7 @@ See Also:
 
 from textual.widgets import Static, Button, Input, Select, Label, SelectionList, Switch, Placeholder
 from textual.containers import Vertical, Horizontal, Grid, ScrollableContainer, Container
+from textual.widgets import TabbedContent, TabPane
 from textual.app import ComposeResult
 from textual.message import Message
 from datetime import datetime
@@ -158,6 +159,8 @@ import re
 from textual import on
 
 from fiwa_cli.functions.loader import load_dynamic_css
+from fiwa_cli.functions.arithmetic import eval_math
+from fiwa_cli.components.calendar_picker import CalendarWidget
 
 # from textual_timepiece.pickers import DatePicker, DateSelect
 # from whenever import Date, days
@@ -165,7 +168,7 @@ from fiwa_cli.functions.loader import load_dynamic_css
 
 def sanitize_string(
     text: str,
-    allowed_chars: str = r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"",
+    allowed_chars: str = r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\"",
     allow_internal_spaces: bool = True,
 ) -> tuple[str, bool]:
     """Sanitize and validate string input by removing invalid characters.
@@ -178,7 +181,7 @@ def sanitize_string(
     Args:
         text: The input string to sanitize
         allowed_chars: Regex character set of allowed characters
-            Default allows: a-z, A-Z, 0-9, spaces, and common punctuation
+            Default allows: a-z, A-Z, 0-9, ä, ö, ü, å (+ capitals), spaces, and common punctuation
             (. , - _ : ; ! ? ( ) [ ] @ # $ % & + = ' ")
         allow_internal_spaces: Whether to allow spaces within the string
             Default: True
@@ -277,6 +280,13 @@ class LabelModalScreen(ModalScreen):
 
     BINDINGS = [
         ("escape", "cancel", "Cancel"),
+        ("B", "switch_to_tab(0)", "Tab 0"),
+        ("T", "switch_to_tab(1)", "Tab 1"),
+        ("A", "switch_to_tab(2)", "Tab 2"),
+        ("M", "switch_to_tab(3)", "Tab 3"),
+        ("S", "switch_to_tab(4)", "Tab 4"),
+        # ("j", "show_tab('jessica')", "Jessica"),
+        # ("p", "show_tab('paul')", "Paul"),
     ]
 
     def __init__(self, project_labels: list, selected_labels: list = None, *args, **kwargs):
@@ -325,8 +335,26 @@ class LabelModalScreen(ModalScreen):
             # Fallback to default
             return {0: "Action", 1: "Account", 2: "Label"}
 
+    def action_switch_to_tab(self, tab_number: int) -> None:
+        """Switch to a tab by its type_id number.
+
+        Args:
+            tab_number: The label type_id (0-4) to switch to
+        """
+        try:
+            # Check if this tab exists in our label_map
+            if tab_number in self.label_map:
+                tab_id = f"tab-{tab_number}"
+                tabbed_content = self.query_one(TabbedContent)
+                tabbed_content.active = tab_id
+                self.app.log(f"Switched to tab: {tab_id} ({self.label_map[tab_number]})")
+            else:
+                self.app.log(f"Tab {tab_number} does not exist in current project")
+        except Exception as e:
+            self.app.log(f"Error switching to tab {tab_number}: {e}")
+
     def compose(self) -> ComposeResult:
-        from textual.widgets import TabbedContent, TabPane
+
 
         with Vertical():
             with Vertical(classes="modal-header"):
@@ -349,15 +377,15 @@ class LabelModalScreen(ModalScreen):
                 for type_id, group_name in sorted(self.label_map.items()):
                     tab_id = f"tab-{type_id}"
                     selection_list_id = f"label-selection-{type_id}"
-
+                    _group_name = f"[bold italic]{group_name[0].upper()}[/bold italic]" + f"{group_name[1:]}"
                     # Create a tab for this label type
-                    with TabPane(group_name, id=tab_id):
+                    with TabPane(_group_name, id=tab_id):
                         if self.labels_by_type.get(type_id):
                             with ScrollableContainer():
                                 yield SelectionList[int](
                                     *[
                                         (
-                                            label["name"],
+                                            label['name'],
                                             label["label_id"],
                                             label["label_id"] in self.selected_labels,
                                         )
@@ -680,6 +708,27 @@ class ItemInputForm(ModalScreen):
         self._item_id = item_data["item_id"] if edit_mode and item_data else None
         self._pending_item_data = None
         self._project_users = []  # Store project users for dynamic updates
+        
+        # Store selected dates for purchased and exchange rate dates
+        if edit_mode and item_data:
+            # Parse dates from item_data for edit mode
+            try:
+                self._selected_bought_date = datetime.strptime(
+                    str(item_data["bought_date"]).split()[0], "%Y-%m-%d"
+                )
+            except (ValueError, KeyError):
+                self._selected_bought_date = datetime.now()
+                
+            try:
+                self._selected_exchange_date = datetime.strptime(
+                    str(item_data["exchange_rate_date"]).split()[0], "%Y-%m-%d"
+                )
+            except (ValueError, KeyError):
+                self._selected_exchange_date = datetime.now()
+        else:
+            # Default to today for create mode
+            self._selected_bought_date = datetime.now()
+            self._selected_exchange_date = datetime.now()
 
         # Load selected labels from item_data in edit mode
         if edit_mode and item_data and item_data.get("tags"):
@@ -793,24 +842,27 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error fetching project users: {e}")
             return []
 
-    def _get_default_labels(self, project_id: int) -> list:
-        """Get default labels for each label type for the current user.
+    def _get_default_labels_for_user(self, project_id: int, for_user_id: int) -> list:
+        """Get default labels for each label type for a specific user.
 
         Returns a list of label IDs for default labels, ordered by type.
         If a type has no default, returns 0 for that position.
+
+        Args:
+            project_id: The project to look up labels for.
+            for_user_id: The user whose preset defaults should be loaded.
 
         Returns:
             List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
         """
         try:
             dbh = self.app._config.get("dbh")
-            user_id = self.app.app_state.get("user_id", -1)
 
-            if not dbh or user_id <= 0:
+            if not dbh or for_user_id <= 0:
                 return []
 
-            # Get user's default labels as a map: {label_type: label_id}
-            defaults_map = dbh.op_label_get_user_defaults(user_id, project_id)
+            # Get the specified user's default labels as a map: {label_type: label_id}
+            defaults_map = dbh.op_label_get_user_defaults(for_user_id, project_id)
 
             # Get ProjectComposer to know which types exist and their order
             from fiwa_cli.functions.project_composer import ProjectComposer
@@ -831,7 +883,7 @@ class ItemInputForm(ModalScreen):
                         default_labels.append(defaults_map.get(type_id, 0))
 
                     self.app.log(
-                        f"Default labels for user {user_id} in project {project_id}: {default_labels}"
+                        f"Default labels for user {for_user_id} in project {project_id}: {default_labels}"
                     )
                     return default_labels
 
@@ -842,8 +894,19 @@ class ItemInputForm(ModalScreen):
             return []
 
         except Exception as e:
-            self.app.log(f"Error fetching default labels: {e}")
+            self.app.log(f"Error fetching default labels for user {for_user_id}: {e}")
             return []
+
+    def _get_default_labels(self, project_id: int) -> list:
+        """Get default labels for each label type for the current logged-in user.
+
+        Delegates to _get_default_labels_for_user using the session user_id.
+
+        Returns:
+            List of label IDs: [balance_id, transaction_id, account_id, main_id, ...]
+        """
+        user_id = self.app.app_state.get("user_id", -1)
+        return self._get_default_labels_for_user(project_id, user_id)
 
     def _get_project_labels(self, project_id: int) -> list:
         """Get all labels for the current project."""
@@ -857,6 +920,78 @@ class ItemInputForm(ModalScreen):
         except Exception as e:
             self.app.log(f"Error fetching project labels: {e}")
             return []
+
+    def _expand_composite_labels(self, label_ids: list, project_labels: list) -> list:
+        """Expand secondary labels to include their composite dependencies.
+        
+        When a user selects a secondary label that has composite labels defined,
+        this method automatically includes those composite labels in the final list.
+        
+        Args:
+            label_ids: List of selected label IDs (e.g., [15, 23])
+            project_labels: List of all project labels with their metadata
+            
+        Returns:
+            Expanded list of label IDs including composites (e.g., [7, 8, 15, 23])
+            
+        Example:
+            User selects label "Weekend Activities" (ID=15)
+            Label 15 has composite = [7, 8] (Sports, Leisure)
+            Result: [7, 8, 15] - both composites and the original label
+            
+        Note:
+            - Prevents duplicates using set
+            - Maintains order: composites first, then selected labels
+            - Handles circular dependencies by not recursing
+        """
+        import json
+        
+        if not label_ids:
+            return []
+        
+        # Build a map for quick label lookup
+        label_map = {label["label_id"]: label for label in project_labels}
+        
+        # Set to track all label IDs (prevents duplicates)
+        expanded_ids_set = set()
+        expanded_ids_ordered = []
+        
+        for label_id in label_ids:
+            # Look up the label
+            label_info = label_map.get(label_id)
+            
+            if label_info:
+                # Get composite field (list of label IDs)
+                composite_raw = label_info.get("composite", "[]")
+                
+                # Parse composite JSON if it's a string
+                if isinstance(composite_raw, str):
+                    try:
+                        composite_ids = json.loads(composite_raw)
+                    except Exception:
+                        composite_ids = []
+                elif isinstance(composite_raw, list):
+                    composite_ids = composite_raw
+                else:
+                    composite_ids = []
+                
+                # Add composite labels first (dependencies)
+                for comp_id in composite_ids:
+                    if comp_id not in expanded_ids_set:
+                        expanded_ids_set.add(comp_id)
+                        expanded_ids_ordered.append(comp_id)
+                
+                # Add the label itself
+                if label_id not in expanded_ids_set:
+                    expanded_ids_set.add(label_id)
+                    expanded_ids_ordered.append(label_id)
+            else:
+                # Label not found in project_labels, but still include it
+                if label_id not in expanded_ids_set:
+                    expanded_ids_set.add(label_id)
+                    expanded_ids_ordered.append(label_id)
+        
+        return expanded_ids_ordered
 
     def _prepare_user_labels(
         self,
@@ -1037,7 +1172,7 @@ class ItemInputForm(ModalScreen):
             yield Input(
                 placeholder="0.00",
                 id="grid-item-price",
-                type="number",
+                type="text",
                 value=str(self._item_data["price"]) if self._edit_mode and self._item_data else "",
             )
             yield Select(
@@ -1050,14 +1185,9 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-currency",
                 allow_blank=False,
             )
-            yield Input(
-                placeholder="YYYY-MM-DD",
-                id="grid-item-bought-date",
-                value=(
-                    str(self._item_data["bought_date"]).split()[0]
-                    if self._edit_mode and self._item_data
-                    else datetime.now().strftime("%Y-%m-%d")
-                ),
+            yield Button(
+                self._selected_bought_date.strftime("%Y-%m-%d"),
+                id="grid-item-bought-date-button",
             )
             yield Select(
                 options=user_options if user_options else [("No users", -1)],
@@ -1069,7 +1199,7 @@ class ItemInputForm(ModalScreen):
                 id="grid-item-bought-by",
                 allow_blank=False,
             )
-            yield Button("🏷️ Labels", id="open-label-modal-button", variant="default", compact=True)
+            yield Button("🏷️ Labels", id="open-label-modal-button")
 
         # Main horizontal layout - different for create vs edit mode
         with Horizontal(id="bought-for-horizontal-wrapper"):
@@ -1138,14 +1268,9 @@ class ItemInputForm(ModalScreen):
                         )
                     with Vertical(classes="field-group"):
                         yield Static("Exchange Rate Date", classes="form-label")
-                        yield Input(
-                            placeholder="YYYY-MM-DD",
-                            id="item-exchange-date",
-                            value=(
-                                str(self._item_data["exchange_rate_date"]).split()[0]
-                                if self._edit_mode and self._item_data
-                                else datetime.now().strftime("%Y-%m-%d")
-                            ),
+                        yield Button(
+                            self._selected_exchange_date.strftime("%Y-%m-%d"),
+                            id="item-exchange-date-button",
                         )
 
                 # Note field
@@ -1171,6 +1296,7 @@ class ItemInputForm(ModalScreen):
                 yield Button("🗑️ Delete", id="delete-button", variant="error")
             yield Button("❌ Cancel", id="cancel-button")
 
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "save-button":
@@ -1184,6 +1310,12 @@ class ItemInputForm(ModalScreen):
         elif event.button.id == "open-label-modal-button":
             # Use run_worker to properly handle push_screen_wait
             self.run_worker(self._open_label_modal())
+        elif event.button.id == "grid-item-bought-date-button":
+            # Open calendar for purchase date
+            self.run_worker(self._open_calendar_for_bought_date())
+        elif event.button.id == "item-exchange-date-button":
+            # Open calendar for exchange rate date
+            self.run_worker(self._open_calendar_for_exchange_date())
 
     async def _open_label_modal(self) -> None:
         """Open the label selection modal and handle the result."""
@@ -1216,14 +1348,81 @@ class ItemInputForm(ModalScreen):
             self.app.log(f"Error opening label modal: {e}")
             # self.app.notify(f"Error: {str(e)}", severity="error")
 
+    async def _open_calendar_for_bought_date(self) -> None:
+        """Open calendar picker for the purchase date field."""
+        try:
+            # Open calendar with current selected date, positioned near the button
+            result = await self.app.push_screen_wait(
+                CalendarWidget(initial_date=self._selected_bought_date)
+            )
+
+            if result:  # User selected a date
+                self._selected_bought_date = result
+                self.app.log(f"Selected purchase date: {result.strftime('%Y-%m-%d')}")
+
+                # Update button label
+                button = self.query_one("#grid-item-bought-date-button", Button)
+                button.label = result.strftime("%Y-%m-%d")
+
+                # Auto-update exchange date to match purchased date if not already set differently
+                # Only update if exchange date is still the default (same as old purchased date)
+                try:
+                    # Auto-update the exchange date to match the new purchased date
+                    self._selected_exchange_date = result
+                    exchange_button = self.query_one("#item-exchange-date-button", Button)
+                    exchange_button.label = result.strftime("%Y-%m-%d")
+                    self.app.log(f"Auto-updated exchange date to match purchased date: {result.strftime('%Y-%m-%d')}")
+                except Exception as e:
+                    self.app.log(f"Could not update exchange date button: {e}")
+
+            else:  # User dismissed without selecting
+                self.app.log("Purchase date selection cancelled")
+
+        except Exception as e:
+            self.app.log(f"Error opening calendar for purchase date: {e}")
+            self.app.notify(f"Error opening calendar: {str(e)}", severity="error")
+
+    async def _open_calendar_for_exchange_date(self) -> None:
+        """Open calendar picker for the exchange rate date field."""
+        try:
+            # Open calendar with current selected date, positioned near the button
+            result = await self.app.push_screen_wait(
+                CalendarWidget(initial_date=self._selected_exchange_date)
+            )
+
+            if result:  # User selected a date
+                self._selected_exchange_date = result
+                self.app.log(f"Selected exchange rate date: {result.strftime('%Y-%m-%d')}")
+
+                # Update button label
+                button = self.query_one("#item-exchange-date-button", Button)
+                button.label = result.strftime("%Y-%m-%d")
+
+            else:  # User dismissed without selecting
+                self.app.log("Exchange rate date selection cancelled")
+
+        except Exception as e:
+            self.app.log(f"Error opening calendar for exchange date: {e}")
+            self.app.notify(f"Error opening calendar: {str(e)}", severity="error")
+
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle select widget changes."""
         if event.select.id == "grid-item-bought-by":
             # User changed the "bought by" selection
             selected_user_id = event.value
+
             # Only update bought-for section if not in edit mode (section doesn't exist in edit mode)
             if not self._edit_mode:
                 self._update_bought_for_section(selected_user_id)
+
+            # Auto-load the selected user's preset/default labels so they appear
+            # pre-checked when the user opens the LabelModalScreen.
+            self._apply_user_default_labels(selected_user_id)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input widget changes."""
+        # No longer handle date input changes since dates are now selected via calendar picker
+        pass
 
     def _update_bought_for_section(self, selected_bought_by_id: int) -> None:
         """Update the 'Bought For' section when bought_by user changes.
@@ -1285,6 +1484,45 @@ class ItemInputForm(ModalScreen):
 
         self.app.log(f"✓ Successfully updated bought-for section with {user_count} users")
 
+    def _apply_user_default_labels(self, for_user_id: int) -> None:
+        """Load and apply the preset/default labels for the given user.
+
+        Called whenever the "Bought By" dropdown changes.  The loaded IDs are
+        stored in ``self._selected_label_ids`` so that when the user opens the
+        LabelModalScreen those labels are already pre-checked.  The label
+        button text is updated to reflect the pre-selection count.
+
+        If the user has no preset labels configured, the current selection is
+        cleared so stale labels from a previously selected user are not kept.
+
+        Args:
+            for_user_id: user_id of the person selected in the "Bought By" field.
+        """
+        try:
+            project_id = self.app.app_state.get("project_id", 0)
+            default_labels = self._get_default_labels_for_user(project_id, for_user_id)
+
+            # Filter out placeholder 0-entries; keep real label IDs only
+            active_defaults = [lid for lid in default_labels if lid and lid > 0]
+
+            self._selected_label_ids = active_defaults
+            self.app.log(
+                f"Auto-applied default labels for user {for_user_id}: {active_defaults}"
+            )
+
+            # Update the label button to reflect the new pre-selection
+            try:
+                button = self.query_one("#open-label-modal-button", Button)
+                if active_defaults:
+                    button.label = f"🏷️ Labels ({len(active_defaults)}) ★"
+                else:
+                    button.label = "🏷️ Labels"
+            except Exception as e:
+                self.app.log(f"Could not update label button after user change: {e}")
+
+        except Exception as e:
+            self.app.log(f"Error applying default labels for user {for_user_id}: {e}")
+
     def action_dismiss_form(self) -> None:
         """Action called when ESC is pressed - dismiss form without saving."""
         self.dismiss()
@@ -1301,21 +1539,23 @@ class ItemInputForm(ModalScreen):
             name = self.query_one("#grid-item-name", Input).value.strip()
             price = self.query_one("#grid-item-price", Input).value.strip()
             currency = self.query_one("#grid-item-currency", Select).value
-            bought_date = self.query_one("#grid-item-bought-date", Input).value.strip()
+            # Use the stored selected date instead of Input field
+            bought_date = self._selected_bought_date.strftime("%Y-%m-%d")
             bought_by_id = self.query_one("#grid-item-bought-by", Select).value
 
             # Get exchange rate and date from input fields (correct IDs: item-exchange-*, not grid-item-exchange-*)
             exchange_rate_input = self.query_one("#item-exchange-rate", Input).value.strip()
-            exchange_date_input = self.query_one("#item-exchange-date", Input).value.strip()
+            # Use the stored selected exchange date instead of Input field
+            exchange_date_input = self._selected_exchange_date.strftime("%Y-%m-%d")
             note = self.query_one("#item-note", Input).value.strip()
 
             # Sanitize name and note to remove invalid characters and trim spaces
-            # Allow alphanumeric, spaces, and common punctuation
+            # Allow alphanumeric, spaces, common punctuation, and international characters (ä, ö, ü, å, etc.)
             name, name_modified = sanitize_string(
-                name, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+                name, allowed_chars=r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
             )
             note, note_modified = sanitize_string(
-                note, allowed_chars=r"a-zA-Z0-9\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
+                note, allowed_chars=r"a-zA-Z0-9äöüåÄÖÜÅ\s\.\,\-\_\:\;\!\?\(\)\[\]\@\#\$\%\&\+\=\'\""
             )
 
             # Notify user if their input was modified
@@ -1415,8 +1655,19 @@ class ItemInputForm(ModalScreen):
                 self.app.notify("'Bought By' user is required", severity="error")
                 return
 
-            # Convert price
-            price_float = float(price)
+            # Convert price using eval_math to support mathematical expressions
+            # Examples: "=100+50", "=20*5", "123,45"
+            try:
+                price_float = eval_math(price)
+            except (SyntaxError, ValueError, ImportError) as e:
+                self.app.notify(
+                    f"Invalid price: {str(e)}\n"
+                    f"Enter a number (e.g., '123.45'), "
+                    f"European format (e.g., '123,45'), "
+                    f"or math expression (e.g., '=100+50')",
+                    severity="error",
+                )
+                return
 
             price_final = price_float * exchange_rate_float
             currency_final = currency_main
@@ -1575,8 +1826,11 @@ class ItemInputForm(ModalScreen):
                         # Clear the pending data
                         self._pending_item_data = None
 
-                        # Clear the form for next entry
-                        self._clear_form()
+                        # We comment this section out since it was annoying for the user to
+                        # re-type certain elements again and again when costs were almost identical (e.g., same name, price, labels)
+                        # they can just edit the existing data in the form if they want to create a similar transaction
+                        ## Clear the form for next entry
+                        #self._clear_form()
 
                         # Generate new UUID
                         self._item_uuid = str(uuid.uuid4())
@@ -1630,6 +1884,9 @@ class ItemInputForm(ModalScreen):
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
+            # Get project labels for composite label expansion
+            project_labels = self._get_project_labels(project_id)
+
             # Keep track of created item IDs
             created_item_ids = []
 
@@ -1649,7 +1906,8 @@ class ItemInputForm(ModalScreen):
                     "item_uuid": item_data["item_uuid"],
                     "name": item_data["name"],
                     "note": item_data.get("note", ""),
-                    "price": original_price_share,  # Split original price by percentage
+                    "price": original_price_share  # Split original price by percentage
+                    ,
                     "price_final": share_amount,  # Split final converted price by percentage
                     "currency": item_data["currency"],
                     "currency_final": item_data["currency_final"],
@@ -1669,16 +1927,24 @@ class ItemInputForm(ModalScreen):
                 if pc and user_labels:
                     # For now, store the labels in their respective positions
                     # Position: 0=balance, 1=transaction, 2=account, 3=main, 4+=secondary
+                    secondary_label_ids = user_labels[4:] if len(user_labels) > 4 else []
+                    
+                    # Expand secondary labels: if a label has composite labels, include them too
+                    expanded_secondary = self._expand_composite_labels(
+                        secondary_label_ids, project_labels
+                    )
+                    
                     tags_dict = {
                         "c": user_labels[0] if len(user_labels) > 0 else 0,
                         "t": user_labels[1] if len(user_labels) > 1 else 0,
                         "b": user_labels[2] if len(user_labels) > 2 else 0,
                         "m": user_labels[3] if len(user_labels) > 3 else 0,
-                        "s": user_labels[4:] if len(user_labels) > 4 else [],
+                        "s": expanded_secondary,  # Use expanded list
                     }
                     db_item_data["tags"] = pc.build_tags_string(tags_dict)
                     self.app.log(
-                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict}"
+                        f"Built tag string for {username}: {db_item_data['tags']} from dict: {tags_dict} "
+                        f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
                     )
                 else:
                     # Fallback: empty tag string
@@ -1747,18 +2013,31 @@ class ItemInputForm(ModalScreen):
                 self.app.log(f"Error creating ProjectComposer: {e}")
                 pc = None
 
+            # Get project labels for composite label expansion
+            project_labels = self._get_project_labels(project_id)
+
             # Convert tags to proper string format using ProjectComposer
             if pc and item_data["tags"]:
                 # For now, store the main label in position 'm' (position 3)
+                secondary_label_ids = item_data["tags"][4:] if len(item_data["tags"]) > 4 else []
+                
+                # Expand secondary labels: if a label has composite labels, include them too
+                expanded_secondary = self._expand_composite_labels(
+                    secondary_label_ids, project_labels
+                )
+                
                 tags_dict = {
                     "c": item_data["tags"][0] if len(item_data["tags"]) > 0 else 0,
                     "t": item_data["tags"][1] if len(item_data["tags"]) > 1 else 0,
                     "b": item_data["tags"][2] if len(item_data["tags"]) > 2 else 0,
                     "m": item_data["tags"][3] if len(item_data["tags"]) > 3 else 0,
-                    "s": item_data["tags"][4:] if len(item_data["tags"]) > 4 else [],
+                    "s": expanded_secondary,  # Use expanded list
                 }
                 tags_string = pc.build_tags_string(tags_dict)
-                self.app.log(f"Built tag string for update: {tags_string} from dict: {tags_dict}")
+                self.app.log(
+                    f"Built tag string for update: {tags_string} from dict: {tags_dict} "
+                    f"(expanded from {len(secondary_label_ids)} to {len(expanded_secondary)} secondary labels)"
+                )
             else:
                 # Fallback: empty tag string
                 tags_string = "0_0_0_0_[]"
@@ -1875,49 +2154,60 @@ class ItemInputForm(ModalScreen):
             # Clear main input fields (correct IDs: grid-item-*, not item-*)
             self.query_one("#grid-item-name", Input).value = ""
             self.query_one("#grid-item-price", Input).value = ""
-            self.query_one("#grid-item-currency", Select).value = currency_main
-            self.query_one("#grid-item-bought-date", Input).value = datetime.now().strftime(
-                "%Y-%m-%d"
-            )
+            #self.query_one("#grid-item-currency", Select).value = currency_main              # Don't reset currency to default, let it stay as last selected for convenience
+            
+            # Reset date buttons to today
+            today = datetime.now()
+            self._selected_bought_date = today
+            self._selected_exchange_date = today
+            
+            try:
+                bought_date_button = self.query_one("#grid-item-bought-date-button", Button)
+                bought_date_button.label = today.strftime("%Y-%m-%d")
+            except Exception as e:
+                self.app.log(f"Error resetting purchased date button: {e}")
+            
+            try:
+                exchange_date_button = self.query_one("#item-exchange-date-button", Button)
+                exchange_date_button.label = today.strftime("%Y-%m-%d")
+            except Exception as e:
+                self.app.log(f"Error resetting exchange date button: {e}")
 
             # Clear additional fields
             self.query_one("#item-note", Input).value = ""
-            self.query_one("#item-exchange-rate", Input).value = "1.0"
-            self.query_one("#item-exchange-date", Input).value = datetime.now().strftime("%Y-%m-%d")
+            #self.query_one("#item-exchange-rate", Input).value = "1.0"
 
             # Reset bought-by select field to current user if available
-            try:
-                project_users = self._get_project_users(project_id)
-                if project_users:
-                    default_user = user_id if user_id > 0 else project_users[0]["user_id"]
-                    self.query_one("#grid-item-bought-by", Select).value = default_user
-
-                    # Clear cost-sharing fields (only in create mode)
-                    if not self._edit_mode:
-                        for user in project_users:
-                            try:
-                                share_input = self.query_one(f"#share-{user['user_id']}", Input)
-                                # Reset to default: 100% for bought_by user, 0% for others
-                                if user["user_id"] == default_user:
-                                    share_input.value = "100"
-                                else:
-                                    share_input.value = "0"
-                            except Exception:
-                                pass  # Field might not exist
-            except Exception as e:
-                self.app.log(f"Error resetting user fields: {e}")
+            # try:
+            #     project_users = self._get_project_users(project_id)
+            #     if project_users:
+            #         default_user = user_id if user_id > 0 else project_users[0]["user_id"]
+            #         self.query_one("#grid-item-bought-by", Select).value = default_user
+            #
+            #         # Clear cost-sharing fields (only in create mode)
+            #         if not self._edit_mode:
+            #             for user in project_users:
+            #                 try:
+            #                     share_input = self.query_one(f"#share-{user['user_id']}", Input)
+            #                     # Reset to default: 100% for bought_by user, 0% for others
+            #                     if user["user_id"] == default_user:
+            #                         share_input.value = "100"
+            #                     else:
+            #                         share_input.value = "0"
+            #                 except Exception:
+            #                     pass  # Field might not exist
+            # except Exception as e:
+            #     self.app.log(f"Error resetting user fields: {e}")
 
             # Clear label selections
-            try:
-                labels_widget = self.query_one("#item-labels", SelectionList)
-                labels_widget.deselect_all()
-            except Exception:
-                pass
-
-            # Generate new UUID for next item
+            # try:
+            #     labels_widget = self.query_one("#item-labels", SelectionList)
+            #     labels_widget.deselect_all()
+            # except Exception:
+            #     pass            # Generate new UUID for next item
             self._item_uuid = str(uuid.uuid4())
 
-            self.app.notify("✓ Form cleared", severity="info")
+            #self.app.notify("✓ Form cleared", severity="info")
 
         except Exception as e:
             self.app.log(f"Error clearing form: {e}")

@@ -92,6 +92,12 @@ class InputsScreen(ReactiveScreen):
         _current_month (int): Currently selected month (1-12)
         _month_start (int): Day of month for period boundaries (from project_store)
 
+    Key Bindings:
+        n: Open New expense form (same as clicking "New" button)
+        e: Open Edit expense view (same as clicking "Edit" button)
+        b or ctrl+b: Go back to main screen (same as clicking "Back" button)
+        escape: Return to main screen
+
     Layout Structure:
         Container (container-body)
         ├── ScrollableContainer (container-sidebar)
@@ -201,6 +207,12 @@ class InputsScreen(ReactiveScreen):
         components.item_input_form.ItemInputForm: Core input widget
         components.week_month_picker.WeekMonthWidget: Period selector
     """
+
+    BINDINGS = [
+        ("ctrl+n", "new_expense", "New Expense"),
+        ("ctrl+e", "edit_expense", "Edit Expenses"),
+        ("ctrl+b", "go_back", "Go Back"),
+    ]
 
     def __init__(self, *args, **kwargs):
         """Initialize the inputs screen.
@@ -621,3 +633,46 @@ class InputsScreen(ReactiveScreen):
             header.project_ids = self.app.app_state["project_ids"]
         except Exception as e:
             self.app.log(f"Error updating header: {e}")
+
+    # key binding action handlers
+    def action_new_expense(self) -> None:
+        """Action handler for 'ctrl+n' key binding.
+
+        Opens the CreateExpenseForm for adding a new expense.
+        Equivalent to clicking the "New" button in the sidebar.
+
+        Side Effects:
+            - Calls show_create_input_form()
+            - Mounts CreateExpenseForm in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+n' pressed - opening New expense form")
+        self.show_create_input_form()
+
+    def action_edit_expense(self) -> None:
+        """Action handler for 'ctrl+e' key binding.
+
+        Opens the EditExpenseView for viewing and editing expenses.
+        Equivalent to clicking the "Edit" button in the sidebar.
+
+        Side Effects:
+            - Calls show_edit_expense_view()
+            - Mounts EditExpenseView in content area
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+e' pressed - opening Edit expense view")
+        self.show_edit_expense_view()
+
+    def action_go_back(self) -> None:
+        """Action handler for 'B' key binding.
+
+        Returns to the main screen by popping the current screen.
+        Equivalent to clicking the "Back" button in the sidebar.
+
+        Side Effects:
+            - Calls _return_to_main_screen()
+            - Pops current screen from stack
+            - Logs key action
+        """
+        self.app.log("Key binding 'ctrl+b' pressed - returning to main screen")
+        self._return_to_main_screen()

@@ -2,27 +2,46 @@
 name: Publish to PyPI
 
 on:
-  push:
-    tags:
-      - 'l*'  # Trigger on release tags like l0.3.0, l1.0.0, etc.
-  workflow_dispatch:  # Allow manual triggering
+  release:
+    types:
+      - published  # Trigger only when a GitHub Release is published (tag-based)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  validate-release-tag:
+    name: Validate release tag format
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.tag_check.outputs.should_run }}
+    steps:
+    - name: Check release tag pattern
+      id: tag_check
+      run: |
+        TAG="${{ github.event.release.tag_name }}"
+        if [[ "$TAG" =~ ^l[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "Tag '$TAG' matches required format lX.X.X"
+        else
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
+          echo "Tag '$TAG' does not match required format lX.X.X"
+        fi
+
   build-and-publish:
     name: Build and Publish to PyPI
+    needs: validate-release-tag
+    if: ${{ needs.validate-release-tag.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required for creating releases
       id-token: write  # Required for trusted publishing (optional)
 
     steps:
-    - name: Checkout prod-local-only branch
+    - name: Checkout released tag
       uses: actions/checkout@v4
       with:
-        ref: prod-local-only
+        ref: ${{ github.event.release.tag_name }}
         fetch-depth: 0  # Fetch all history to access tags
 
     - name: Set up Python 3.12
@@ -133,51 +152,19 @@ jobs:
           echo "Install with: pip install fiwa-cli"
         fi
 
-    - name: Create GitHub Release
-      if: success()
-      uses: ncipollo/release-action@v1
-      with:
-        tag: l${{ steps.get_version.outputs.version }}
-        name: Release v${{ steps.get_version.outputs.version }}
-        body: |
-          ## FiWa CLI v${{ steps.get_version.outputs.version }}
-          
-          This release has been automatically published to PyPI.
-          
-          ### Installation
-          ```bash
-          pip install fiwa-cli==${{ steps.get_version.outputs.version }}
-          ```
-          
-          ### Verify Installation
-          ```bash
-          fiwa --version
-          ```
-          
-          ### Changes
-          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/prod-local-only/CHANGELOG.md) for details.
-          
-          ### Documentation
-          - [Online Documentation](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
-          - [PyPI Project Page](https://pypi.org/project/fiwa-cli/)
-        draft: false
-        prerelease: false
-        artifacts: "dist/*"
-        token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Summary
       if: always()
       run: |
         echo "========================================="
         echo "PyPI Publication Complete"
         echo "========================================="
-        echo "Branch: prod-local-only"
+        echo "Release tag: ${{ github.event.release.tag_name }}"
         echo "Version: ${{ steps.get_version.outputs.version }}"
         echo ""
         echo "✓ Package built and published to PyPI"
-        echo "✓ GitHub release created"
+        echo "✓ Triggered from published GitHub Release"
         echo ""
         echo "Next steps:"
         echo "  1. Verify package on PyPI: https://pypi.org/project/fiwa-cli/"
         echo "  2. Test installation: pip install fiwa-cli"
-        echo "  3. Merge prod-local-only back to main if successful"
+        echo "  3. Verify release assets and notes on GitHub"

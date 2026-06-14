@@ -28,6 +28,14 @@ fiwa\_cli.components.item\_input\_form module
    :show-inheritance:
    :undoc-members:
 
+fiwa\_cli.components.spending\_tracker module
+---------------------------------------------
+
+.. automodule:: fiwa_cli.components.spending_tracker
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 fiwa\_cli.components.time\_display module
 -----------------------------------------
 
